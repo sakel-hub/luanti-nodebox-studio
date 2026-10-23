@@ -1,0 +1,60 @@
+<div class="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+  <!-- Top App Navigation & Actions -->
+  <app-header (openPresets)="showPresetsModal.set(true)" />
+
+  <!-- Main Center Workspace Grid -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Left Panel: Box Layers & Hierarchy -->
+    <aside class="w-72 flex-shrink-0 h-full overflow-hidden">
+      <app-layer-list />
+    </aside>
+
+    <!-- Center Panel: Babylon.js 3D Viewport -->
+    <main class="flex-1 h-full min-w-0 relative">
+      <app-viewport />
+    </main>
+
+    <!-- Right Panel: Inspector & Texture Studio -->
+    <aside class="w-80 flex-shrink-0 h-full flex flex-col bg-slate-900 border-l border-slate-800 overflow-hidden">
+      <!-- Right Sidebar Tab Bar -->
+      <div class="h-9 bg-slate-950 flex border-b border-slate-800 text-xs px-2">
+        <button
+          (click)="activeRightTab.set('inspector')"
+          [class.border-b-2]="activeRightTab() === 'inspector'"
+          [class.border-sky-500]="activeRightTab() === 'inspector'"
+          [class.text-sky-400]="activeRightTab() === 'inspector'"
+          [class.text-slate-400]="activeRightTab() !== 'inspector'"
+          class="flex-1 font-semibold flex items-center justify-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Coordinates
+        </button>
+        <button
+          (click)="activeRightTab.set('textures')"
+          [class.border-b-2]="activeRightTab() === 'textures'"
+          [class.border-sky-500]="activeRightTab() === 'textures'"
+          [class.text-sky-400]="activeRightTab() === 'textures'"
+          [class.text-slate-400]="activeRightTab() !== 'textures'"
+          class="flex-1 font-semibold flex items-center justify-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Textures
+        </button>
+      </div>
+
+      <!-- Right Tab Content -->
+      <div class="flex-1 overflow-hidden">
+        <app-box-inspector *ngIf="activeRightTab() === 'inspector'" />
+        <app-texture-studio *ngIf="activeRightTab() === 'textures'" />
+      </div>
+    </aside>
+  </div>
+
+  <!-- Bottom Panel: Collapsible Lua Code Generator & Mod Importer -->
+  <app-code-drawer />
+
+  <!-- Presets Modal Dialog -->
+  <app-presets-dialog *ngIf="showPresetsModal()" (close)="showPresetsModal.set(false)" />
+</div>
