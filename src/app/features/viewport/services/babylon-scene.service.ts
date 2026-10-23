@@ -44,6 +44,8 @@ export class BabylonSceneService {
   private gridMesh: Mesh | null = null;
   private materialCache = new Map<string, StandardMaterial>();
   private textureCache = new Map<string, Texture>();
+  private dragInitialBox: Box | null = null;
+  private dragInitialPos: Vector3 = new Vector3();
 
   public viewportMode: ViewportMode = 'textured';
   public gizmoMode: GizmoMode = 'position';
