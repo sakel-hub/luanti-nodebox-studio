@@ -106,6 +106,14 @@ import { ProjectStore } from '../../core/state/project.store';
             Scale
           </button>
           <button
+            (click)="setGizmo('rotation')"
+            [class.bg-emerald-600]="sceneService.gizmoMode === 'rotation'"
+            [class.text-white]="sceneService.gizmoMode === 'rotation'"
+            title="Rotate Gizmo (Snapped to 90° Luanti Angles)"
+            class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
+            Rotate (90°)
+          </button>
+          <button
             (click)="setGizmo('none')"
             [class.bg-slate-700]="sceneService.gizmoMode === 'none'"
             class="px-2 py-1 rounded hover:bg-slate-800 text-slate-400 transition">

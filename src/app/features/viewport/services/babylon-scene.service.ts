@@ -24,7 +24,7 @@ import { TextureService } from '../../../core/services/texture.service';
 
 export type CameraPreset = 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 export type ViewportMode = 'textured' | 'colored' | 'wireframe';
-export type GizmoMode = 'none' | 'position' | 'scale';
+export type GizmoMode = 'none' | 'position' | 'scale' | 'rotation';
 
 @Injectable({
   providedIn: 'root'
@@ -38,14 +38,17 @@ export class BabylonSceneService {
   private scene: Scene | null = null;
   private camera: ArcRotateCamera | null = null;
   private gizmoManager: GizmoManager | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   private boxMeshes = new Map<string, Mesh>();
   private cageMesh: LinesMesh | null = null;
   private gridMesh: Mesh | null = null;
   private materialCache = new Map<string, StandardMaterial>();
   private textureCache = new Map<string, Texture>();
+
   private dragInitialBox: Box | null = null;
   private dragInitialPos: Vector3 = new Vector3();
+  private dragInitialScale: Vector3 = new Vector3();
 
   public viewportMode: ViewportMode = 'textured';
   public gizmoMode: GizmoMode = 'position';
@@ -54,7 +57,8 @@ export class BabylonSceneService {
 
   public initialize(canvas: HTMLCanvasElement): void {
     this.zone.runOutsideAngular(() => {
-      this.engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+      // 4th parameter adaptToDeviceRatio=true fixes Retina/HighDPI pointer offset
+      this.engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true }, true);
       this.scene = new Scene(this.engine);
       this.scene.clearColor = new Color4(0.06, 0.09, 0.16, 1.0); // Deep slate background
 
@@ -99,7 +103,12 @@ export class BabylonSceneService {
         }
       });
 
-      // Resize listener
+      // Continuous Resize Observer guarantees accurate canvas dimensions and pointer raycasting
+      this.resizeObserver = new ResizeObserver(() => {
+        this.engine?.resize();
+      });
+      this.resizeObserver.observe(canvas);
+
       window.addEventListener('resize', this.onResize);
     });
   }
@@ -178,6 +187,82 @@ export class BabylonSceneService {
 
     this.gizmoManager = new GizmoManager(this.scene);
     this.gizmoManager.usePointerToAttachGizmos = false;
+
+    // Enable position, scale, and rotation gizmo instances so listeners are attached ONCE
+    this.gizmoManager.positionGizmoEnabled = true;
+    this.gizmoManager.scaleGizmoEnabled = true;
+    this.gizmoManager.rotationGizmoEnabled = true;
+
+    // 1. Position Gizmo
+    const posGizmo = this.gizmoManager.gizmos.positionGizmo;
+    if (posGizmo) {
+      posGizmo.scaleRatio = 1.1;
+      const handlePosDragStart = () => {
+        const selectedId = this.projectStore.selectedBoxId();
+        const box = selectedId ? this.projectStore.project().boxes.find(b => b.id === selectedId) : null;
+        const mesh = selectedId ? this.boxMeshes.get(selectedId) : null;
+        if (box && mesh) {
+          this.dragInitialBox = { ...box };
+          this.dragInitialPos.copyFrom(mesh.position);
+        }
+      };
+
+      const handlePosDragEnd = () => {
+        this.onPositionGizmoDragEnd();
+      };
+
+      posGizmo.xGizmo.dragBehavior.onDragStartObservable.add(handlePosDragStart);
+      posGizmo.yGizmo.dragBehavior.onDragStartObservable.add(handlePosDragStart);
+      posGizmo.zGizmo.dragBehavior.onDragStartObservable.add(handlePosDragStart);
+
+      posGizmo.xGizmo.dragBehavior.onDragEndObservable.add(handlePosDragEnd);
+      posGizmo.yGizmo.dragBehavior.onDragEndObservable.add(handlePosDragEnd);
+      posGizmo.zGizmo.dragBehavior.onDragEndObservable.add(handlePosDragEnd);
+    }
+
+    // 2. Scale Gizmo (3 clean axes, no diagonal rotation clutter)
+    const scaleGizmo = this.gizmoManager.gizmos.scaleGizmo;
+    if (scaleGizmo) {
+      scaleGizmo.scaleRatio = 1.1;
+      if (scaleGizmo.uniformScaleGizmo) {
+        scaleGizmo.uniformScaleGizmo.isEnabled = false;
+      }
+
+      const handleScaleDragStart = () => {
+        const selectedId = this.projectStore.selectedBoxId();
+        const box = selectedId ? this.projectStore.project().boxes.find(b => b.id === selectedId) : null;
+        const mesh = selectedId ? this.boxMeshes.get(selectedId) : null;
+        if (box && mesh) {
+          this.dragInitialBox = { ...box };
+          this.dragInitialScale.copyFrom(mesh.scaling);
+        }
+      };
+
+      const handleScaleDragEnd = () => {
+        this.onScaleGizmoDragEnd();
+      };
+
+      scaleGizmo.xGizmo.dragBehavior.onDragStartObservable.add(handleScaleDragStart);
+      scaleGizmo.yGizmo.dragBehavior.onDragStartObservable.add(handleScaleDragStart);
+      scaleGizmo.zGizmo.dragBehavior.onDragStartObservable.add(handleScaleDragStart);
+
+      scaleGizmo.xGizmo.dragBehavior.onDragEndObservable.add(handleScaleDragEnd);
+      scaleGizmo.yGizmo.dragBehavior.onDragEndObservable.add(handleScaleDragEnd);
+      scaleGizmo.zGizmo.dragBehavior.onDragEndObservable.add(handleScaleDragEnd);
+    }
+
+    // 3. Rotation Gizmo (strictly snapped to 90 degree increments!)
+    const rotGizmo = this.gizmoManager.gizmos.rotationGizmo;
+    if (rotGizmo) {
+      rotGizmo.scaleRatio = 1.1;
+      rotGizmo.snapDistance = Math.PI / 2; // Exact 90 degree step!
+      rotGizmo.updateGizmoRotationToMatchAttachedMesh = false;
+
+      rotGizmo.xGizmo.dragBehavior.onDragEndObservable.add(() => this.onRotationGizmoDragEnd('x'));
+      rotGizmo.yGizmo.dragBehavior.onDragEndObservable.add(() => this.onRotationGizmoDragEnd('y'));
+      rotGizmo.zGizmo.dragBehavior.onDragEndObservable.add(() => this.onRotationGizmoDragEnd('z'));
+    }
+
     this.updateGizmoState();
   }
 
@@ -188,58 +273,143 @@ export class BabylonSceneService {
     const selectedMesh = selectedId ? this.boxMeshes.get(selectedId) : null;
 
     this.gizmoManager.positionGizmoEnabled = this.gizmoMode === 'position' && !!selectedMesh;
-    this.gizmoManager.boundingBoxGizmoEnabled = this.gizmoMode === 'scale' && !!selectedMesh;
+    this.gizmoManager.scaleGizmoEnabled = this.gizmoMode === 'scale' && !!selectedMesh;
+    this.gizmoManager.rotationGizmoEnabled = this.gizmoMode === 'rotation' && !!selectedMesh;
+    this.gizmoManager.boundingBoxGizmoEnabled = false;
 
     if (selectedMesh) {
       this.gizmoManager.attachToMesh(selectedMesh);
 
       // Configure snapping to current grid resolution
       const res = this.projectStore.project().snapResolution;
-      const snapDist = 1 / res;
-
       if (this.gizmoManager.gizmos.positionGizmo) {
-        this.gizmoManager.gizmos.positionGizmo.snapDistance = snapDist;
-        this.gizmoManager.gizmos.positionGizmo.xGizmo.dragBehavior.onDragEndObservable.add(() =>
-          this.syncMeshTransformToStore(selectedId!)
-        );
-        this.gizmoManager.gizmos.positionGizmo.yGizmo.dragBehavior.onDragEndObservable.add(() =>
-          this.syncMeshTransformToStore(selectedId!)
-        );
-        this.gizmoManager.gizmos.positionGizmo.zGizmo.dragBehavior.onDragEndObservable.add(() =>
-          this.syncMeshTransformToStore(selectedId!)
-        );
+        this.gizmoManager.gizmos.positionGizmo.snapDistance = 1 / res;
+      }
+      if (this.gizmoManager.gizmos.scaleGizmo) {
+        this.gizmoManager.gizmos.scaleGizmo.snapDistance = 1 / res;
+      }
+      if (this.gizmoManager.gizmos.rotationGizmo) {
+        this.gizmoManager.gizmos.rotationGizmo.snapDistance = Math.PI / 2;
+        this.gizmoManager.gizmos.rotationGizmo.updateGizmoRotationToMatchAttachedMesh = false;
       }
     } else {
       this.gizmoManager.attachToMesh(null);
     }
   }
 
-  private syncMeshTransformToStore(boxId: string): void {
-    const mesh = this.boxMeshes.get(boxId);
-    const box = this.projectStore.project().boxes.find(b => b.id === boxId);
-    if (!mesh || !box) return;
+  private onPositionGizmoDragEnd(): void {
+    const selectedId = this.projectStore.selectedBoxId();
+    if (!selectedId || !this.dragInitialBox) return;
+
+    const mesh = this.boxMeshes.get(selectedId);
+    if (!mesh) return;
 
     const res = this.projectStore.project().snapResolution;
     const snap = (v: number) => Math.round(v * res) / res;
 
-    const width = box.maxX - box.minX;
-    const height = box.maxY - box.minY;
-    const depth = box.maxZ - box.minZ;
+    // Delta movement snapped to grid resolution
+    const deltaX = snap(mesh.position.x - this.dragInitialPos.x);
+    const deltaY = snap(mesh.position.y - this.dragInitialPos.y);
+    const deltaZ = snap(mesh.position.z - this.dragInitialPos.z);
 
-    const newCenterX = snap(mesh.position.x);
-    const newCenterY = snap(mesh.position.y);
-    const newCenterZ = snap(mesh.position.z);
-
+    const init = this.dragInitialBox;
     this.zone.run(() => {
-      this.projectStore.updateBox(boxId, {
-        minX: snap(newCenterX - width / 2),
-        maxX: snap(newCenterX + width / 2),
-        minY: snap(newCenterY - height / 2),
-        maxY: snap(newCenterY + height / 2),
-        minZ: snap(newCenterZ - depth / 2),
-        maxZ: snap(newCenterZ + depth / 2)
+      this.projectStore.updateBox(selectedId, {
+        minX: snap(init.minX + deltaX),
+        maxX: snap(init.maxX + deltaX),
+        minY: snap(init.minY + deltaY),
+        maxY: snap(init.maxY + deltaY),
+        minZ: snap(init.minZ + deltaZ),
+        maxZ: snap(init.maxZ + deltaZ)
       });
     });
+
+    this.dragInitialBox = null;
+  }
+
+  private onScaleGizmoDragEnd(): void {
+    const selectedId = this.projectStore.selectedBoxId();
+    if (!selectedId || !this.dragInitialBox) return;
+
+    const mesh = this.boxMeshes.get(selectedId);
+    if (!mesh) return;
+
+    const res = this.projectStore.project().snapResolution;
+    const snap = (v: number) => Math.round(v * res) / res;
+
+    const init = this.dragInitialBox;
+    const deltaScaleX = mesh.scaling.x - this.dragInitialScale.x;
+    const deltaScaleY = mesh.scaling.y - this.dragInitialScale.y;
+    const deltaScaleZ = mesh.scaling.z - this.dragInitialScale.z;
+
+    const initWidth = init.maxX - init.minX;
+    const initHeight = init.maxY - init.minY;
+    const initDepth = init.maxZ - init.minZ;
+
+    const newWidth = Math.max(1 / res, snap(initWidth + deltaScaleX));
+    const newHeight = Math.max(1 / res, snap(initHeight + deltaScaleY));
+    const newDepth = Math.max(1 / res, snap(initDepth + deltaScaleZ));
+
+    const centerX = (init.minX + init.maxX) / 2;
+    const centerY = (init.minY + init.maxY) / 2;
+    const centerZ = (init.minZ + init.maxZ) / 2;
+
+    let minX = snap(centerX - newWidth / 2);
+    let maxX = snap(centerX + newWidth / 2);
+    if (maxX <= minX) maxX = snap(minX + 1 / res);
+
+    let minY = snap(centerY - newHeight / 2);
+    let maxY = snap(centerY + newHeight / 2);
+    if (maxY <= minY) maxY = snap(minY + 1 / res);
+
+    let minZ = snap(centerZ - newDepth / 2);
+    let maxZ = snap(centerZ + newDepth / 2);
+    if (maxZ <= minZ) maxZ = snap(minZ + 1 / res);
+
+    this.zone.run(() => {
+      this.projectStore.updateBox(selectedId, {
+        minX,
+        maxX,
+        minY,
+        maxY,
+        minZ,
+        maxZ
+      });
+    });
+
+    this.dragInitialBox = null;
+  }
+
+  private onRotationGizmoDragEnd(axis: 'x' | 'y' | 'z'): void {
+    const selectedId = this.projectStore.selectedBoxId();
+    if (!selectedId) return;
+
+    const mesh = this.boxMeshes.get(selectedId);
+    if (!mesh) return;
+
+    let rotVal = mesh.rotation[axis];
+    if (mesh.rotationQuaternion) {
+      const euler = mesh.rotationQuaternion.toEulerAngles();
+      rotVal = euler[axis];
+    }
+
+    const steps = Math.round(rotVal / (Math.PI / 2));
+
+    if (steps !== 0) {
+      const dir = steps > 0 ? 1 : -1;
+      const count = Math.abs(steps) % 4;
+      this.zone.run(() => {
+        for (let i = 0; i < count; i++) {
+          this.projectStore.rotateBox(selectedId, axis, dir as (1 | -1), 'center');
+        }
+      });
+    }
+
+    // Always reset mesh rotation back to 0 so it strictly remains an axis-aligned box
+    mesh.rotation.set(0, 0, 0);
+    if (mesh.rotationQuaternion) {
+      mesh.rotationQuaternion = null;
+    }
   }
 
   private setupPointerPicking(): void {
@@ -300,11 +470,13 @@ export class BabylonSceneService {
       this.boxMeshes.set(box.id, mesh);
     }
 
-    // Position and scale
+    // Position and scale strictly without diagonal rotation
     mesh.position.set(centerX, centerY, centerZ);
     mesh.scaling.set(width, height, depth);
     mesh.rotation.set(0, 0, 0);
-    if (mesh.rotationQuaternion) { mesh.rotationQuaternion = null; }
+    if (mesh.rotationQuaternion) {
+      mesh.rotationQuaternion = null;
+    }
     mesh.setEnabled(box.visible);
 
     // Apply Material
@@ -332,7 +504,6 @@ export class BabylonSceneService {
     }
 
     // Textured mode: Luanti 6-face multi-material
-    // Luanti face order: top (+Y), bottom (-Y), right (+X), left (-X), back (+Z), front (-Z)
     const project = this.projectStore.project();
     const globalTextures = project.globalTextures;
 
@@ -343,19 +514,11 @@ export class BabylonSceneService {
     const backTex = box.textures?.back || globalTextures.back;
     const frontTex = box.textures?.front || globalTextures.front;
 
-    // Create MultiMaterial with subMeshes for 6 faces
     const multiMatKey = `multi_${topTex}_${botTex}_${rightTex}_${leftTex}_${backTex}_${frontTex}`;
     let multiMat = this.scene.getMaterialByName(multiMatKey) as MultiMaterial;
 
     if (!multiMat) {
       multiMat = new MultiMaterial(multiMatKey, this.scene);
-      // Babylon box face indices:
-      // 0: Front (-Z)
-      // 1: Back (+Z)
-      // 2: Right (+X)
-      // 3: Left (-X)
-      // 4: Top (+Y)
-      // 5: Bottom (-Y)
       multiMat.subMaterials = [
         this.getOrCreateTextureMaterial(frontTex),
         this.getOrCreateTextureMaterial(backTex),
@@ -368,7 +531,6 @@ export class BabylonSceneService {
 
     mesh.material = multiMat;
 
-    // Subdivide box mesh into 6 face submeshes (each quad has 6 vertices/indices)
     if (!mesh.subMeshes || mesh.subMeshes.length !== 6) {
       mesh.subMeshes = [];
       const totalVertices = 24;
@@ -442,7 +604,7 @@ export class BabylonSceneService {
         break;
       case 'top':
         this.camera.alpha = 0;
-        this.camera.beta = 0.001; // Avoid exact 0 singularity
+        this.camera.beta = 0.001;
         break;
       case 'bottom':
         this.camera.alpha = 0;
@@ -516,6 +678,7 @@ export class BabylonSceneService {
   }
 
   public destroy(): void {
+    this.resizeObserver?.disconnect();
     window.removeEventListener('resize', this.onResize);
     this.scene?.dispose();
     this.engine?.dispose();
