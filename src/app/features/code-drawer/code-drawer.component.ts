@@ -6,18 +6,29 @@ import { LuaGeneratorService } from '../../core/services/lua-generator.service';
 import { LuaParserService, ParseResult } from '../../core/services/lua-parser.service';
 import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model';
 
+const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
+
 @Component({
   selector: 'app-code-drawer',
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
     <div
-      [class.h-72]="isExpanded()"
-      [class.h-10]="!isExpanded()"
-      class="bg-slate-900 border-t border-slate-800 transition-all duration-200 flex flex-col select-none">
+      [style.height.px]="isExpanded() ? drawerHeight() : 40"
+      class="bg-slate-900 border-t border-slate-800 flex flex-col select-none relative transition-[height] duration-75">
       
+      <!-- Top Resizing Handle Bar -->
+      <div
+        (mousedown)="startResize($event)"
+        (touchstart)="startResizeTouch($event)"
+        (dblclick)="isExpanded.set(!isExpanded())"
+        title="Drag up/down to resize code drawer, double-click to toggle"
+        class="h-1.5 w-full bg-slate-950/60 hover:bg-sky-500 active:bg-sky-400 cursor-row-resize flex items-center justify-center transition-colors group">
+        <div class="w-12 h-0.5 rounded-full bg-slate-700 group-hover:bg-white transition-colors"></div>
+      </div>
+
       <!-- Drawer Header Bar -->
-      <div class="h-10 px-3 bg-slate-950 flex items-center justify-between border-b border-slate-800 text-xs">
+      <div class="h-9 px-3 bg-slate-950 flex items-center justify-between border-b border-slate-800 text-xs">
         <div class="flex items-center gap-3">
           <!-- Expand/Collapse Button -->
           <button
@@ -40,7 +51,7 @@ import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model'
                 [class.bg-sky-600]="activeTab() === 'export'"
                 [class.text-white]="activeTab() === 'export'"
                 [class.text-slate-400]="activeTab() !== 'export'"
-                class="px-2.5 py-1 rounded text-xs font-medium transition">
+                class="px-2.5 py-0.5 rounded text-xs font-medium transition">
                 Export Lua
               </button>
               <button
@@ -48,7 +59,7 @@ import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model'
                 [class.bg-sky-600]="activeTab() === 'import'"
                 [class.text-white]="activeTab() === 'import'"
                 [class.text-slate-400]="activeTab() !== 'import'"
-                class="px-2.5 py-1 rounded text-xs font-medium transition">
+                class="px-2.5 py-0.5 rounded text-xs font-medium transition">
                 Import from Mod
               </button>
             </div>
@@ -62,7 +73,7 @@ import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model'
             <select
               [ngModel]="projectStore.project().format"
               (ngModelChange)="onFormatChange($event)"
-              class="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-sky-500">
+              class="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-sky-500">
               <option value="fractions_16">Fractions (16ths: -8/16)</option>
               <option value="divisible_16_8">Divisible 16/8 (-4/8, 16/8)</option>
               <option value="fractions_simplified">Simplified (-1/2, 1/4)</option>
@@ -74,7 +85,7 @@ import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model'
             <select
               [ngModel]="projectStore.project().exportTemplate"
               (ngModelChange)="onTemplateChange($event)"
-              class="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-sky-500">
+              class="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-sky-500">
               <option value="register_node">core.register_node</option>
               <option value="node_box">node_box = &#123; ... &#125;</option>
               <option value="fixed_only">fixed = &#123; ... &#125;</option>
@@ -83,7 +94,7 @@ import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model'
             <!-- Copy Code Button -->
             <button
               (click)="copyCode()"
-              class="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded font-medium shadow-sm transition active:scale-95">
+              class="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-0.5 rounded font-medium shadow-sm transition active:scale-95">
               <svg *ngIf="!copied()" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
               </svg>
@@ -121,7 +132,7 @@ import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model'
             <div class="flex-1 flex flex-col space-y-2">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-slate-400">
-                  Paste Lua code from any Luanti/Minetest mod (e.g. <code>fixed = &#123; ... &#125;</code> or full <code>register_node</code>):
+                  Paste Lua code from any Luanti mod (e.g. <code>fixed = &#123; ... &#125;</code> or full <code>core.register_node</code>):
                 </span>
                 <div class="flex items-center gap-3">
                   <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
@@ -181,6 +192,7 @@ export class CodeDrawerComponent {
   public isExpanded = signal<boolean>(true);
   public activeTab = signal<'export' | 'import'>('export');
   public copied = signal<boolean>(false);
+  public drawerHeight = signal<number>(this.loadStoredHeight());
 
   public pastedCode = '';
   public importReplace = true;
@@ -189,6 +201,72 @@ export class CodeDrawerComponent {
   public generatedLua = computed(() => {
     return this.luaGenerator.generate(this.projectStore.project());
   });
+
+  private loadStoredHeight(): number {
+    try {
+      const val = localStorage.getItem(STORAGE_HEIGHT_KEY);
+      if (val) {
+        const num = parseInt(val, 10);
+        if (!isNaN(num) && num >= 100 && num <= 800) return num;
+      }
+    } catch {}
+    return 280;
+  }
+
+  public startResize(event: MouseEvent): void {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = this.drawerHeight();
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = startY - moveEvent.clientY;
+      const newHeight = Math.max(120, Math.min(window.innerHeight * 0.75, startHeight + deltaY));
+      this.drawerHeight.set(newHeight);
+      if (!this.isExpanded()) {
+        this.isExpanded.set(true);
+      }
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      try {
+        localStorage.setItem(STORAGE_HEIGHT_KEY, this.drawerHeight().toString());
+      } catch {}
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  public startResizeTouch(event: TouchEvent): void {
+    if (event.touches.length !== 1) return;
+    const startY = event.touches[0].clientY;
+    const startHeight = this.drawerHeight();
+
+    const onTouchMove = (moveEvent: TouchEvent) => {
+      if (moveEvent.touches.length !== 1) return;
+      const deltaY = startY - moveEvent.touches[0].clientY;
+      const newHeight = Math.max(120, Math.min(window.innerHeight * 0.75, startHeight + deltaY));
+      this.drawerHeight.set(newHeight);
+      if (!this.isExpanded()) {
+        this.isExpanded.set(true);
+      }
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    const onTouchEnd = () => {
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      try {
+        localStorage.setItem(STORAGE_HEIGHT_KEY, this.drawerHeight().toString());
+      } catch {}
+    };
+
+    window.addEventListener('touchmove', onTouchMove);
+    window.addEventListener('touchend', onTouchEnd);
+  }
 
   onFormatChange(format: FractionFormat): void {
     this.projectStore.setFormat(format);

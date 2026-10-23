@@ -1,21 +1,43 @@
-<div class="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+<div class="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans relative">
   <!-- Top App Navigation & Actions -->
   <app-header (openPresets)="showPresetsModal.set(true)" />
 
   <!-- Main Center Workspace Grid -->
-  <div class="flex-1 flex overflow-hidden">
+  <div class="flex-1 flex overflow-hidden relative">
     <!-- Left Panel: Box Layers & Hierarchy -->
-    <aside class="w-72 flex-shrink-0 h-full overflow-hidden">
+    <aside
+      [style.width.px]="leftWidth()"
+      class="flex-shrink-0 h-full overflow-hidden">
       <app-layer-list />
     </aside>
+
+    <!-- Left Resizing Splitter Bar -->
+    <div
+      (mousedown)="startLeftResize($event)"
+      (touchstart)="startLeftResizeTouch($event)"
+      title="Drag left/right to resize layer list"
+      class="w-1.5 h-full bg-slate-900 hover:bg-sky-500 active:bg-sky-400 cursor-col-resize flex items-center justify-center transition-colors group flex-shrink-0 z-10 border-x border-slate-800/80">
+      <div class="w-0.5 h-8 rounded-full bg-slate-700 group-hover:bg-white transition-colors"></div>
+    </div>
 
     <!-- Center Panel: Babylon.js 3D Viewport -->
     <main class="flex-1 h-full min-w-0 relative">
       <app-viewport />
     </main>
 
+    <!-- Right Resizing Splitter Bar -->
+    <div
+      (mousedown)="startRightResize($event)"
+      (touchstart)="startRightResizeTouch($event)"
+      title="Drag left/right to resize inspector"
+      class="w-1.5 h-full bg-slate-900 hover:bg-sky-500 active:bg-sky-400 cursor-col-resize flex items-center justify-center transition-colors group flex-shrink-0 z-10 border-x border-slate-800/80">
+      <div class="w-0.5 h-8 rounded-full bg-slate-700 group-hover:bg-white transition-colors"></div>
+    </div>
+
     <!-- Right Panel: Inspector & Texture Studio -->
-    <aside class="w-80 flex-shrink-0 h-full flex flex-col bg-slate-900 border-l border-slate-800 overflow-hidden">
+    <aside
+      [style.width.px]="rightWidth()"
+      class="flex-shrink-0 h-full flex flex-col bg-slate-900 overflow-hidden">
       <!-- Right Sidebar Tab Bar -->
       <div class="h-9 bg-slate-950 flex border-b border-slate-800 text-xs px-2">
         <button
@@ -52,9 +74,14 @@
     </aside>
   </div>
 
-  <!-- Bottom Panel: Collapsible Lua Code Generator & Mod Importer -->
+  <!-- Bottom Panel: Collapsible & Resizable Lua Code Generator & Mod Importer -->
   <app-code-drawer />
 
   <!-- Presets Modal Dialog -->
   <app-presets-dialog *ngIf="showPresetsModal()" (close)="showPresetsModal.set(false)" />
+
+  <!-- Active Drag Overlay (prevents pointer capture loss during mouse movement) -->
+  @if (activeDrag()) {
+    <div class="fixed inset-0 z-50 cursor-col-resize select-none"></div>
+  }
 </div>
