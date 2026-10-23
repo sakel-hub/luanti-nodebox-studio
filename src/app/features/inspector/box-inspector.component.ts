@@ -270,6 +270,11 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
 export class BoxInspectorComponent {
   public projectStore = inject(ProjectStore);
   public inputMode = signal<InputMode>('fractions');
+  public rotateOrigin = signal<'center' | 'origin'>('center');
+
+  rotate(id: string, axis: 'x' | 'y' | 'z', direction: 1 | -1): void {
+    this.projectStore.rotateBox(id, axis, direction, this.rotateOrigin());
+  }
 
   getCoordDisplay(value: number): string {
     const res = this.projectStore.project().snapResolution;

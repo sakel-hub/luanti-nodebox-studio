@@ -73,6 +73,7 @@ ${tiles}
     },
     drawtype = "nodebox",
     paramtype = "light",
+    paramtype2 = "facedir",
     node_box = {
         type = "fixed",
         fixed = {

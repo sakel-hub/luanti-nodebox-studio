@@ -303,6 +303,8 @@ export class BabylonSceneService {
     // Position and scale
     mesh.position.set(centerX, centerY, centerZ);
     mesh.scaling.set(width, height, depth);
+    mesh.rotation.set(0, 0, 0);
+    if (mesh.rotationQuaternion) { mesh.rotationQuaternion = null; }
     mesh.setEnabled(box.visible);
 
     // Apply Material

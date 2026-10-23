@@ -1,3 +1,4 @@
+import { rotateAABB90, rotateFaceTextures90 } from "../utils/rotation.utils";
 import { Injectable, computed, effect, signal } from '@angular/core';
 import {
   Box,
@@ -398,4 +399,45 @@ export class ProjectStore {
     });
     this.selectedBoxId.set(DEFAULT_PROJECT.boxes[0].id);
   }
+  public rotateBox(id: string, axis: "x" | "y" | "z", direction: 1 | -1, around: "center" | "origin" = "center"): void {
+    const box = this.project().boxes.find(b => b.id === id);
+    if (!box || box.locked) return;
+
+    this.recordState();
+    const res = this.project().snapResolution;
+    const origin = around === "origin"
+      ? { x: 0, y: 0, z: 0 }
+      : {
+          x: (box.minX + box.maxX) / 2,
+          y: (box.minY + box.maxY) / 2,
+          z: (box.minZ + box.maxZ) / 2
+        };
+
+    const rotated = rotateAABB90(box, axis, direction, origin, res);
+    const newTextures = rotateFaceTextures90(box.textures, axis, direction);
+
+    this.project.update(p => ({
+      ...p,
+      boxes: p.boxes.map(b => (b.id === id ? { ...b, ...rotated, textures: newTextures } : b)),
+      updatedAt: Date.now()
+    }));
+  }
+
+  public rotateAllBoxes(axis: "x" | "y" | "z", direction: 1 | -1): void {
+    this.recordState();
+    const res = this.project().snapResolution;
+    const origin = { x: 0, y: 0, z: 0 };
+
+    this.project.update(p => ({
+      ...p,
+      boxes: p.boxes.map(b => {
+        if (b.locked) return b;
+        const rotated = rotateAABB90(b, axis, direction, origin, res);
+        const newTextures = rotateFaceTextures90(b.textures, axis, direction);
+        return { ...b, ...rotated, textures: newTextures };
+      }),
+      updatedAt: Date.now()
+    }));
+  }
+
 }

@@ -82,6 +82,14 @@ import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model'
           Presets
         </button>
 
+        <!-- Rotate Model 90° Y Button -->
+        <button
+          (click)="projectStore.rotateAllBoxes('y', 1)"
+          title="Rotate entire model 90° clockwise around Y"
+          class="flex items-center gap-1 px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-300 font-medium transition text-xs">
+          <span>⟳ 90° Y</span>
+        </button>
+
         <!-- New Button -->
         <button
           (click)="confirmReset()"
