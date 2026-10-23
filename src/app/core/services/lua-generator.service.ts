@@ -66,7 +66,7 @@ export class LuaGeneratorService {
           return `        "${tex}", -- ${dir}`;
         }).join('\n');
 
-        return `minetest.register_node("${nodeName}", {
+        return `core.register_node("${nodeName}", {
     description = "${project.name || 'Custom Node'}",
     tiles = {
 ${tiles}

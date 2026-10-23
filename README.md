@@ -33,7 +33,7 @@ A modern, accessible, offline-first 3D web application and Progressive Web App (
     - `Simplified Fractions` (e.g. `{-1/2, 1/4, 5/16}`)
     - `Float Decimals` (e.g. `{-0.5, -0.5, ...}`)
     - `Grid Integers` (e.g. `{-8, -8, ...}`)
-  - **Templates**: `minetest.register_node`, `node_box = { ... }`, or standalone `fixed = { ... }`.
+  - **Templates**: `core.register_node`, `node_box = { ... }`, or standalone `fixed = { ... }`.
   - **Import**: Paste any Lua snippet from an existing mod—handles arithmetic fractions (`-8/16`, `16/8`), comments (`--`), and extracts node names & tiles.
 - **Presets Library**:
   - Includes Slab, Stairs, Pillar/Column, Wooden Chair, Fence/Gate, and Torch.

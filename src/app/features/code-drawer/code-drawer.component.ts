@@ -75,7 +75,7 @@ import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model'
               [ngModel]="projectStore.project().exportTemplate"
               (ngModelChange)="onTemplateChange($event)"
               class="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-sky-500">
-              <option value="register_node">minetest.register_node</option>
+              <option value="register_node">core.register_node</option>
               <option value="node_box">node_box = &#123; ... &#125;</option>
               <option value="fixed_only">fixed = &#123; ... &#125;</option>
             </select>

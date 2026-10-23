@@ -94,7 +94,7 @@ export class LuaParserService {
    * Extracts node name e.g. minetest.register_node("mod:name", ...)
    */
   private extractNodeName(code: string): string | undefined {
-    const match = code.match(/minetest\.register_node\s*\(\s*["']([^"']+)["']/);
+    const match = code.match(/(?:core|minetest)\.register_node\s*\(\s*["']([^"']+)["']/);
     return match ? match[1] : undefined;
   }
 

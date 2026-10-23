@@ -12,10 +12,10 @@ describe('LuaParserService & LuaGeneratorService', () => {
     generator = new LuaGeneratorService();
   });
 
-  it('parses full register_node with fractions and comments', () => {
+  it('parses modern core.register_node with fractions and comments', () => {
     const luaCode = `
-      -- Sample luanti slab definition
-      minetest.register_node("stairs:slab_wood", {
+      -- Modern Luanti core.register_node definition
+      core.register_node("stairs:slab_wood", {
           description = "Wooden Slab",
           tiles = {"default_wood.png"},
           drawtype = "nodebox",
@@ -47,6 +47,25 @@ describe('LuaParserService & LuaGeneratorService', () => {
     expect(result.boxes[1].minY).toBe(0);
     expect(result.boxes[1].maxX).toBe(0.25);
     expect(result.boxes[1].maxY).toBe(0.5);
+  });
+
+  it('parses legacy minetest.register_node for backward compatibility', () => {
+    const luaCode = `
+      minetest.register_node("legacy:stone_slab", {
+          tiles = {"default_stone.png"},
+          node_box = {
+              type = "fixed",
+              fixed = {
+                  {-0.5, -0.5, -0.5, 0.5, 0, 0.5}
+              }
+          }
+      })
+    `;
+
+    const result = parser.parse(luaCode);
+    expect(result.nodeName).toBe('legacy:stone_slab');
+    expect(result.boxes.length).toBe(1);
+    expect(result.boxes[0].minX).toBe(-0.5);
   });
 
   it('parses divisible syntax expressions like 16/8 and decimals', () => {
@@ -106,6 +125,45 @@ describe('LuaParserService & LuaGeneratorService', () => {
     expect(lua).toContain('-4/16');
     expect(lua).toContain('-2/16');
     expect(lua).toContain('Seat');
+  });
+
+  it('generates core.register_node template', () => {
+    const project: NodeboxProject = {
+      id: 'test',
+      name: 'Custom Block',
+      nodeName: 'mymod:custom_block',
+      format: 'fractions_16',
+      exportTemplate: 'register_node',
+      snapResolution: 16,
+      updatedAt: Date.now(),
+      globalTextures: {
+        top: 'default_wood.png',
+        bottom: 'default_wood.png',
+        right: 'default_wood.png',
+        left: 'default_wood.png',
+        back: 'default_wood.png',
+        front: 'default_wood.png'
+      },
+      boxes: [
+        {
+          id: 'b1',
+          name: 'Base',
+          minX: -0.5,
+          minY: -0.5,
+          minZ: -0.5,
+          maxX: 0.5,
+          maxY: 0,
+          maxZ: 0.5,
+          visible: true,
+          locked: false,
+          color: '#38bdf8'
+        }
+      ]
+    };
+
+    const lua = generator.generate(project);
+    expect(lua).toContain('core.register_node("mymod:custom_block", {');
+    expect(lua).not.toContain('minetest.register_node');
   });
 
   it('generates divisible 16/8 format properly', () => {
