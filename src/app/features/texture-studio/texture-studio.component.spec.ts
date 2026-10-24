@@ -116,11 +116,23 @@ describe('TextureStudioComponent', () => {
   });
 
   it('allows disabling animation on an existing animated texture', () => {
-    const flame = textureService.getTextureById('pale_watcher_ritual_pyre_flame.png');
-    expect(flame?.animation).toBeDefined();
+    textureService.addCustomTexture('Animated Torch', 'data:image/png;base64,torchdata');
+    textureService.updateTextureProperties('animated_torch', {
+      animation: {
+        type: 'vertical_frames',
+        aspect_w: 16,
+        aspect_h: 16,
+        length: 1.0,
+        frameCount: 8
+      },
+      backfaceCulling: false
+    });
 
     const fakeEvent = { stopPropagation: () => {} } as MouseEvent;
-    component.openAnimationModal(fakeEvent, flame!);
+    const animTex = textureService.getTextureById('animated_torch');
+    expect(animTex?.animation).toBeDefined();
+
+    component.openAnimationModal(fakeEvent, animTex!);
     expect(component.isAnimEnabled()).toBe(true);
     expect(component.editBackfaceCulling()).toBe(false);
 
@@ -128,7 +140,7 @@ describe('TextureStudioComponent', () => {
     component.isAnimEnabled.set(false);
     component.saveAnimationSettings();
 
-    const updated = textureService.getTextureById('pale_watcher_ritual_pyre_flame.png');
+    const updated = textureService.getTextureById('animated_torch');
     expect(updated?.animation).toBeUndefined();
   });
 });

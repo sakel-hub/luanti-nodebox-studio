@@ -11,9 +11,9 @@ describe('TextureService', () => {
     service = new TextureService();
   });
 
-  it('should initialize with default library textures including animated ritual pyre textures', () => {
+  it('should initialize with default library textures', () => {
     const textures = service.textures();
-    expect(textures.length).toBe(11);
+    expect(textures.length).toBe(8);
 
     const ids = textures.map(t => t.id);
     expect(ids).toContain('default_wood.png');
@@ -24,16 +24,6 @@ describe('TextureService', () => {
     expect(ids).toContain('default_glass.png');
     expect(ids).toContain('default_steel_block.png');
     expect(ids).toContain('default_mese_block.png');
-    expect(ids).toContain('pale_watcher_ritual_pyre_flame.png');
-    expect(ids).toContain('pale_watcher_ritual_pyre_top.png');
-    expect(ids).toContain('pale_watcher_ritual_pyre_side.png');
-
-    const flame = service.getTextureById('pale_watcher_ritual_pyre_flame.png');
-    expect(flame).toBeDefined();
-    expect(flame?.animation).toBeDefined();
-    expect(flame?.animation?.type).toBe('vertical_frames');
-    expect(flame?.animation?.frameCount).toBe(8);
-    expect(flame?.backfaceCulling).toBe(false);
   });
 
   it('should have author and license attribution for each default texture', () => {

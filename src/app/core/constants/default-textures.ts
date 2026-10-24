@@ -74,37 +74,6 @@ export const DEFAULT_TEXTURES: DefaultTextureItem[] = [
     license: 'CC BY-SA 3.0',
     dataUrl:
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAADFBMVEWmpgDMzADm5gD//wCCJfc+AAAAQ0lEQVQI12PY////P4Z36/b/ZHi9a9VKhlevFnAyvOgCsbSArFergKxHixo4Gd7/AyoBc18wwSQecMFZTEAlU0NDwwD9lyh7F9kr0AAAAABJRU5ErkJggg=='
-  },
-  {
-    id: 'pale_watcher_ritual_pyre_flame.png',
-    name: 'Pyre Flame (Animated)',
-    author: 'juraj / pale_watcher',
-    license: 'MIT',
-    backfaceCulling: false,
-    animation: {
-      type: 'vertical_frames',
-      aspect_w: 16,
-      aspect_h: 16,
-      length: 1.0,
-      frameCount: 8
-    },
-    dataUrl:
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAACAYAAAAClekiAAACbElEQVR4AWLAB/5/2LIXhBnIAVs0AJSUA2iFARSFs5vjsmeGIc1xL8yMsxln2whzmMNsM9u2ll07Xx7f/Vdfne7Bnl2lKj8D2mk5+qPTr13ld0BzM5Xj/VK8FE5XaYQyoLnhWQYCFS5WaUblV0Bzw7M8/HhRrtKCyk+A5oZnGUhToU4sqnwPaG54lgGXwk2CgStAc8OzDGQq3Cp4CmeA5oZnGcglLObEIaC54VkG8gmLabEPaG541oEWMSG2AM3NyUCTGBEbgOaG566cJPIUrhcDYhnQ3PDI/PUJDMMUvIg1okcsApobHhmy38v+goFEkS0q+QKJaUBzwyNDlo67pxPLbwGguZn/tO75/feA22d7ZsCBQBBE4fsH4ZCIEEQJCITo56cflQ8dhrmduYc944YD+95AzWfnbdC+8YDyeDBEy+NBuIHHg3gDhwecrZwHTFqLB3PjfI/yAK01H7I8wDNN3lIe4HXH2fLAiNfMA8rjQbiBx4MhU5YHQ7YsD9INLA/McVUeYH63eIDG+/teozxAa837LA/wTIOzlAd4dR7o9wN5X3DK8iDdwPIg3cDyIO7ceCDtC5hfLR6g8cb5EuUBWmseszzAM43zUh7gXS8P9PyA+vNAafDl69rgwxfV9+eBui/o+QHmZ4sHaLxxPkd5gNaad1ke4CnCAzE/qF8SDzrcD/T8QM8TMT9aPEDjjfMxygO0lXig7Atanmgry4PC4yzsC3p+oOeJ/JSn1vsCmrkGtxYP0HjmMcoDtP15oO8Len4gvS84FeUB2v480PcFPT/Q80T9faEYD/T7gbIv6PmBnicK7wsFePADtqGd1Oeyx00AAAAASUVORK5CYII='
-  },
-  {
-    id: 'pale_watcher_ritual_pyre_top.png',
-    name: 'Pyre Altar Top',
-    author: 'juraj / pale_watcher',
-    license: 'MIT',
-    dataUrl:
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAABxklEQVR4ATWSxZldSQyFK4NzmZn3zcy0m3AmCAfmIByEM7B/1dd+WCAd0nX39y+Pj2/8vr5+3d4+PTy8smXN4u7u+eLi9unp/ezsmgK2NzeP7vr6oY+1paqlNdaQaQnUROpSzbnWUHuugW2iOdbl5Z2jj9VRRnOkKRTNfaQ1Up1pDLUlavmVFXShYHOQctendgTP4K/bXG2sNbG2JbGrOtckIcyhu8+15OoCu2AxBepyzanaQFtmh2Uo4NdAoLuXl88yMDEjd6nvkbZYLaJ99ZGIT5NqT/RtGgGNVMaidIqsqMFV4Kshj6CiwWIgOocPRKOnCgyjTjTl+vVf8vv/bs1M0g5Q6uPKROLeQyxUjZGaBBJj+3mrPz+OEoXUSUeEYIueYosVdjPKUcydV0KbN4D7lQWDCjXkQr+7uroHfqaOHm+6zDTAKcFsfmiGIbXD09MrM91JVazqHza+OcHrQD6yQ0iQVMciUse0q+RbAAtEHzjBa2LBY6P2QN6kl0RSCPVyPWRm8vaIXyrQbV43P2x8Wqw8mDtzAMkHskgjnYGRLEScqcyNZIi0SRh2DI+nFy70MRMw+PAIAMQWwRTw4YQhnJ/f/AUadGT4fVZU/wAAAABJRU5ErkJggg=='
-  },
-  {
-    id: 'pale_watcher_ritual_pyre_side.png',
-    name: 'Pyre Altar Side',
-    author: 'juraj / pale_watcher',
-    license: 'MIT',
-    dataUrl:
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAA3klEQVR4AWLUVZRkBzBCHigIQzEYNk9kuG2t9UwFCngHF8PDuAA9YIezUKQPEIyJBAi19ANKmvcn+ROiKIo6X9Mk8jxX339wgaaihanZWAQQhjMAiKIYf6y18iyxBL4/QaWxxJvAtTjgWAWsNC1CPa+el/ktVklWfguwTrVsECppCQiCEACSJGWji3vCauHsTnkNzxujUls6Of6uM2Tptj049ByZw1546XJLkhFLtAMh2XV2FVfLR7p5ZVLDSpnwAx3vuyMuQG/Hvlt91nJL+qwIZ9Wc0rN+RmxMw20AAAHGUh+1JiyrAAAAAElFTkSuQmCC'
   }
 ];
+
