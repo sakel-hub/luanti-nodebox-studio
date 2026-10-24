@@ -1,7 +1,7 @@
 {
   "name": "Luanti NodeBox Studio",
   "short_name": "NodeBox Studio",
-  "description": "3D Visual NodeBox Editor, Inspector & Lua Generator for Luanti",
+  "description": "Visual 3D nodebox editor, texture studio & Lua code generator for Luanti and Minetest.",
   "display": "standalone",
   "orientation": "any",
   "scope": "./",

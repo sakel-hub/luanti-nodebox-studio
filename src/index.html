@@ -2,15 +2,28 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="utf-8" />
-    <title>Luanti NodeBox Studio</title>
+    <title>Luanti NodeBox Studio – 3D NodeBox Editor &amp; Lua Generator</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="description" content="Modern, accessible 3D visual NodeBox Editor, 2D/3D Pixel Painter, Render Studio with Luanti Skybox & 3D Pixel Extrusion, and Lua Generator for Luanti (Minetest)." />
+    <meta name="description" content="Visual 3D nodebox editor, texture studio &amp; Lua code generator for Luanti and Minetest. Model voxel nodes, paint textures, and export ready-to-use code." />
     <meta name="keywords" content="luanti, minetest, nodebox, 3d editor, voxel, lua generator, game development, modding, texture studio, pixel painter, 3d extrusion, skybox" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <meta name="theme-color" content="#0f172a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="application-name" content="Luanti NodeBox Studio" />
+
+    <!-- Canonical & Language Alternates (Hreflang) -->
     <link rel="canonical" href="https://sakel-hub.github.io/luanti-nodebox-studio/" />
+    <link rel="alternate" hreflang="x-default" href="https://sakel-hub.github.io/luanti-nodebox-studio/" />
+    <link rel="alternate" hreflang="en" href="https://sakel-hub.github.io/luanti-nodebox-studio/" />
+    <link rel="alternate" hreflang="de" href="https://sakel-hub.github.io/luanti-nodebox-studio/?lang=de" />
+    <link rel="alternate" hreflang="es" href="https://sakel-hub.github.io/luanti-nodebox-studio/?lang=es" />
+    <link rel="alternate" hreflang="fr" href="https://sakel-hub.github.io/luanti-nodebox-studio/?lang=fr" />
+    <link rel="alternate" hreflang="ru" href="https://sakel-hub.github.io/luanti-nodebox-studio/?lang=ru" />
+    <link rel="alternate" hreflang="sk" href="https://sakel-hub.github.io/luanti-nodebox-studio/?lang=sk" />
+
+    <!-- Icons & Manifest -->
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
@@ -19,47 +32,166 @@
     <!-- OpenGraph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Luanti NodeBox Studio" />
-    <meta property="og:title" content="Luanti NodeBox Studio – 3D NodeBox Editor, Pixel Painter & Lua Generator" />
-    <meta property="og:description" content="Modern, accessible 3D visual NodeBox Editor, 2D/3D Pixel Painter, Render Studio with Cubic Luanti Skybox & 3D Pixel Extrusion, and Lua Generator for Luanti (Minetest)." />
+    <meta property="og:title" content="Luanti NodeBox Studio – 3D NodeBox Editor &amp; Lua Generator" />
+    <meta property="og:description" content="Visual 3D nodebox editor, texture studio &amp; Lua code generator for Luanti and Minetest. Model voxel nodes, paint textures, and export ready-to-use code." />
     <meta property="og:url" content="https://sakel-hub.github.io/luanti-nodebox-studio/" />
     <meta property="og:image" content="https://sakel-hub.github.io/luanti-nodebox-studio/screenshot.png" />
+    <meta property="og:image:secure_url" content="https://sakel-hub.github.io/luanti-nodebox-studio/screenshot.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1920" />
+    <meta property="og:image:height" content="1080" />
+    <meta property="og:image:alt" content="Luanti NodeBox Studio 3D Editor, Texture Studio and Lua Generator Interface" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="de_DE" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta property="og:locale:alternate" content="fr_FR" />
+    <meta property="og:locale:alternate" content="ru_RU" />
+    <meta property="og:locale:alternate" content="sk_SK" />
 
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Luanti NodeBox Studio – 3D NodeBox Editor, Pixel Painter & Lua Generator" />
-    <meta name="twitter:description" content="Modern, accessible 3D visual NodeBox Editor, 2D/3D Pixel Painter, Render Studio with Cubic Luanti Skybox & 3D Pixel Extrusion, and Lua Generator for Luanti (Minetest)." />
+    <meta name="twitter:title" content="Luanti NodeBox Studio – 3D NodeBox Editor &amp; Lua Generator" />
+    <meta name="twitter:description" content="Visual 3D nodebox editor, texture studio &amp; Lua code generator for Luanti and Minetest. Model voxel nodes, paint textures, and export ready-to-use code." />
     <meta name="twitter:image" content="https://sakel-hub.github.io/luanti-nodebox-studio/screenshot.png" />
+    <meta name="twitter:image:alt" content="Luanti NodeBox Studio 3D Editor, Texture Studio and Lua Generator Interface" />
 
     <!-- Schema.org JSON-LD -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Luanti NodeBox Studio",
-        "url": "https://sakel-hub.github.io/luanti-nodebox-studio/",
-        "description": "Modern, accessible 3D visual NodeBox Editor, 2D/3D Pixel Painter, Render Studio with Cubic Luanti Skybox & 3D Pixel Extrusion, and Lua Generator for Luanti (Minetest).",
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "All",
-        "inLanguage": ["en", "sk", "de", "fr", "es", "ru"],
-        "featureList": [
-          "3D Visual NodeBox Editor & Inspector",
-          "6-Face Texture Studio with 2D Pixel Painter & 3D Raycast Painting",
-          "Render Studio with Cubic Luanti Skybox (Day, Sunset, Night), 3D Sun/Moon/Stars & Voxel Clouds",
-          "3D Pixel Extrusion (Greedy Meshed Voxel Relief) & Per-Style Depth Sliders",
-          "Connected, Wallmounted & Leveled NodeBox Simulation",
-          "Luanti / Minetest Lua Code Generator & Live Importer"
-        ],
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "browserRequirements": "Requires WebGL support"
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "@id": "https://sakel-hub.github.io/luanti-nodebox-studio/#webapp",
+            "name": "Luanti NodeBox Studio",
+            "url": "https://sakel-hub.github.io/luanti-nodebox-studio/",
+            "applicationCategory": "DesignApplication",
+            "operatingSystem": "All",
+            "softwareVersion": "1.0.0",
+            "inLanguage": ["en", "sk", "de", "fr", "es", "ru"],
+            "description": "Visual 3D nodebox editor, texture studio & Lua code generator for Luanti and Minetest. Model voxel nodes, paint textures, and export ready-to-use code.",
+            "browserRequirements": "Requires WebGL support",
+            "featureList": [
+              "3D Visual NodeBox Editor with Interactive Gizmos (Position, Rotate, Scale, Dimensions, Paint)",
+              "6-Face Texture Studio with 2D Pixel Painter & 3D Raycast Face Painting",
+              "Render Studio with Cubic Luanti Skybox (Day, Sunset, Night), 3D Sun, Moon, Stars & Voxel Clouds",
+              "3D Pixel Extrusion (Greedy Meshed Voxel Relief) with Fine-Grained Per-Style Depth Sliders",
+              "Connected, Wallmounted, and Leveled NodeBox Simulation Modes",
+              "Modern Luanti core.register_node Lua Code Generator with Multiple Number Formats",
+              "Live Lua Mod Importer with Arithmetic Fractions and Block Comment Parsing"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "sakel-hub",
+              "url": "https://github.com/sakel-hub"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://sakel-hub.github.io/luanti-nodebox-studio/#website",
+            "url": "https://sakel-hub.github.io/luanti-nodebox-studio/",
+            "name": "Luanti NodeBox Studio",
+            "description": "Online visual 3D voxel nodebox modeling tool for Luanti and Minetest game developers.",
+            "inLanguage": "en-US"
+          }
+        ]
       }
     </script>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased overflow-hidden select-none">
-    <app-root></app-root>
-    <noscript>Please enable JavaScript to run Luanti NodeBox Studio.</noscript>
+    <app-root>
+      <!-- Semantic Static Pre-Render Fallback & Loading Screen for Crawlers & Users -->
+      <div class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 text-slate-100 p-6 z-50">
+        <header class="text-center max-w-2xl mb-8">
+          <div class="flex items-center justify-center gap-3 mb-4">
+            <img src="logo.svg" alt="Luanti NodeBox Studio 3D Logo" width="56" height="56" class="w-14 h-14 rounded-xl shadow-lg" />
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              Luanti NodeBox Studio
+            </h1>
+          </div>
+          <p class="text-sm sm:text-base text-slate-300 leading-relaxed">
+            The modern, accessible, open-source 3D visual NodeBox Editor, Texture Studio, and Lua Code Generator for
+            <strong>Luanti</strong> (formerly Minetest) game developers and mod creators.
+          </p>
+        </header>
+
+        <!-- Loading Indicator for Human Visitors -->
+        <div class="flex flex-col items-center gap-3 my-4">
+          <div class="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-xs text-slate-400 font-medium">Initializing 3D WebGL Studio...</span>
+        </div>
+
+        <!-- Semantic Feature Overview for Search Engine Crawlers (Seobility / Googlebot) -->
+        <main class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-400 mt-6 overflow-hidden">
+          <section class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+            <h2 class="text-sm font-semibold text-sky-400 mb-1.5">Interactive 3D Visual Viewport</h2>
+            <p>
+              Design custom 3D voxel nodeboxes with precise sub-grid snapping (1/16th, 1/32nd, 1/64th).
+              Includes Move, Rotate 90°, Scale, and Dimension gizmos, orthogonal and perspective camera modes,
+              and live neighbor block simulation for connected, wallmounted, and leveled nodes.
+            </p>
+          </section>
+
+          <section class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+            <h2 class="text-sm font-semibold text-emerald-400 mb-1.5">6-Face Texture Studio &amp; Pixel Painter</h2>
+            <p>
+              Map individual textures across all 6 Luanti cube faces (+Y, -Y, +X, -X, +Z, -Z).
+              Paint pixels directly in 2D or paint onto 3D surfaces in real time with Pencil, Bucket Fill,
+              Line, and Color Picker tools, complete with vertical sprite sheet animated frame previews.
+            </p>
+          </section>
+
+          <section class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+            <h2 class="text-sm font-semibold text-purple-400 mb-1.5">Render Studio, Atmosphere &amp; 3D Extrusion</h2>
+            <p>
+              Preview models in authentic Luanti Day, Sunset, and Night cubic atmospheres with 3D celestial
+              sun, moon, and voxel starfields. Transform 2D pixel art into real 3D extruded voxel relief,
+              and export ultra-HD 4K screenshots or 512×512 transparent inventory icon PNGs.
+            </p>
+          </section>
+
+          <section class="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+            <h2 class="text-sm font-semibold text-amber-400 mb-1.5">Lua Code Generator &amp; Live Importer</h2>
+            <p>
+              Generate clean, standard <code>core.register_node</code> definitions in 16ths fractions, decimals,
+              or grid integers. Import existing Lua mod definitions directly by pasting snippets with instant
+              coordinate parsing and automatic texture extraction.
+            </p>
+          </section>
+        </main>
+
+        <footer class="mt-8 text-center text-xs text-slate-500 flex flex-wrap items-center justify-center gap-4">
+          <a href="https://github.com/sakel-hub/luanti-nodebox-studio" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-sky-400 underline transition">
+            GitHub Repository &amp; Source Code
+          </a>
+          <span>•</span>
+          <a href="https://www.luanti.org" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-sky-400 underline transition">
+            Luanti Official Website
+          </a>
+          <span>•</span>
+          <a href="https://rubenwardy.com/minetest_modding_book/en/nodes/nodeboxes.html" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-sky-400 underline transition">
+            Luanti NodeBox Modding Guide
+          </a>
+        </footer>
+      </div>
+    </app-root>
+
+    <noscript>
+      <div class="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 text-slate-100 p-8 text-center z-50">
+        <h2 class="text-xl font-bold mb-2">JavaScript Required for 3D Editing</h2>
+        <p class="text-sm text-slate-400 max-w-md mb-4">
+          Luanti NodeBox Studio requires JavaScript and WebGL to render real-time 3D voxel models, textures, and interactive gizmos.
+          Please enable JavaScript in your browser settings to use the studio.
+        </p>
+        <a href="https://github.com/sakel-hub/luanti-nodebox-studio" rel="noopener noreferrer" class="text-xs text-sky-400 underline">
+          Learn more on GitHub
+        </a>
+      </div>
+    </noscript>
   </body>
 </html>

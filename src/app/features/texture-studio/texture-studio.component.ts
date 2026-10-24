@@ -103,7 +103,7 @@ import {
                 <div class="w-8 h-8 rounded border border-slate-700 overflow-hidden flex-shrink-0 bg-slate-900">
                   <img
                     [src]="faceTextureUrls()[dir]"
-                    [alt]="dir"
+                    [alt]="dir + ' face texture preview'"
                     class="w-full h-full object-cover [image-rendering:pixelated]" />
                 </div>
                 <div class="min-w-0 flex-1">
@@ -185,7 +185,7 @@ import {
                   <div class="w-10 h-10 rounded border border-slate-700 overflow-hidden bg-slate-900 group-hover:scale-105 transition relative">
                     <img
                       [src]="tex.dataUrl"
-                      [alt]="tex.name"
+                      [alt]="tex.name + ' texture'"
                       class="w-full h-full object-cover [image-rendering:pixelated]" />
                     @if (tex.animation) {
                       <span class="absolute top-0.5 left-0.5 px-1 py-0.2 bg-amber-500 text-slate-950 font-bold text-[8px] font-mono rounded shadow leading-none">

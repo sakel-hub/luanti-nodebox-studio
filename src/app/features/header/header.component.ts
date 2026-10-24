@@ -136,10 +136,10 @@ import {
               height="30"
               class="w-7.5 h-7.5 rounded-md shadow-md flex-shrink-0" />
             <div>
-              <div class="font-bold text-slate-100 text-xs tracking-tight flex items-center gap-1.5">
+              <h1 class="font-bold text-slate-100 text-xs tracking-tight flex items-center gap-1.5 m-0 p-0 font-sans">
                 <span>{{ 'header.title' | translate }}</span>
                 <span class="text-[9px] bg-sky-950 text-sky-400 border border-sky-800 px-1.5 py-0.2 rounded font-mono">{{ 'header.pwaBadge' | translate }}</span>
-              </div>
+              </h1>
             </div>
           </div>
 
