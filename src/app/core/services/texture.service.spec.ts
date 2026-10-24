@@ -11,9 +11,9 @@ describe('TextureService', () => {
     service = new TextureService();
   });
 
-  it('should initialize with default library textures including Everness mushroom textures', () => {
+  it('should initialize with default library textures including animated ritual pyre textures', () => {
     const textures = service.textures();
-    expect(textures.length).toBe(12);
+    expect(textures.length).toBe(11);
 
     const ids = textures.map(t => t.id);
     expect(ids).toContain('default_wood.png');
@@ -24,10 +24,16 @@ describe('TextureService', () => {
     expect(ids).toContain('default_glass.png');
     expect(ids).toContain('default_steel_block.png');
     expect(ids).toContain('default_mese_block.png');
-    expect(ids).toContain('everness_luminous_mushroom_top.png');
-    expect(ids).toContain('everness_luminous_mushroom_bottom.png');
-    expect(ids).toContain('everness_luminous_mushroom_side_x.png');
-    expect(ids).toContain('everness_luminous_mushroom_side_z.png');
+    expect(ids).toContain('pale_watcher_ritual_pyre_flame.png');
+    expect(ids).toContain('pale_watcher_ritual_pyre_top.png');
+    expect(ids).toContain('pale_watcher_ritual_pyre_side.png');
+
+    const flame = service.getTextureById('pale_watcher_ritual_pyre_flame.png');
+    expect(flame).toBeDefined();
+    expect(flame?.animation).toBeDefined();
+    expect(flame?.animation?.type).toBe('vertical_frames');
+    expect(flame?.animation?.frameCount).toBe(8);
+    expect(flame?.backfaceCulling).toBe(false);
   });
 
   it('should have author and license attribution for each default texture', () => {
@@ -96,6 +102,27 @@ describe('TextureService', () => {
     expect(service.getTextureById('used_bark')).toBeDefined();
     expect(service.getTextureById('unused_dirt')).toBeUndefined();
     expect(service.getTextureById('default_stone.png')).toBeDefined();
+  });
+
+  it('should update texture properties for custom textures', () => {
+    service.addCustomTexture('Flame Sheet', 'data:image/png;base64,flame123');
+    service.updateTextureProperties('flame_sheet', {
+      backfaceCulling: false,
+      animation: {
+        type: 'vertical_frames',
+        aspect_w: 16,
+        aspect_h: 16,
+        length: 2.0,
+        frameCount: 8
+      }
+    });
+
+    const updated = service.getTextureById('flame_sheet');
+    expect(updated).toBeDefined();
+    expect(updated?.backfaceCulling).toBe(false);
+    expect(updated?.animation?.type).toBe('vertical_frames');
+    expect(updated?.animation?.frameCount).toBe(8);
+    expect(updated?.animation?.length).toBe(2.0);
   });
 });
 

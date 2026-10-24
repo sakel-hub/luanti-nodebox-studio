@@ -18,6 +18,22 @@ export interface FaceTextures {
   front?: string;
 }
 
+export interface TextureAnimationConfig {
+  type: 'vertical_frames';
+  aspect_w: number;
+  aspect_h: number;
+  length: number; // total duration of the animation loop in seconds
+  frameCount?: number;
+}
+
+export interface TileDefinition {
+  name: string;
+  animation?: TextureAnimationConfig;
+  backfaceCulling?: boolean;
+  tileableVertical?: boolean;
+  tileableHorizontal?: boolean;
+}
+
 export interface AABB {
   minX: number;
   minY: number;
@@ -75,6 +91,8 @@ export interface NodeboxProject {
 export interface PresetTemplate {
   name: string;
   description: string;
+  nodeName?: string;
   nodeHeight?: number;
+  globalTextures?: Record<FaceDirection, string>;
   boxes: Omit<Box, 'id'>[];
 }

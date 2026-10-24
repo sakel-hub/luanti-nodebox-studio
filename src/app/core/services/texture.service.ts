@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { safeGetItem, safeSetItem } from '../utils/storage.utils';
 import { DEFAULT_TEXTURES } from '../constants/default-textures';
+import { TextureAnimationConfig } from '../models/nodebox.model';
 import { PixelDepthConfig, DEFAULT_PIXEL_DEPTH_CONFIG, generatePixelArtNormalMap, getNeutralNormalMapDataUrl } from '../utils/pixel-normal-generator.utils';
 
 export interface TextureDefinition {
@@ -10,6 +11,10 @@ export interface TextureDefinition {
   isCustom?: boolean;
   author?: string;
   license?: string;
+  animation?: TextureAnimationConfig;
+  backfaceCulling?: boolean;
+  tileableVertical?: boolean;
+  tileableHorizontal?: boolean;
 }
 
 @Injectable({
@@ -43,13 +48,18 @@ export class TextureService {
     this.textures.set(defaults);
   }
 
-  public addCustomTexture(name: string, dataUrl: string): TextureDefinition {
+  public addCustomTexture(
+    name: string,
+    dataUrl: string,
+    options?: Partial<TextureDefinition>
+  ): TextureDefinition {
     const id = name.toLowerCase().replace(/\s+/g, '_');
     const newTex: TextureDefinition = {
       id,
       name,
       dataUrl,
-      isCustom: true
+      isCustom: true,
+      ...options
     };
 
     const current = this.textures();
@@ -58,8 +68,69 @@ export class TextureService {
 
     const customOnly = updated.filter(t => t.isCustom);
     safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
+    this.textureUpdated.update(v => v + 1);
 
     return newTex;
+  }
+
+  public updateTextureProperties(id: string, updates: Partial<TextureDefinition>): void {
+    const current = this.textures();
+    const index = current.findIndex(t => t.id === id);
+    if (index === -1) return;
+
+    const existing = current[index];
+    const updatedTex: TextureDefinition = {
+      ...existing,
+      ...updates
+    };
+
+    const updated = [...current];
+    updated[index] = updatedTex;
+    this.textures.set(updated);
+
+    if (updatedTex.isCustom) {
+      const customOnly = updated.filter(t => t.isCustom);
+      safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
+    }
+
+    // Invalidate any transformed versions
+    this.transformedCache.delete(id);
+    this.transformedCache.delete(`${id}^[transformFX`);
+    this.textureUpdated.update(v => v + 1);
+  }
+
+  public async detectTextureProperties(
+    dataUrl: string
+  ): Promise<{ width: number; height: number; animation?: TextureAnimationConfig }> {
+    return new Promise((resolve) => {
+      if (typeof Image === 'undefined') {
+        resolve({ width: 16, height: 16 });
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const width = img.naturalWidth || 16;
+        const height = img.naturalHeight || 16;
+        let animation: TextureAnimationConfig | undefined;
+
+        // Luanti vertical frames convention: height > width and divisible by width
+        if (height > width && height % width === 0) {
+          animation = {
+            type: 'vertical_frames',
+            aspect_w: width,
+            aspect_h: width,
+            length: 1.0
+          };
+        }
+
+        resolve({ width, height, animation });
+      };
+      img.onerror = () => {
+        resolve({ width: 16, height: 16 });
+      };
+      img.src = dataUrl;
+    });
   }
 
   public deleteCustomTexture(id: string): boolean {
@@ -123,7 +194,11 @@ export class TextureService {
         id,
         name: `${baseTex.name} (FX)`,
         dataUrl: baseTex.dataUrl,
-        isCustom: baseTex.isCustom
+        isCustom: baseTex.isCustom,
+        animation: baseTex.animation,
+        backfaceCulling: baseTex.backfaceCulling,
+        tileableVertical: baseTex.tileableVertical,
+        tileableHorizontal: baseTex.tileableHorizontal
       };
       this.transformedCache.set(id, placeholderDef);
 
@@ -161,7 +236,11 @@ export class TextureService {
       id,
       name: `${baseTex.name} (FX)`,
       dataUrl: flippedUrl,
-      isCustom: baseTex.isCustom
+      isCustom: baseTex.isCustom,
+      animation: baseTex.animation,
+      backfaceCulling: baseTex.backfaceCulling,
+      tileableVertical: baseTex.tileableVertical,
+      tileableHorizontal: baseTex.tileableHorizontal
     };
     this.transformedCache.set(id, def);
     this.textureUpdated.update(v => v + 1);

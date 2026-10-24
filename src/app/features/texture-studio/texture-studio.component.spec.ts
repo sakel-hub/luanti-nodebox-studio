@@ -82,4 +82,53 @@ describe('TextureStudioComponent', () => {
     expect(textureService.getTextureById('custom_leaf')).toBeUndefined();
     expect(projectStore.project().globalTextures.front).toBe('default_wood.png^[transformFX');
   });
+
+  it('opens animation modal, updates settings and saves animation properties', () => {
+    const custom = textureService.addCustomTexture('Custom Flame', 'data:image/png;base64,flamedata');
+    const fakeEvent = { stopPropagation: () => {} } as MouseEvent;
+
+    component.openAnimationModal(fakeEvent, custom);
+    expect(component.editingTexture()).toBe(custom);
+    expect(component.isAnimEnabled()).toBe(false);
+
+    // Enable animation and configure parameters
+    component.isAnimEnabled.set(true);
+    component.editAspectW.set(16);
+    component.editAspectH.set(16);
+    component.editLength.set(1.5);
+    component.editBackfaceCulling.set(false);
+    component.imageNaturalHeight.set(128); // 8 frames
+    expect(component.computedTotalFrames()).toBe(8);
+    expect(component.computedFPS()).toBe('5.3');
+
+    component.saveAnimationSettings();
+
+    // Verify modal closed
+    expect(component.editingTexture()).toBeNull();
+
+    // Verify texture in service was updated
+    const updated = textureService.getTextureById('custom_flame');
+    expect(updated?.animation).toBeDefined();
+    expect(updated?.animation?.type).toBe('vertical_frames');
+    expect(updated?.animation?.length).toBe(1.5);
+    expect(updated?.animation?.frameCount).toBe(8);
+    expect(updated?.backfaceCulling).toBe(false);
+  });
+
+  it('allows disabling animation on an existing animated texture', () => {
+    const flame = textureService.getTextureById('pale_watcher_ritual_pyre_flame.png');
+    expect(flame?.animation).toBeDefined();
+
+    const fakeEvent = { stopPropagation: () => {} } as MouseEvent;
+    component.openAnimationModal(fakeEvent, flame!);
+    expect(component.isAnimEnabled()).toBe(true);
+    expect(component.editBackfaceCulling()).toBe(false);
+
+    // Disable animation
+    component.isAnimEnabled.set(false);
+    component.saveAnimationSettings();
+
+    const updated = textureService.getTextureById('pale_watcher_ritual_pyre_flame.png');
+    expect(updated?.animation).toBeUndefined();
+  });
 });

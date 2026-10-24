@@ -306,6 +306,26 @@ export class CodeDrawerComponent {
     this.lastParseResult.set(result);
 
     if (result.boxes.length > 0) {
+      if (result.parsedTiles) {
+        result.parsedTiles.forEach((pt) => {
+          if (pt.animation) {
+            const existing = this.textureService.getTextureById(pt.name);
+            if (existing) {
+              this.textureService.updateTextureProperties(existing.id, {
+                animation: pt.animation,
+                backfaceCulling: pt.backfaceCulling
+              });
+            } else {
+              const fallback = this.textureService.getOrCreateProceduralFallback(pt.name);
+              this.textureService.addCustomTexture(pt.name, fallback.dataUrl, {
+                animation: pt.animation,
+                backfaceCulling: pt.backfaceCulling
+              });
+            }
+          }
+        });
+      }
+
       if (result.tiles) {
         result.tiles.forEach((t) => {
           if (t && t.includes('^')) {

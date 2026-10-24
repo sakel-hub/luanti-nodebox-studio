@@ -283,5 +283,81 @@ export const LUANTI_PRESETS: PresetTemplate[] = [
         color: '#f59e0b'
       }
     ]
+  },
+  {
+    name: 'Ritual Pyre (Burning Flame)',
+    description: 'Pale Watcher ritual pyre altar with animated vertical cleansing flame sheet',
+    nodeName: 'pale_watcher:ritual_pyre_burning',
+    nodeHeight: 2,
+    globalTextures: {
+      top: 'pale_watcher_ritual_pyre_flame.png',
+      bottom: 'pale_watcher_ritual_pyre_top.png',
+      right: 'pale_watcher_ritual_pyre_side.png',
+      left: 'pale_watcher_ritual_pyre_side.png',
+      back: 'pale_watcher_ritual_pyre_side.png',
+      front: 'pale_watcher_ritual_pyre_side.png'
+    },
+    boxes: [
+      {
+        name: 'Pyre Altar Base',
+        minX: -0.5,
+        minY: -0.5,
+        minZ: -0.5,
+        maxX: 0.5,
+        maxY: -0.2,
+        maxZ: 0.5,
+        visible: true,
+        locked: false,
+        color: '#334155',
+        textures: {
+          top: 'pale_watcher_ritual_pyre_top.png',
+          bottom: 'pale_watcher_ritual_pyre_top.png',
+          right: 'pale_watcher_ritual_pyre_side.png',
+          left: 'pale_watcher_ritual_pyre_side.png',
+          back: 'pale_watcher_ritual_pyre_side.png',
+          front: 'pale_watcher_ritual_pyre_side.png'
+        }
+      },
+      {
+        name: 'Pyre Altar Tier 2',
+        minX: -0.35,
+        minY: -0.2,
+        minZ: -0.35,
+        maxX: 0.35,
+        maxY: 0.0,
+        maxZ: 0.35,
+        visible: true,
+        locked: false,
+        color: '#475569',
+        textures: {
+          top: 'pale_watcher_ritual_pyre_top.png',
+          bottom: 'pale_watcher_ritual_pyre_top.png',
+          right: 'pale_watcher_ritual_pyre_side.png',
+          left: 'pale_watcher_ritual_pyre_side.png',
+          back: 'pale_watcher_ritual_pyre_side.png',
+          front: 'pale_watcher_ritual_pyre_side.png'
+        }
+      },
+      {
+        name: 'Cleansing Flame Tower',
+        minX: -0.25,
+        minY: 0.0,
+        minZ: -0.25,
+        maxX: 0.25,
+        maxY: 0.6,
+        maxZ: 0.25,
+        visible: true,
+        locked: false,
+        color: '#f97316',
+        textures: {
+          top: 'pale_watcher_ritual_pyre_flame.png',
+          bottom: 'pale_watcher_ritual_pyre_flame.png',
+          right: 'pale_watcher_ritual_pyre_flame.png',
+          left: 'pale_watcher_ritual_pyre_flame.png',
+          back: 'pale_watcher_ritual_pyre_flame.png',
+          front: 'pale_watcher_ritual_pyre_flame.png'
+        }
+      }
+    ]
   }
 ];

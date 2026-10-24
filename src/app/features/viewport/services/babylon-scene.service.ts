@@ -74,6 +74,16 @@ export class BabylonSceneService {
   private faceHighlightMesh: Mesh | null = null;
   private materialCache = new Map<string, StandardMaterial>();
   private textureCache = new Map<string, Texture>();
+  private animatedTextures = new Map<
+    string,
+    {
+      texture: Texture;
+      normalTexture?: Texture;
+      frameCount: number;
+      length: number;
+      lastFrameIndex: number;
+    }
+  >();
 
   private dragInitialBox: Box | null = null;
   private dragInitialPos: Vector3 = new Vector3();
@@ -135,6 +145,7 @@ export class BabylonSceneService {
       mat.dispose();
     }
     this.materialCache.clear();
+    this.animatedTextures.clear();
     for (const [key, tex] of this.textureCache.entries()) {
       if (key.startsWith('bump_')) {
         tex.dispose();
@@ -182,6 +193,11 @@ export class BabylonSceneService {
 
       // Apply initial environment sky / lighting
       this.applySkySettings(this.sceneSky());
+
+      // Live animation ticker for Luanti animated vertical texture sheets
+      this.scene.onBeforeRenderObservable.add(() => {
+        this.updateAnimatedTextures();
+      });
 
       // Setup Helpers (1x1x1 Node cage, 16x16 Grid, Floor Platform, Face Highlight)
       this.buildNodeCage();
@@ -1080,13 +1096,14 @@ export class BabylonSceneService {
       mat.specularColor = depthConfig.enabled ? new Color3(0.35, 0.35, 0.35) : new Color3(0.05, 0.05, 0.05);
       mat.specularPower = depthConfig.enabled ? 24 : 64;
       mat.invertNormalMapY = false;
-      mat.backFaceCulling = false;
+      mat.backFaceCulling = texDef?.backfaceCulling ?? false;
 
       if (texDef) {
         let tex = this.textureCache.get(texDef.id);
         if (tex && (!this.scene?.textures.includes(tex) || tex.metadata?.dataUrl !== texDef.dataUrl)) {
           tex.dispose();
           this.textureCache.delete(texDef.id);
+          this.animatedTextures.delete(texDef.id);
           tex = undefined;
         }
         if (!tex) {
@@ -1102,6 +1119,31 @@ export class BabylonSceneService {
         mat.transparencyMode = Material.MATERIAL_ALPHATESTANDBLEND;
         mat.alphaCutOff = 0.5;
 
+        // Setup Luanti animated vertical texture sheet
+        if (texDef.animation && texDef.animation.type === 'vertical_frames') {
+          const anim = texDef.animation;
+          const setupAnimation = (t: Texture) => {
+            const size = t.getSize();
+            const frameHeight = anim.aspect_h || 16;
+            const computedFrames = Math.max(1, Math.floor((size.height || 16) / frameHeight));
+            const frameCount = anim.frameCount || computedFrames;
+            t.vScale = 1.0 / frameCount;
+            t.vOffset = 0;
+            this.animatedTextures.set(texDef.id, {
+              texture: t,
+              frameCount,
+              length: anim.length || 1.0,
+              lastFrameIndex: 0
+            });
+          };
+
+          if (tex.isReady()) {
+            setupAnimation(tex);
+          } else {
+            tex.onLoadObservable.addOnce(() => setupAnimation(tex!));
+          }
+        }
+
         if (textureId === 'default_glass.png') {
           mat.opacityTexture = tex;
           mat.alpha = 0.8;
@@ -1115,6 +1157,12 @@ export class BabylonSceneService {
           const applyBumpConfig = (bTex: Texture) => {
             bTex.wrapU = Texture.WRAP_ADDRESSMODE;
             bTex.wrapV = Texture.WRAP_ADDRESSMODE;
+            const animEntry = this.animatedTextures.get(texDef.id);
+            if (animEntry) {
+              animEntry.normalTexture = bTex;
+              bTex.vScale = 1.0 / animEntry.frameCount;
+              bTex.vOffset = animEntry.texture.vOffset;
+            }
             mat!.bumpTexture = bTex;
             mat!.bumpTexture.level = getDepthIntensityMultiplier(depthConfig.intensity);
             mat!.useParallax = depthConfig.parallax;
@@ -1143,6 +1191,24 @@ export class BabylonSceneService {
     }
 
     return mat;
+  }
+
+  private updateAnimatedTextures(): void {
+    if (this.animatedTextures.size === 0) return;
+    const now = performance.now() / 1000;
+    for (const entry of this.animatedTextures.values()) {
+      const length = entry.length || 1.0;
+      const progress = (now % length) / length;
+      const frameIndex = Math.floor(progress * entry.frameCount);
+      if (frameIndex !== entry.lastFrameIndex) {
+        entry.lastFrameIndex = frameIndex;
+        const offset = frameIndex / entry.frameCount;
+        entry.texture.vOffset = offset;
+        if (entry.normalTexture) {
+          entry.normalTexture.vOffset = offset;
+        }
+      }
+    }
   }
 
   private getOrCreateSolidMaterial(colorHex: string): StandardMaterial {
@@ -1575,6 +1641,7 @@ export class BabylonSceneService {
     this.boxMeshes.clear();
     this.materialCache.clear();
     this.textureCache.clear();
+    this.animatedTextures.clear();
     this.cageMesh = null;
     this.gridMesh = null;
     this.scene?.dispose();

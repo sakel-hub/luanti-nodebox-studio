@@ -471,7 +471,9 @@ export class ProjectStore {
     this.project.update(p => ({
       ...p,
       name: preset.name,
+      nodeName: preset.nodeName ?? p.nodeName,
       nodeHeight,
+      globalTextures: preset.globalTextures ? { ...preset.globalTextures } : p.globalTextures,
       boxes: newBoxes,
       updatedAt: Date.now()
     }));

@@ -1,11 +1,18 @@
 import { Injectable } from '@angular/core';
-import { BOX_PALETTE, Box, FaceTextures, LUANTI_FACE_DIRECTIONS } from '../models/nodebox.model';
+import { BOX_PALETTE, Box, FaceTextures, LUANTI_FACE_DIRECTIONS, TextureAnimationConfig } from '../models/nodebox.model';
 import { parseCoordinateString } from '../utils/fraction.utils';
+
+export interface ParsedTileItem {
+  name: string;
+  animation?: TextureAnimationConfig;
+  backfaceCulling?: boolean;
+}
 
 export interface ParseResult {
   boxes: Box[];
   nodeName?: string;
   tiles?: string[];
+  parsedTiles?: ParsedTileItem[];
   warnings: string[];
 }
 
@@ -64,7 +71,7 @@ export class LuaParserService {
         const op = ops[j];
         const nextVal = values[j + 1] ?? 0;
         if (op === '+') result += nextVal;
-        if (op === '-') result -= nextVal;
+        if (op === '-') result += nextVal;
       }
 
       return isNaN(result) ? NaN : result;
@@ -90,24 +97,112 @@ export class LuaParserService {
 
   /**
    * Extracts texture tiles e.g. tiles = { "top.png", "bottom.png", ... } or tiles = "single.png"
+   * Supports both simple strings and Luanti animation tables:
+   *   { name = "flame.png", animation = { type = "vertical_frames", aspect_w = 16, aspect_h = 16, length = 1.0 } }
    */
-  private extractTiles(code: string): string[] | undefined {
+  private extractTiles(code: string): { tiles: string[]; parsedTiles: ParsedTileItem[] } | undefined {
     // Single string: tiles = "wood.png"
     const singleMatch = code.match(/tiles\s*=\s*["']([^"']+)["']/);
     if (singleMatch) {
-      return [singleMatch[1]];
+      return {
+        tiles: [singleMatch[1]],
+        parsedTiles: [{ name: singleMatch[1] }]
+      };
     }
 
-    // Table: tiles = { "top.png", "bot.png", ... }
-    const tableMatch = code.match(/tiles\s*=\s*\{([^}]+)\}/);
-    if (tableMatch) {
-      const inside = tableMatch[1];
-      const stringMatches = inside.match(/["']([^"']+)["']/g);
-      if (stringMatches) {
-        return stringMatches.map(s => s.replace(/["']/g, '').trim());
+    // Table: tiles = { ... }
+    const tilesMatch = code.match(/tiles\s*=\s*\{/);
+    if (!tilesMatch || tilesMatch.index === undefined) {
+      return undefined;
+    }
+
+    const startBrace = tilesMatch.index + tilesMatch[0].length - 1;
+    const block = this.extractBalancedBraceBlock(code, startBrace);
+    if (!block) return undefined;
+
+    // Inside the outer braces { ... }
+    const inner = block.slice(1, -1).trim();
+    const tiles: string[] = [];
+    const parsedTiles: ParsedTileItem[] = [];
+
+    // Parse elements: each element can be a string ("foo.png") or a table ({ name = "...", animation = { ... } })
+    let pos = 0;
+    while (pos < inner.length) {
+      // Skip whitespace and commas
+      while (pos < inner.length && /[\s,]/.test(inner[pos])) {
+        pos++;
       }
+      if (pos >= inner.length) break;
+
+      // Skip single line comments -- ...
+      if (inner.slice(pos, pos + 2) === '--') {
+        const nextLine = inner.indexOf('\n', pos);
+        pos = nextLine === -1 ? inner.length : nextLine + 1;
+        continue;
+      }
+
+      // Check if item is a table: { ... }
+      if (inner[pos] === '{') {
+        const itemBlock = this.extractBalancedBraceBlock(inner, pos);
+        if (itemBlock) {
+          pos += itemBlock.length;
+          // Extract name = "..."
+          const nameMatch = itemBlock.match(/name\s*=\s*["']([^"']+)["']/);
+          if (nameMatch) {
+            const name = nameMatch[1];
+            let animation: TextureAnimationConfig | undefined;
+            const animMatch = itemBlock.match(/animation\s*=\s*\{/);
+            if (animMatch && animMatch.index !== undefined) {
+              const animStart = animMatch.index + animMatch[0].length - 1;
+              const animBlock = this.extractBalancedBraceBlock(itemBlock, animStart);
+              if (animBlock) {
+                const typeMatch = animBlock.match(/type\s*=\s*["']([^"']+)["']/);
+                const wMatch = animBlock.match(/aspect_w\s*=\s*(\d+)/);
+                const hMatch = animBlock.match(/aspect_h\s*=\s*(\d+)/);
+                const lenMatch = animBlock.match(/length\s*=\s*([0-9.]+)/);
+                if (typeMatch && typeMatch[1] === 'vertical_frames') {
+                  animation = {
+                    type: 'vertical_frames',
+                    aspect_w: wMatch ? parseInt(wMatch[1], 10) : 16,
+                    aspect_h: hMatch ? parseInt(hMatch[1], 10) : 16,
+                    length: lenMatch ? parseFloat(lenMatch[1]) : 1.0
+                  };
+                }
+              }
+            }
+
+            let backfaceCulling: boolean | undefined;
+            const cullingMatch = itemBlock.match(/backface_culling\s*=\s*(true|false)/);
+            if (cullingMatch) {
+              backfaceCulling = cullingMatch[1] === 'true';
+            }
+
+            tiles.push(name);
+            parsedTiles.push({ name, animation, backfaceCulling });
+          }
+          continue;
+        }
+      }
+
+      // Check if item is a quoted string: "..." or '...'
+      if (inner[pos] === '"' || inner[pos] === "'") {
+        const quoteChar = inner[pos];
+        const endQuote = inner.indexOf(quoteChar, pos + 1);
+        if (endQuote !== -1) {
+          const str = inner.slice(pos + 1, endQuote).trim();
+          tiles.push(str);
+          parsedTiles.push({ name: str });
+          pos = endQuote + 1;
+          continue;
+        }
+      }
+
+      pos++;
     }
 
+    if (tiles.length > 0) {
+      return { tiles, parsedTiles };
+    }
     return undefined;
   }
 
@@ -157,7 +252,9 @@ export class LuaParserService {
     }
 
     const nodeName = this.extractNodeName(luaCode);
-    const tiles = this.extractTiles(luaCode);
+    const tilesResult = this.extractTiles(luaCode);
+    const tiles = tilesResult?.tiles;
+    const parsedTiles = tilesResult?.parsedTiles;
 
     // Strip multiline block comments, but preserve inline comments for box names
     const cleanCode = this.stripBlockComments(luaCode);
@@ -232,6 +329,7 @@ export class LuaParserService {
       boxes,
       nodeName,
       tiles,
+      parsedTiles,
       warnings: Array.from(new Set(warnings))
     };
   }

@@ -1,11 +1,26 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Box, ExportTemplate, FractionFormat, LUANTI_FACE_DIRECTIONS, NodeboxProject } from '../models/nodebox.model';
 import { formatCoordinate } from '../utils/fraction.utils';
+import { TextureService } from './texture.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class LuaGeneratorService {
+  private textureService?: TextureService;
+
+  constructor(textureService?: TextureService) {
+    if (textureService) {
+      this.textureService = textureService;
+    } else {
+      try {
+        this.textureService = inject(TextureService);
+      } catch {
+        this.textureService = undefined;
+      }
+    }
+  }
+
   /**
    * Generates formatted Lua code representing the nodebox project.
    */
@@ -62,8 +77,22 @@ export class LuaGeneratorService {
       default: {
         const nodeName = project.nodeName || 'mymod:custom_node';
         const tiles = LUANTI_FACE_DIRECTIONS.map(dir => {
-          const tex = project.globalTextures[dir] || 'default_wood.png';
-          return `        "${tex}", -- ${dir}`;
+          const texKey = project.globalTextures[dir] || 'default_wood.png';
+          const texDef = this.textureService?.getTextureById(texKey);
+          if (texDef && texDef.animation && texDef.animation.type === 'vertical_frames') {
+            const anim = texDef.animation;
+            const cullingProp = texDef.backfaceCulling !== undefined ? `\n            backface_culling = ${texDef.backfaceCulling},` : '';
+            return `        {
+            name = "${texKey}",
+            animation = {
+                type = "vertical_frames",
+                aspect_w = ${anim.aspect_w},
+                aspect_h = ${anim.aspect_h},
+                length = ${anim.length},
+            },${cullingProp}
+        }, -- ${dir}`;
+          }
+          return `        "${texKey}", -- ${dir}`;
         }).join('\n');
 
         return `core.register_node("${nodeName}", {

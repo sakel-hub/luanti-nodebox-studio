@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LuaParserService } from './lua-parser.service';
 import { LuaGeneratorService } from './lua-generator.service';
+import { TextureService } from './texture.service';
 import { NodeboxProject } from '../models/nodebox.model';
 
 describe('LuaParserService & LuaGeneratorService', () => {
@@ -334,6 +335,121 @@ Everness:register_node('everness:luminous_mushroom_4', {
     // Ensure 0,0,0 box from tiles was not added
     const hasZeroBox = result.boxes.some(b => b.minX === 0 && b.maxX === 0 && b.minY === 0 && b.maxY === 0);
     expect(hasZeroBox).toBe(false);
+  });
+
+  it('parses pale_watcher:ritual_pyre_burning with animated flame sheet tile and backface culling', () => {
+    const pyreLua = `
+core.register_node("pale_watcher:ritual_pyre_burning", {
+    description = "Ritual Pyre (Burning)",
+    tiles = {
+        "pale_watcher_ritual_pyre_top.png",
+        "pale_watcher_ritual_pyre_top.png",
+        "pale_watcher_ritual_pyre_side.png",
+        "pale_watcher_ritual_pyre_side.png",
+        "pale_watcher_ritual_pyre_side.png",
+        {
+            name = "pale_watcher_ritual_pyre_flame.png",
+            animation = {
+                type = "vertical_frames",
+                aspect_w = 16,
+                aspect_h = 16,
+                length = 1.5,
+            },
+            backface_culling = false,
+        },
+    },
+    drawtype = "nodebox",
+    paramtype = "light",
+    paramtype2 = "facedir",
+    node_box = {
+        type = "fixed",
+        fixed = {
+            {-0.5, -0.5, -0.5, 0.5, -0.3125, 0.5}, -- stone base
+            {-0.0625, -0.3125, -0.0625, 0.0625, 0.5, 0.0625}, -- flame pillar
+        }
+    }
+})
+    `;
+
+    const result = parser.parse(pyreLua);
+    expect(result.nodeName).toBe('pale_watcher:ritual_pyre_burning');
+    expect(result.tiles?.length).toBe(6);
+    expect(result.tiles?.[5]).toBe('pale_watcher_ritual_pyre_flame.png');
+
+    // Verify parsedTiles rich metadata
+    expect(result.parsedTiles).toBeDefined();
+    expect(result.parsedTiles?.length).toBe(6);
+    const animatedTile = result.parsedTiles?.[5];
+    expect(animatedTile?.name).toBe('pale_watcher_ritual_pyre_flame.png');
+    expect(animatedTile?.animation).toBeDefined();
+    expect(animatedTile?.animation?.type).toBe('vertical_frames');
+    expect(animatedTile?.animation?.aspect_w).toBe(16);
+    expect(animatedTile?.animation?.aspect_h).toBe(16);
+    expect(animatedTile?.animation?.length).toBe(1.5);
+    expect(animatedTile?.backfaceCulling).toBe(false);
+
+    // Verify boxes
+    expect(result.boxes.length).toBe(2);
+    expect(result.boxes[0].name).toBe('stone base');
+    expect(result.boxes[1].name).toBe('flame pillar');
+  });
+
+  it('generates Luanti table tile definitions for animated textures with vertical_frames', () => {
+    const textureService = new TextureService();
+    textureService.addCustomTexture('custom_flame.png', 'data:image/png;base64,flame');
+    textureService.updateTextureProperties('custom_flame.png', {
+      animation: {
+        type: 'vertical_frames',
+        aspect_w: 16,
+        aspect_h: 16,
+        length: 2.0
+      },
+      backfaceCulling: false
+    });
+
+    const customGen = new LuaGeneratorService(textureService);
+    const testProject: NodeboxProject = {
+      id: 'test-anim',
+      name: 'Animated Flame Project',
+      nodeName: 'test:animated_flame',
+      format: 'decimal',
+      exportTemplate: 'register_node',
+      snapResolution: 16,
+      updatedAt: Date.now(),
+      globalTextures: {
+        top: 'default_stone.png',
+        bottom: 'default_stone.png',
+        right: 'default_stone.png',
+        left: 'default_stone.png',
+        back: 'default_stone.png',
+        front: 'custom_flame.png'
+      },
+      boxes: [
+        {
+          id: 'box-1',
+          name: 'Flame Box',
+          minX: -0.5,
+          minY: -0.5,
+          minZ: -0.5,
+          maxX: 0.5,
+          maxY: 0.5,
+          maxZ: 0.5,
+          color: '#ffaa00',
+          visible: true,
+          locked: false
+        }
+      ]
+    };
+
+    const lua = customGen.generate(testProject);
+    expect(lua).toContain('core.register_node("test:animated_flame"');
+    expect(lua).toContain('"default_stone.png", -- top');
+    expect(lua).toContain('name = "custom_flame.png"');
+    expect(lua).toContain('type = "vertical_frames"');
+    expect(lua).toContain('aspect_w = 16');
+    expect(lua).toContain('aspect_h = 16');
+    expect(lua).toContain('length = 2');
+    expect(lua).toContain('backface_culling = false');
   });
 });
 
