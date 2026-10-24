@@ -451,6 +451,88 @@ core.register_node("custom_mod:brazier_fire", {
     expect(lua).toContain('length = 2');
     expect(lua).toContain('backface_culling = false');
   });
+
+  it('parses connected nodebox with slot-tagged boxes and connects_to', () => {
+    const luaCode = `
+      core.register_node("default:fence_wood", {
+          description = "Apple Wood Fence",
+          drawtype = "nodebox",
+          connects_to = {"group:fence", "group:wood"},
+          node_box = {
+              type = "connected",
+              fixed = {
+                  {-2/16, -8/16, -2/16, 2/16, 8/16, 2/16}, -- Center Post
+              },
+              connect_front = {
+                  {-1/16, 3/16, -8/16, 1/16, 5/16, -2/16}, -- Top Rail
+                  {-1/16, -5/16, -8/16, 1/16, -3/16, -2/16}, -- Bottom Rail
+              },
+              connect_back = {
+                  {-1/16, 3/16, 2/16, 1/16, 5/16, 8/16},
+              }
+          }
+      })
+    `;
+
+    const result = parser.parse(luaCode);
+    expect(result.nodeName).toBe('default:fence_wood');
+    expect(result.nodeboxType).toBe('connected');
+    expect(result.connectsTo).toEqual(['group:fence', 'group:wood']);
+    expect(result.boxes.length).toBe(4);
+
+    const post = result.boxes.find(b => b.name === 'Center Post')!;
+    expect(post).toBeDefined();
+    expect(post.slot).toBe('fixed');
+
+    const frontBoxes = result.boxes.filter(b => b.slot === 'connect_front');
+    expect(frontBoxes.length).toBe(2);
+
+    const backBoxes = result.boxes.filter(b => b.slot === 'connect_back');
+    expect(backBoxes.length).toBe(1);
+  });
+
+  it('parses wallmounted nodebox with floor, ceiling, and wall slots', () => {
+    const luaCode = `
+      core.register_node("default:torch", {
+          description = "Torch",
+          drawtype = "nodebox",
+          paramtype2 = "wallmounted",
+          node_box = {
+              type = "wallmounted",
+              wall_top = {-1/16, 0.25, -1/16, 1/16, 0.5, 1/16},
+              wall_bottom = {-1/16, -0.5, -1/16, 1/16, -0.25, 1/16},
+              wall_side = {-0.5, -0.25, -1/16, -0.25, 0.25, 1/16}
+          }
+      })
+    `;
+
+    const result = parser.parse(luaCode);
+    expect(result.nodeName).toBe('default:torch');
+    expect(result.nodeboxType).toBe('wallmounted');
+    expect(result.boxes.length).toBe(3);
+
+    expect(result.boxes.some(b => b.slot === 'wall_top')).toBe(true);
+    expect(result.boxes.some(b => b.slot === 'wall_bottom')).toBe(true);
+    expect(result.boxes.some(b => b.slot === 'wall_side')).toBe(true);
+  });
+
+  it('parses regular nodebox and synthesizes default unit cube when empty', () => {
+    const luaCode = `
+      core.register_node("default:stone", {
+          drawtype = "nodebox",
+          node_box = {
+              type = "regular"
+          }
+      })
+    `;
+
+    const result = parser.parse(luaCode);
+    expect(result.nodeboxType).toBe('regular');
+    expect(result.boxes.length).toBe(1);
+    expect(result.boxes[0].minX).toBe(-0.5);
+    expect(result.boxes[0].maxX).toBe(0.5);
+  });
 });
+
 
 

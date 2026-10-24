@@ -1,5 +1,15 @@
 import { Injectable } from '@angular/core';
-import { BOX_PALETTE, Box, FaceTextures, LUANTI_FACE_DIRECTIONS, TextureAnimationConfig } from '../models/nodebox.model';
+import {
+  BOX_PALETTE,
+  Box,
+  CONNECTED_SLOTS,
+  FaceTextures,
+  LUANTI_FACE_DIRECTIONS,
+  NodeboxSlot,
+  NodeboxType,
+  TextureAnimationConfig,
+  WALLMOUNTED_SLOTS
+} from '../models/nodebox.model';
 import { parseCoordinateString } from '../utils/fraction.utils';
 
 export interface ParsedTileItem {
@@ -11,10 +21,13 @@ export interface ParsedTileItem {
 export interface ParseResult {
   boxes: Box[];
   nodeName?: string;
+  nodeboxType?: NodeboxType;
+  connectsTo?: string[];
   tiles?: string[];
   parsedTiles?: ParsedTileItem[];
   warnings: string[];
 }
+
 
 @Injectable({
   providedIn: 'root'
@@ -242,8 +255,83 @@ export class LuaParserService {
     return null;
   }
 
+  private extractNodeboxType(targetBlock: string): NodeboxType {
+    const typeMatch = targetBlock.match(/type\s*=\s*["']([^"']+)["']/i);
+    if (typeMatch) {
+      const val = typeMatch[1].toLowerCase();
+      if (val === 'connected' || val === 'wallmounted' || val === 'leveled' || val === 'regular') {
+        return val as NodeboxType;
+      }
+    }
+    return 'fixed';
+  }
+
+  private extractConnectsTo(code: string): string[] | undefined {
+    const match = code.match(/connects_to\s*=\s*\{/i);
+    if (!match || match.index === undefined) return undefined;
+    const block = this.extractBalancedBraceBlock(code, match.index + match[0].length - 1);
+    if (!block) return undefined;
+    const inner = block.slice(1, -1);
+    const items = inner.match(/["']([^"']+)["']/g);
+    if (items) {
+      return items.map(s => s.slice(1, -1));
+    }
+    return undefined;
+  }
+
+  private extractSlotBoxes(
+    targetBlock: string,
+    slotKeys: readonly NodeboxSlot[]
+  ): { slot: NodeboxSlot; coords: number[]; name?: string }[] {
+    const result: { slot: NodeboxSlot; coords: number[]; name?: string }[] = [];
+    const boxTupleRegex = /\{([^{}]+)\}\s*,?\s*(?:--[ \t]*([^\r\n]*))?/g;
+
+    for (const slot of slotKeys) {
+      const regex = new RegExp(`\\b${slot}\\s*=\\s*\\{`, 'i');
+      const match = targetBlock.match(regex);
+      if (match && match.index !== undefined) {
+        const startBrace = match.index + match[0].length - 1;
+        const block = this.extractBalancedBraceBlock(targetBlock, startBrace);
+        if (block) {
+          const inner = block.slice(1, -1).trim();
+          // Check if it's a single tuple directly: { -0.1, 0, -0.5, 0.1, 0.2, -0.1 }
+          if (!inner.includes('{')) {
+            const parts = inner.split(',').map(p => p.trim()).filter(p => p.length > 0);
+            if (parts.length === 6) {
+              const coords = parts.map(p => this.evaluateExpression(p));
+              if (coords.every(c => !isNaN(c))) {
+                result.push({ slot, coords, name: `${slot}` });
+                continue;
+              }
+            }
+          }
+
+          // Otherwise parse list of box tuples: { { ... }, { ... } }
+          let tupleMatch: RegExpExecArray | null;
+          boxTupleRegex.lastIndex = 0;
+          while ((tupleMatch = boxTupleRegex.exec(block)) !== null) {
+            const content = tupleMatch[1].trim();
+            const parts = content.split(',').map(p => p.trim()).filter(p => p.length > 0);
+            if (parts.length === 6) {
+              const coords = parts.map(p => this.evaluateExpression(p));
+              if (coords.every(c => !isNaN(c))) {
+                const commentName = tupleMatch[2]?.trim();
+                result.push({
+                  slot,
+                  coords,
+                  name: commentName && commentName.length > 0 ? commentName : undefined
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
+
   /**
-   * Parses Lua code and extracts all valid 6-coordinate boxes.
+   * Parses Lua code and extracts all valid 6-coordinate boxes with nodebox types and slots.
    */
   public parse(luaCode: string): ParseResult {
     const warnings: string[] = [];
@@ -255,32 +343,51 @@ export class LuaParserService {
     const tilesResult = this.extractTiles(luaCode);
     const tiles = tilesResult?.tiles;
     const parsedTiles = tilesResult?.parsedTiles;
+    const connectsTo = this.extractConnectsTo(luaCode);
 
     // Strip multiline block comments, but preserve inline comments for box names
     const cleanCode = this.stripBlockComments(luaCode);
     const targetBlock = this.extractBoxTargetBlock(cleanCode);
+    const nodeboxType = this.extractNodeboxType(targetBlock);
 
-    // Match 6-coordinate tuples: { num, num, num, num, num, num } followed optionally by a comma and inline comment
-    const boxTupleRegex = /\{([^{}]+)\}\s*,?\s*(?:--[ \t]*([^\r\n]*))?/g;
-    let match: RegExpExecArray | null;
-    const rawBoxes: { coords: number[]; name?: string }[] = [];
+    let rawBoxes: { coords: number[]; name?: string; slot?: NodeboxSlot }[] = [];
 
-    while ((match = boxTupleRegex.exec(targetBlock)) !== null) {
-      const content = match[1].trim();
-      const parts = content.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    if (nodeboxType === 'connected') {
+      rawBoxes = this.extractSlotBoxes(targetBlock, CONNECTED_SLOTS);
+    } else if (nodeboxType === 'wallmounted') {
+      rawBoxes = this.extractSlotBoxes(targetBlock, WALLMOUNTED_SLOTS);
+    }
 
-      // Check if this brace group has exactly 6 elements
-      if (parts.length === 6) {
-        const coords = parts.map(p => this.evaluateExpression(p));
-        // Verify all 6 are valid numbers
-        if (coords.every(c => !isNaN(c))) {
-          const commentName = match[2]?.trim();
-          rawBoxes.push({
-            coords,
-            name: commentName && commentName.length > 0 ? commentName : undefined
-          });
+    // Fallback: If not slot-based or no slot boxes found, parse general 6-tuples as fixed slot
+    if (rawBoxes.length === 0) {
+      const boxTupleRegex = /\{([^{}]+)\}\s*,?\s*(?:--[ \t]*([^\r\n]*))?/g;
+      let match: RegExpExecArray | null;
+
+      while ((match = boxTupleRegex.exec(targetBlock)) !== null) {
+        const content = match[1].trim();
+        const parts = content.split(',').map(p => p.trim()).filter(p => p.length > 0);
+
+        if (parts.length === 6) {
+          const coords = parts.map(p => this.evaluateExpression(p));
+          if (coords.every(c => !isNaN(c))) {
+            const commentName = match[2]?.trim();
+            rawBoxes.push({
+              coords,
+              name: commentName && commentName.length > 0 ? commentName : undefined,
+              slot: 'fixed'
+            });
+          }
         }
       }
+    }
+
+    // If regular cube and no explicit boxes were defined
+    if (nodeboxType === 'regular' && rawBoxes.length === 0) {
+      rawBoxes.push({
+        coords: [-0.5, -0.5, -0.5, 0.5, 0.5, 0.5],
+        name: 'Full Cube',
+        slot: 'fixed'
+      });
     }
 
     if (rawBoxes.length === 0) {
@@ -313,6 +420,7 @@ export class LuaParserService {
       return {
         id: `box_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
         name: raw.name || `Box ${idx + 1}`,
+        slot: raw.slot || 'fixed',
         minX,
         minY,
         minZ,
@@ -328,6 +436,8 @@ export class LuaParserService {
     return {
       boxes,
       nodeName,
+      nodeboxType,
+      connectsTo,
       tiles,
       parsedTiles,
       warnings: Array.from(new Set(warnings))

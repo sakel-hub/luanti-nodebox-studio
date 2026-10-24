@@ -339,7 +339,14 @@ export class CodeDrawerComponent {
           }
         });
       }
-      this.projectStore.importBoxes(result.boxes, this.importReplace, result.nodeName, result.tiles);
+      this.projectStore.importBoxes(
+        result.boxes,
+        this.importReplace,
+        result.nodeName,
+        result.tiles,
+        result.nodeboxType,
+        result.connectsTo
+      );
       this.activeTab.set('export');
     }
   }
