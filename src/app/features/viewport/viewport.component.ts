@@ -1,6 +1,7 @@
 import {
   Component,
   ElementRef,
+  HostListener,
   OnDestroy,
   OnInit,
   ViewChild,
@@ -23,13 +24,66 @@ import { ProjectStore } from '../../core/state/project.store';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { ThemeService } from '../../core/services/theme.service';
 import { TextureService } from '../../core/services/texture.service';
+import { TexturePainterService, PaintTool } from '../../core/services/texture-painter.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { NeighborConnectionState } from '../../core/models/nodebox.model';
+import {
+  LucideCamera,
+  LucideChevronDown,
+  LucidePalette,
+  LucideMove,
+  LucideSquare,
+  LucideScaling,
+  LucideRotateCw,
+  LucidePaintbrush,
+  LucideX,
+  LucideCrosshair,
+  LucideEye,
+  LucideSun,
+  LucideMoon,
+  LucidePencil,
+  LucideEraser,
+  LucidePaintBucket,
+  LucidePipette,
+  LucideSparkles,
+  LucideUndo,
+  LucideRedo,
+  LucideGrid3x3,
+  LucideArrowUpDown,
+  LucideBox
+} from '@lucide/angular';
 
 @Component({
   selector: 'app-viewport',
   standalone: true,
-  imports: [CommonModule, TooltipDirective, TranslatePipe],
+  imports: [
+    CommonModule,
+    TooltipDirective,
+    TranslatePipe,
+    LucideCamera,
+    LucideChevronDown,
+    LucidePalette,
+    LucideMove,
+    LucideSquare,
+    LucideScaling,
+    LucideRotateCw,
+    LucidePaintbrush,
+    LucideX,
+    LucideCrosshair,
+    LucideEye,
+    LucideSun,
+    LucideMoon,
+    LucidePencil,
+    LucideEraser,
+    LucidePaintBucket,
+    LucidePipette,
+    LucideSparkles,
+    LucideUndo,
+    LucideRedo,
+    LucideGrid3x3,
+    LucideArrowUpDown,
+    LucideBox
+  ],
   template: `
     <div class="relative w-full h-full bg-slate-950 overflow-hidden flex flex-col" style="contain: strict;">
       <!-- 3D Canvas with touch-none for gesture isolation -->
@@ -52,8 +106,9 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
               (click)="toggleMobileCameraMenu()"
               aria-label="Camera view presets"
               class="h-9 px-3 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-lg active:scale-95 transition">
-              <span class="font-mono">📷 {{ activeCameraPreset() | uppercase }}</span>
-              <span class="text-[10px] text-slate-400">▾</span>
+              <svg lucideCamera class="w-3.5 h-3.5 text-slate-300"></svg>
+              <span class="font-mono">{{ activeCameraPreset() | uppercase }}</span>
+              <svg lucideChevronDown class="w-3 h-3 text-slate-400"></svg>
             </button>
 
             @if (showMobileCameraMenu()) {
@@ -93,8 +148,9 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
               (click)="toggleMobileShadingMenu()"
               [attr.aria-label]="'viewport.shading' | translate"
               class="h-9 px-3 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-lg active:scale-95 transition">
-              <span>🎨 {{ sceneService.viewportMode() | titlecase }}</span>
-              <span class="text-[10px] text-slate-400">▾</span>
+              <svg lucidePalette class="w-3.5 h-3.5 text-slate-300"></svg>
+              <span>{{ sceneService.viewportMode() | titlecase }}</span>
+              <svg lucideChevronDown class="w-3 h-3 text-slate-400"></svg>
             </button>
 
             @if (showMobileShadingMenu()) {
@@ -196,9 +252,9 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             [class.text-white]="sceneService.gizmoMode() === 'position'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'position'"
             [attr.aria-label]="'viewport.move' | translate"
-            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition active:scale-90"
             [title]="'viewport.move' | translate">
-            ✥
+            <svg lucideMove class="w-4 h-4"></svg>
           </button>
           <button
             (click)="setGizmo('resize')"
@@ -206,9 +262,9 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             [class.text-white]="sceneService.gizmoMode() === 'resize'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'resize'"
             [attr.aria-label]="'viewport.resize' | translate"
-            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition active:scale-90"
             [title]="'viewport.resize' | translate">
-            ⬚
+            <svg lucideSquare class="w-4 h-4"></svg>
           </button>
           <button
             (click)="setGizmo('scale')"
@@ -216,9 +272,9 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             [class.text-white]="sceneService.gizmoMode() === 'scale'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'scale'"
             [attr.aria-label]="'viewport.scale' | translate"
-            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition active:scale-90"
             [title]="'viewport.scale' | translate">
-            ⤢
+            <svg lucideScaling class="w-4 h-4"></svg>
           </button>
           <button
             (click)="setGizmo('rotation')"
@@ -226,9 +282,19 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             [class.text-white]="sceneService.gizmoMode() === 'rotation'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'rotation'"
             [attr.aria-label]="'viewport.rotate' | translate"
-            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition active:scale-90"
             [title]="'viewport.rotate' | translate">
-            ↻
+            <svg lucideRotateCw class="w-4 h-4"></svg>
+          </button>
+          <button
+            (click)="setGizmo('paint')"
+            [class.bg-sky-600]="sceneService.gizmoMode() === 'paint'"
+            [class.text-white]="sceneService.gizmoMode() === 'paint'"
+            [class.text-slate-400]="sceneService.gizmoMode() !== 'paint'"
+            [attr.aria-label]="'viewport.paint' | translate"
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition active:scale-90"
+            [title]="'viewport.paint' | translate">
+            <svg lucidePaintbrush class="w-4 h-4"></svg>
           </button>
           <button
             (click)="setGizmo('none')"
@@ -236,17 +302,17 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             [class.text-white]="sceneService.gizmoMode() === 'none'"
             [class.text-slate-500]="sceneService.gizmoMode() !== 'none'"
             [attr.aria-label]="'viewport.selectOff' | translate"
-            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            class="w-10 h-10 rounded-xl flex items-center justify-center transition active:scale-90"
             [title]="'viewport.selectOff' | translate">
-            ✕
+            <svg lucideX class="w-4 h-4"></svg>
           </button>
           <div class="w-full h-px bg-slate-800 my-0.5"></div>
           <button
             (click)="resetCamera()"
             [attr.aria-label]="'viewport.resetView' | translate"
-            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-slate-400 hover:text-white transition active:scale-90"
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition active:scale-90"
             [title]="'viewport.resetView' | translate">
-            ⌖
+            <svg lucideCrosshair class="w-4 h-4"></svg>
           </button>
         </div>
       }
@@ -376,6 +442,16 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
               Rotate
             </button>
             <button
+              (click)="setGizmo('paint')"
+              [class.bg-sky-600]="sceneService.gizmoMode() === 'paint'"
+              [class.text-white]="sceneService.gizmoMode() === 'paint'"
+              [appTooltip]="'viewport.paint' | translate"
+              [appTooltipShortcutId]="'tool_paint'"
+              class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition flex items-center gap-1">
+              <svg lucidePaintbrush class="w-3.5 h-3.5"></svg>
+              <span>Paint</span>
+            </button>
+            <button
               (click)="setGizmo('none')"
               [class.bg-slate-700]="sceneService.gizmoMode() === 'none'"
               [appTooltip]="'viewport.selectOff' | translate"
@@ -411,9 +487,7 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             [class.text-white]="projectStore.project().nodeHeight === 2"
             [class.text-slate-300]="projectStore.project().nodeHeight !== 2"
             class="px-2 py-1 rounded hover:bg-slate-800 transition font-mono font-medium flex items-center gap-1 text-[11px]">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/>
-            </svg>
+            <svg lucideArrowUpDown class="w-3 h-3"></svg>
             <span>{{ projectStore.project().nodeHeight === 2 ? '2 Nodes' : '1 Node' }}</span>
           </button>
           <button
@@ -431,10 +505,7 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
         <div class="absolute top-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-2 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 px-3 py-2 rounded-xl shadow-2xl text-xs z-30">
           <!-- Render Mode Badge -->
           <div class="flex items-center gap-1.5 border-r border-slate-700/80 pr-2.5 text-amber-400 font-semibold tracking-wide uppercase text-[10px]">
-            <svg class="w-3.5 h-3.5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
+            <svg lucideEye class="w-3.5 h-3.5 animate-pulse"></svg>
             Render Studio
           </div>
 
@@ -484,15 +555,114 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             </select>
           </div>
 
+          <!-- Pixel Art Depth & Relief Popover Trigger -->
+          <div class="relative border-r border-slate-700/80 pr-2">
+            <button
+              (click)="showDepthPopover.update(v => !v)"
+              [class.bg-sky-600]="sceneService.pixelDepth().enabled"
+              [class.text-white]="sceneService.pixelDepth().enabled"
+              [class.bg-slate-800]="!sceneService.pixelDepth().enabled"
+              [class.text-slate-300]="!sceneService.pixelDepth().enabled"
+              [title]="'viewport.pixelDepth' | translate"
+              class="px-2.5 py-1 rounded hover:bg-slate-700 transition flex items-center gap-1.5 border border-slate-700 font-medium">
+              <svg lucideBox class="w-3.5 h-3.5 text-amber-400"></svg>
+              <span>3D Depth</span>
+              <span class="text-[9px] px-1 py-0.2 rounded font-mono uppercase bg-slate-950/60 text-sky-400">
+                {{ sceneService.pixelDepth().enabled ? sceneService.pixelDepth().intensity : 'off' }}
+              </span>
+            </button>
+
+            <!-- Depth Popover Dialog -->
+            @if (showDepthPopover()) {
+              <!-- Click-outside backdrop -->
+              <div class="fixed inset-0 z-40" (click)="showDepthPopover.set(false)"></div>
+
+              <div class="absolute top-full mt-2 left-0 w-64 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span class="font-semibold text-slate-200">Pixel Art Depth & Relief</span>
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [checked]="sceneService.pixelDepth().enabled"
+                      (change)="sceneService.setPixelDepth({ enabled: !sceneService.pixelDepth().enabled })"
+                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                    <span class="text-[11px] text-slate-300 font-medium">Enabled</span>
+                  </label>
+                </div>
+
+                <!-- Individual Style Checkboxes -->
+                <div class="space-y-1.5">
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Depth Styles</div>
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                    <input
+                      type="checkbox"
+                      [checked]="sceneService.pixelDepth().pixelBevel"
+                      (change)="sceneService.setPixelDepth({ pixelBevel: !sceneService.pixelDepth().pixelBevel })"
+                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                    <span>Pixel Bevel (Mosaic)</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                    <input
+                      type="checkbox"
+                      [checked]="sceneService.pixelDepth().luminanceRelief"
+                      (change)="sceneService.setPixelDepth({ luminanceRelief: !sceneService.pixelDepth().luminanceRelief })"
+                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                    <span>Luminance Relief</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                    <input
+                      type="checkbox"
+                      [checked]="sceneService.pixelDepth().extrudePixels"
+                      (change)="sceneService.setPixelDepth({ extrudePixels: !sceneService.pixelDepth().extrudePixels })"
+                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                    <span>3D Pixel Extrusion (Voxel)</span>
+                  </label>
+                </div>
+
+                <!-- Intensity Selector -->
+                <div class="space-y-1.5">
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Intensity</div>
+                  <div class="grid grid-cols-3 gap-1">
+                    @for (lvl of ['subtle', 'medium', 'deep']; track lvl) {
+                      <button
+                        (click)="sceneService.setPixelDepth({ intensity: $any(lvl) })"
+                        [class.bg-sky-600]="sceneService.pixelDepth().intensity === lvl"
+                        [class.text-white]="sceneService.pixelDepth().intensity === lvl"
+                        [class.bg-slate-800]="sceneService.pixelDepth().intensity !== lvl"
+                        [class.text-slate-400]="sceneService.pixelDepth().intensity !== lvl"
+                        class="py-1 rounded text-center capitalize font-medium transition hover:bg-slate-700">
+                        {{ lvl }}
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <!-- Presets -->
+                <div class="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
+                  <span class="text-slate-500">Presets:</span>
+                  <div class="flex gap-1">
+                    <button
+                      (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: true, luminanceRelief: false, extrudePixels: false })"
+                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Mosaic</button>
+                    <button
+                      (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: false, luminanceRelief: true, extrudePixels: false })"
+                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Relief</button>
+                    <button
+                      (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: true, luminanceRelief: true, extrudePixels: true })"
+                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Full 3D</button>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
           <!-- Turntable Auto-Rotation Button -->
           <button
             (click)="toggleTurntable()"
             [class.bg-amber-600]="sceneService.isTurntableActive()"
             [class.text-white]="sceneService.isTurntableActive()"
             class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1">
-            <svg class="w-3.5 h-3.5" [class.animate-spin]="sceneService.isTurntableActive()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <svg lucideRotateCw class="w-3.5 h-3.5" [class.animate-spin]="sceneService.isTurntableActive()"></svg>
             <span>Turntable</span>
           </button>
 
@@ -502,10 +672,7 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
               (click)="captureScreenshot('1080p', false)"
               title="Download 1080p Screenshot"
               class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium transition flex items-center gap-1">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+              <svg lucideCamera class="w-3.5 h-3.5"></svg>
               <span>1080p</span>
             </button>
 
@@ -530,13 +697,9 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             [title]="themeService.theme() === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
             class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
             @if (themeService.theme() === 'dark') {
-              <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
+              <svg lucideSun class="w-4 h-4 text-amber-400"></svg>
             } @else {
-              <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
+              <svg lucideMoon class="w-4 h-4 text-sky-400"></svg>
             }
           </button>
 
@@ -545,9 +708,7 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
             (click)="projectStore.toggleRenderMode(false)"
             title="Exit presentation render mode (Esc)"
             class="px-2.5 py-1 rounded bg-rose-600/80 hover:bg-rose-600 text-white font-medium transition flex items-center gap-1">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <svg lucideX class="w-3.5 h-3.5"></svg>
             <span>Exit (Esc)</span>
           </button>
         </div>
@@ -579,6 +740,146 @@ import { NeighborConnectionState } from '../../core/models/nodebox.model';
           <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
           <span>Resizing Face: <strong class="text-white capitalize">{{ sceneService.activeFace() }}</strong></span>
           <span class="text-sky-300 font-mono text-[11px] font-semibold">({{ sceneService.getFaceAxisName(sceneService.activeFace()!) }})</span>
+        </div>
+      }
+
+      <!-- ========================================== -->
+      <!-- FLOATING 3D PAINT STUDIO BAR (Phone & Desktop) -->
+      <!-- ========================================== -->
+      @if (!projectStore.isRenderMode() && sceneService.gizmoMode() === 'paint') {
+        <div
+          role="toolbar"
+          [attr.aria-label]="'viewport.paint' | translate"
+          class="absolute bottom-3 lg:bottom-12 left-1/2 -translate-x-1/2 max-w-[96vw] bg-slate-900/95 backdrop-blur-md border border-sky-500/50 px-2.5 py-1.5 rounded-2xl shadow-2xl flex items-center gap-1.5 text-xs z-20 pointer-events-auto overflow-x-auto">
+          <!-- Paint Tools -->
+          <div class="flex items-center gap-1 pr-1.5 border-r border-slate-700/80">
+            <button
+              type="button"
+              (click)="setPaintTool('pencil')"
+              [class.bg-sky-600]="painterService.activeTool() === 'pencil'"
+              [class.text-white]="painterService.activeTool() === 'pencil'"
+              [class.text-slate-300]="painterService.activeTool() !== 'pencil'"
+              [attr.aria-pressed]="painterService.activeTool() === 'pencil'"
+              [attr.aria-label]="'textureStudio.toolPencil' | translate"
+              [appTooltip]="'textureStudio.toolPencil' | translate"
+              appTooltipPlacement="top"
+              class="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center transition flex-shrink-0">
+              <svg lucidePencil class="w-4 h-4"></svg>
+            </button>
+            <button
+              type="button"
+              (click)="setPaintTool('eraser')"
+              [class.bg-sky-600]="painterService.activeTool() === 'eraser'"
+              [class.text-white]="painterService.activeTool() === 'eraser'"
+              [class.text-slate-300]="painterService.activeTool() !== 'eraser'"
+              [attr.aria-pressed]="painterService.activeTool() === 'eraser'"
+              [attr.aria-label]="'textureStudio.toolEraser' | translate"
+              [appTooltip]="'textureStudio.toolEraser' | translate"
+              appTooltipPlacement="top"
+              class="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center transition flex-shrink-0">
+              <svg lucideEraser class="w-4 h-4"></svg>
+            </button>
+            <button
+              type="button"
+              (click)="setPaintTool('fill')"
+              [class.bg-sky-600]="painterService.activeTool() === 'fill'"
+              [class.text-white]="painterService.activeTool() === 'fill'"
+              [class.text-slate-300]="painterService.activeTool() !== 'fill'"
+              [attr.aria-pressed]="painterService.activeTool() === 'fill'"
+              [attr.aria-label]="'textureStudio.toolFill' | translate"
+              [appTooltip]="'textureStudio.toolFill' | translate"
+              appTooltipPlacement="top"
+              class="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center transition flex-shrink-0">
+              <svg lucidePaintBucket class="w-4 h-4"></svg>
+            </button>
+            <button
+              type="button"
+              (click)="setPaintTool('eyedropper')"
+              [class.bg-sky-600]="painterService.activeTool() === 'eyedropper'"
+              [class.text-white]="painterService.activeTool() === 'eyedropper'"
+              [class.text-slate-300]="painterService.activeTool() !== 'eyedropper'"
+              [attr.aria-pressed]="painterService.activeTool() === 'eyedropper'"
+              [attr.aria-label]="'textureStudio.toolEyedropper' | translate"
+              [appTooltip]="'textureStudio.toolEyedropper' | translate"
+              appTooltipPlacement="top"
+              class="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center transition flex-shrink-0">
+              <svg lucidePipette class="w-4 h-4"></svg>
+            </button>
+            <button
+              type="button"
+              (click)="setPaintTool('noise')"
+              [class.bg-sky-600]="painterService.activeTool() === 'noise'"
+              [class.text-white]="painterService.activeTool() === 'noise'"
+              [class.text-slate-300]="painterService.activeTool() !== 'noise'"
+              [attr.aria-pressed]="painterService.activeTool() === 'noise'"
+              [attr.aria-label]="'textureStudio.toolNoise' | translate"
+              [appTooltip]="'textureStudio.toolNoise' | translate"
+              appTooltipPlacement="top"
+              class="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center transition flex-shrink-0">
+              <svg lucideSparkles class="w-4 h-4"></svg>
+            </button>
+          </div>
+
+          <!-- Active Color Picker + Brush Size -->
+          <div class="flex items-center gap-1.5 pr-1.5 border-r border-slate-700/80">
+            <label
+              [appTooltip]="'textureStudio.primaryColor' | translate"
+              appTooltipPlacement="top"
+              class="relative w-7 h-7 rounded-lg border-2 border-slate-600 hover:border-white overflow-hidden cursor-pointer flex-shrink-0 shadow-inner"
+              [style.background-color]="painterService.primaryColor()">
+              <input
+                type="color"
+                [value]="painterService.primaryColor()"
+                (input)="onPaintColorChange($event)"
+                [attr.aria-label]="'textureStudio.primaryColor' | translate"
+                class="opacity-0 absolute inset-0 w-full h-full cursor-pointer" />
+            </label>
+
+            <button
+              type="button"
+              (click)="cycleBrushSize()"
+              [appTooltip]="'textureStudio.brushSize' | translate"
+              appTooltipPlacement="top"
+              [attr.aria-label]="'textureStudio.brushSize' | translate"
+              class="px-2 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+              {{ painterService.brushSize() }}px
+            </button>
+          </div>
+
+          <!-- Painter Undo / Redo -->
+          <div class="flex items-center gap-1 pr-1.5 border-r border-slate-700/80">
+            <button
+              type="button"
+              (click)="painterService.undo()"
+              [disabled]="!painterService.canUndo()"
+              [appTooltip]="'common.undo' | translate"
+              appTooltipPlacement="top"
+              [attr.aria-label]="'common.undo' | translate"
+              class="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-300 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition flex-shrink-0">
+              <svg lucideUndo class="w-3.5 h-3.5"></svg>
+            </button>
+            <button
+              type="button"
+              (click)="painterService.redo()"
+              [disabled]="!painterService.canRedo()"
+              [appTooltip]="'common.redo' | translate"
+              appTooltipPlacement="top"
+              [attr.aria-label]="'common.redo' | translate"
+              class="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-300 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition flex-shrink-0">
+              <svg lucideRedo class="w-3.5 h-3.5"></svg>
+            </button>
+          </div>
+
+          <!-- Open 2D Pixel Grid Studio -->
+          <button
+            type="button"
+            (click)="open2DPixelGrid()"
+            [appTooltip]="'textureStudio.open2DGrid' | translate"
+            appTooltipPlacement="top"
+            class="px-2.5 h-8 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 font-semibold text-[11px] flex items-center gap-1 transition flex-shrink-0 whitespace-nowrap">
+            <svg lucideGrid3x3 class="w-3.5 h-3.5"></svg>
+            <span>{{ 'textureStudio.open2DGrid' | translate }}</span>
+          </button>
         </div>
       }
 
@@ -754,6 +1055,7 @@ export class ViewportComponent implements OnInit, OnDestroy {
   public projectStore = inject(ProjectStore);
   public themeService = inject(ThemeService);
   public textureService = inject(TextureService);
+  public painterService = inject(TexturePainterService);
   public showDepthPopover = signal<boolean>(false);
   public customFloorTextures = computed(() =>
     this.textureService.textures().filter((t) => t.isCustom)
@@ -800,6 +1102,13 @@ export class ViewportComponent implements OnInit, OnDestroy {
     this.showMobileShadingMenu.set(false);
   }
 
+  @HostListener('window:keydown.escape')
+  onEscapeKey(): void {
+    if (this.showDepthPopover()) {
+      this.showDepthPopover.set(false);
+    }
+  }
+
   setPreset(preset: CameraPreset): void {
     this.activeCameraPreset.set(preset);
     this.sceneService.setCameraPreset(preset);
@@ -816,6 +1125,29 @@ export class ViewportComponent implements OnInit, OnDestroy {
 
   setGizmo(mode: GizmoMode): void {
     this.sceneService.setGizmoMode(mode);
+  }
+
+  setPaintTool(tool: PaintTool): void {
+    this.painterService.activeTool.set(tool);
+  }
+
+  onPaintColorChange(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    if (val) {
+      this.painterService.primaryColor.set(val);
+    }
+  }
+
+  cycleBrushSize(): void {
+    const current = this.painterService.brushSize();
+    const next = current === 1 ? 2 : current === 2 ? 3 : 1;
+    this.painterService.brushSize.set(next);
+  }
+
+  open2DPixelGrid(): void {
+    const face = this.painterService.activeFace();
+    const key = this.projectStore.project().globalTextures[face] || 'default_wood.png';
+    this.painterService.openTextureInPainter(key, face, false);
   }
 
   toggleCage(): void {

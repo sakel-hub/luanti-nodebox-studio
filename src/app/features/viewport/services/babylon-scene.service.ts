@@ -20,18 +20,23 @@ import {
   BoundingBoxGizmo,
   PointerEventTypes,
   Tools,
-  VertexBuffer
+  VertexBuffer,
+  VertexData
 } from '@babylonjs/core';
-import { Box, FaceDirection, LUANTI_FACE_DIRECTIONS, AABB, NeighborConnectionState } from '../../../core/models/nodebox.model';
+import { Box, FaceDirection, AABB, NeighborConnectionState } from '../../../core/models/nodebox.model';
 import { computeNodeBoxUVBuffer } from '../../../core/utils/uv-projection.utils';
 import { ProjectStore } from '../../../core/state/project.store';
 import { TextureService } from '../../../core/services/texture.service';
+import { TexturePainterService } from '../../../core/services/texture-painter.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import {
   PixelDepthConfig,
-  DEFAULT_PIXEL_DEPTH_CONFIG,
-  getDepthIntensityMultiplier
+  DEFAULT_PIXEL_DEPTH_CONFIG
 } from '../../../core/utils/pixel-normal-generator.utils';
+import {
+  buildExtrudedBoxGeometry,
+  FaceTextureInput
+} from '../../../core/utils/pixel-extrusion-mesh.utils';
 import {
   extractSnappedAABB,
   extractAnchoredFaceAABB,
@@ -43,7 +48,7 @@ import {
 export type CameraPreset = 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 export type CameraMode = 'perspective' | 'orthographic';
 export type ViewportMode = 'textured' | 'colored' | 'wireframe';
-export type GizmoMode = 'none' | 'position' | 'scale' | 'resize' | 'rotation';
+export type GizmoMode = 'none' | 'position' | 'scale' | 'resize' | 'rotation' | 'paint';
 export const FLOOR_PRESET_TEXTURES: Record<string, { file: string; textureId: string; name: string }> = {
   grass: { file: '/textures/default_grass.png', textureId: 'default_grass.png', name: 'Grass' },
   stone: { file: '/textures/default_stone.png', textureId: 'default_stone.png', name: 'Smooth Stone' },
@@ -79,6 +84,7 @@ export class BabylonSceneService {
   private zone = inject(NgZone);
   private projectStore = inject(ProjectStore);
   private textureService = inject(TextureService);
+  private painterService = inject(TexturePainterService);
   private themeService = inject(ThemeService);
 
   private engine: Engine | null = null;
@@ -92,6 +98,7 @@ export class BabylonSceneService {
   private resizeRafId: number | null = null;
 
   private boxMeshes = new Map<string, Mesh>();
+  private extrusionMeshes = new Map<string, Mesh>();
   private cageMesh: LinesMesh | null = null;
   private gridMesh: Mesh | null = null;
   private floorMesh: Mesh | null = null;
@@ -142,6 +149,10 @@ export class BabylonSceneService {
   public pixelDepth = signal<PixelDepthConfig>(DEFAULT_PIXEL_DEPTH_CONFIG);
 
   constructor() {
+    this.painterService.registerLivePreviewHandler((textureId, dataUrl) => {
+      this.updateTextureLive(textureId, dataUrl);
+    });
+
     try {
       effect(() => {
         this.themeService.theme();
@@ -191,6 +202,10 @@ export class BabylonSceneService {
 
   public refreshAllMaterials(): void {
     if (!this.scene) return;
+    for (const extMesh of this.extrusionMeshes.values()) {
+      extMesh.dispose();
+    }
+    this.extrusionMeshes.clear();
     for (const mat of this.materialCache.values()) {
       mat.dispose();
     }
@@ -206,6 +221,26 @@ export class BabylonSceneService {
     const selectedId = this.projectStore.selectedBoxId();
     this.updateBoxes(project.boxes, selectedId);
     this.updateFloorMaterial();
+  }
+
+  /**
+   * Updates an active diffuse texture in-place on the GPU at 60 FPS during brush strokes
+   * without disposing or recreating materials.
+   */
+  public updateTextureLive(textureId: string, dataUrl: string): void {
+    if (!this.scene) return;
+    const baseId = textureId.replace(/\^\[transformFX$/, '');
+    const tex = this.textureCache.get(baseId);
+    if (tex && typeof tex.updateURL === 'function') {
+      tex.metadata = { dataUrl };
+      tex.updateURL(dataUrl);
+    }
+
+    for (const [key, mat] of this.materialCache.entries()) {
+      if (key.startsWith(`mat_tex_${baseId}_`)) {
+        mat.metadata = { dataUrl };
+      }
+    }
   }
 
   public initialize(canvas: HTMLCanvasElement): void {
@@ -1004,15 +1039,138 @@ export class BabylonSceneService {
     }
   }
 
+  private subMeshIdToFaceDirection(subMeshId: number): FaceDirection {
+    switch (subMeshId) {
+      case 0: return 'back';
+      case 1: return 'front';
+      case 2: return 'right';
+      case 3: return 'left';
+      case 4: return 'top';
+      case 5: return 'bottom';
+      default: return 'top';
+    }
+  }
+
+  private resolvePickedTexel(pickInfo: any): {
+    boxId: string;
+    face: FaceDirection;
+    textureKey: string;
+    baseTextureId: string;
+    px: number;
+    py: number;
+  } | null {
+    if (!pickInfo || !pickInfo.hit || !pickInfo.pickedMesh?.metadata?.boxId) {
+      return null;
+    }
+
+    const uv = typeof pickInfo.getTextureCoordinates === 'function' ? pickInfo.getTextureCoordinates() : null;
+    if (!uv) return null;
+
+    const subMeshIndex =
+      typeof pickInfo.subMeshId === 'number'
+        ? pickInfo.subMeshId
+        : Math.floor((pickInfo.faceId ?? 0) / 2);
+    const face = this.subMeshIdToFaceDirection(subMeshIndex);
+    const project = this.projectStore.project();
+    const textureKey = project.globalTextures[face] || 'default_wood.png';
+    const isFlipped = textureKey.endsWith('^[transformFX');
+    const baseTextureId = textureKey.replace(/\^\[transformFX$/, '');
+
+    let u = ((uv.x % 1) + 1) % 1;
+    const v = ((uv.y % 1) + 1) % 1;
+    if (isFlipped) {
+      u = 1 - u;
+    }
+
+    const w = this.painterService.width() || 16;
+    const h = this.painterService.height() || 16;
+    const px = Math.max(0, Math.min(w - 1, Math.floor(u * w)));
+    const py = Math.max(0, Math.min(h - 1, Math.floor(v * h)));
+
+    return {
+      boxId: pickInfo.pickedMesh.metadata.boxId,
+      face,
+      textureKey,
+      baseTextureId,
+      px,
+      py
+    };
+  }
+
   private setupPointerPicking(): void {
     if (!this.scene) return;
 
     let downX = 0;
     let downY = 0;
+    let isPainting3D = false;
 
     this.scene.onPointerObservable.add(pointerInfo => {
       // In Render Mode, pointer picking is completely disabled to avoid selecting boxes
       if (this.projectStore.isRenderMode()) return;
+
+      // 3D Direct Texture Painting Mode
+      if (this.gizmoMode() === 'paint' && !this.projectStore.simulationMode()) {
+        if (pointerInfo.type === PointerEventTypes.POINTERDOWN && pointerInfo.event) {
+          if (pointerInfo.event.button !== 0 && pointerInfo.event.button !== undefined) return;
+          const pick = this.scene?.pick(
+            this.scene.pointerX,
+            this.scene.pointerY,
+            m => !!m.metadata?.boxId && m.isPickable
+          );
+          const hit = this.resolvePickedTexel(pick);
+          if (hit) {
+            isPainting3D = true;
+            this.camera?.detachControl();
+            this.zone.run(async () => {
+              this.projectStore.setSelectedBoxId(hit.boxId);
+              if (this.painterService.activeTextureId() !== hit.baseTextureId) {
+                await this.painterService.loadTextureIntoBuffer(hit.baseTextureId);
+              }
+              // Recompute px, py after loading texture dimensions
+              const finalHit = this.resolvePickedTexel(pick) ?? hit;
+              this.painterService.startStroke(finalHit.px, finalHit.py, finalHit.face);
+            });
+            return;
+          }
+        }
+
+        if (pointerInfo.type === PointerEventTypes.POINTERMOVE) {
+          const pick = this.scene?.pick(
+            this.scene.pointerX,
+            this.scene.pointerY,
+            m => !!m.metadata?.boxId && m.isPickable
+          );
+          const hit = this.resolvePickedTexel(pick);
+          if (isPainting3D && hit) {
+            this.zone.run(() => {
+              this.painterService.moveStroke(hit.px, hit.py);
+            });
+            return;
+          }
+          if (hit) {
+            const box = this.projectStore.project().boxes.find(b => b.id === hit.boxId);
+            if (box) {
+              this.updateFaceHighlight(hit.face, box);
+            }
+          } else {
+            this.hideFaceHighlight();
+          }
+          return;
+        }
+
+        if (pointerInfo.type === PointerEventTypes.POINTERUP) {
+          if (isPainting3D) {
+            isPainting3D = false;
+            this.zone.run(() => {
+              this.painterService.endStroke();
+            });
+            if (this.camera && this.canvas) {
+              this.camera.attachControl(this.canvas, true);
+            }
+            return;
+          }
+        }
+      }
 
       if (pointerInfo.type === PointerEventTypes.POINTERDOWN && pointerInfo.event) {
         downX = pointerInfo.event.clientX;
@@ -1071,6 +1229,12 @@ export class BabylonSceneService {
       if (!currentBoxIds.has(id)) {
         mesh.dispose();
         this.boxMeshes.delete(id);
+      }
+    }
+    for (const [id, extMesh] of this.extrusionMeshes.entries()) {
+      if (!currentBoxIds.has(id)) {
+        extMesh.dispose();
+        this.extrusionMeshes.delete(id);
       }
     }
 
@@ -1155,6 +1319,105 @@ export class BabylonSceneService {
     mesh.renderOutline = !this.projectStore.isRenderMode() && !isSimMode && isSelected;
     mesh.outlineColor = box.locked ? new Color3(0.95, 0.6, 0.1) : new Color3(0.9, 0.7, 0.1);
     mesh.outlineWidth = 0.02;
+
+    // Synchronize 3D Texel Extrusion relief mesh when enabled
+    this.syncBoxExtrusionMesh(box, effectiveBox, mesh, isVisible);
+  }
+
+  private syncBoxExtrusionMesh(box: Box, effectiveBox: AABB, baseMesh: Mesh, isVisible: boolean): void {
+    if (!this.scene) return;
+
+    const depthConfig = this.pixelDepth();
+    const shouldExtrude =
+      depthConfig.enabled &&
+      depthConfig.extrudePixels &&
+      this.viewportMode() === 'textured' &&
+      isVisible;
+
+    if (!shouldExtrude) {
+      const existing = this.extrusionMeshes.get(box.id);
+      if (existing) {
+        existing.dispose();
+        this.extrusionMeshes.delete(box.id);
+      }
+      baseMesh.isVisible = true;
+      return;
+    }
+
+    const globalTextures = this.projectStore.project().globalTextures;
+    const faceTexIds = [
+      globalTextures.back || 'default_wood.png',
+      globalTextures.front || 'default_wood.png',
+      globalTextures.right || 'default_wood.png',
+      globalTextures.left || 'default_wood.png',
+      globalTextures.top || 'default_wood.png',
+      globalTextures.bottom || 'default_wood.png'
+    ];
+
+    const sig = `${effectiveBox.minX}_${effectiveBox.maxX}_${effectiveBox.minY}_${effectiveBox.maxY}_${effectiveBox.minZ}_${effectiveBox.maxZ}_${faceTexIds.join('|')}_${depthConfig.luminanceRelief ? 1 : 0}_${depthConfig.intensity}_${this.textureService.textureUpdated()}`;
+
+    const existing = this.extrusionMeshes.get(box.id);
+    if (existing && existing.metadata?.extrusionSig === sig) {
+      existing.material = baseMesh.material;
+      existing.setEnabled(true);
+      baseMesh.isVisible = false;
+      return;
+    }
+
+    Promise.all(
+      faceTexIds.map(async (tid): Promise<FaceTextureInput> => {
+        const texDef = this.textureService.getTextureById(tid);
+        const isAnimated = texDef?.animation?.type === 'vertical_frames';
+        const decoded = isAnimated ? null : await this.textureService.getDecodedTexture(tid);
+        return { decoded, isAnimated };
+      })
+    ).then((faceInputs) => {
+      if (
+        !this.scene ||
+        this.scene.isDisposed ||
+        !this.boxMeshes.has(box.id) ||
+        !this.pixelDepth().enabled ||
+        !this.pixelDepth().extrudePixels ||
+        this.viewportMode() !== 'textured'
+      ) {
+        return;
+      }
+
+      // Skip if inputs yielded no decoded textures at all (e.g. headless unit test environment)
+      if (faceInputs.every(f => !f.decoded)) {
+        return;
+      }
+
+      const geo = buildExtrudedBoxGeometry(effectiveBox, faceInputs, this.pixelDepth());
+      if (geo.indices.length === 0) {
+        return;
+      }
+
+      const prevExt = this.extrusionMeshes.get(box.id);
+      if (prevExt) {
+        prevExt.dispose();
+      }
+
+      const extMesh = new Mesh(`box_ext_${box.id}`, this.scene);
+      const vertexData = new VertexData();
+      vertexData.positions = geo.positions;
+      vertexData.normals = geo.normals;
+      vertexData.uvs = geo.uvs;
+      vertexData.indices = geo.indices;
+      vertexData.applyToMesh(extMesh, false);
+
+      extMesh.material = baseMesh.material;
+      extMesh.releaseSubMeshes();
+      const totalVertices = geo.positions.length / 3;
+      for (const sm of geo.subMeshes) {
+        new SubMesh(sm.materialIndex, 0, totalVertices, sm.indexStart, sm.indexCount, extMesh);
+      }
+
+      extMesh.isPickable = false;
+      extMesh.metadata = { boxId: box.id, extrusionSig: sig };
+      this.extrusionMeshes.set(box.id, extMesh);
+      baseMesh.isVisible = false;
+    });
   }
 
   /**
@@ -1312,7 +1575,7 @@ export class BabylonSceneService {
 
     const depthConfig = this.pixelDepth();
     const depthKey = depthConfig.enabled
-      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}${depthConfig.parallax ? 1 : 0}_${depthConfig.intensity}`
+      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}${depthConfig.extrudePixels ? 1 : 0}_${depthConfig.intensity}`
       : '_d_off';
     const multiMatKey = `multi_${backTex}_${frontTex}_${rightTex}_${leftTex}_${topTex}_${botTex}${depthKey}`;
     let multiMat = this.scene.getMaterialByName(multiMatKey) as MultiMaterial;
@@ -1343,8 +1606,9 @@ export class BabylonSceneService {
 
   private getOrCreateTextureMaterial(textureId: string): StandardMaterial {
     const depthConfig = this.pixelDepth();
+    const hasNormalEffect = depthConfig.enabled && (depthConfig.pixelBevel || depthConfig.luminanceRelief);
     const depthKey = depthConfig.enabled
-      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}${depthConfig.parallax ? 1 : 0}_${depthConfig.intensity}`
+      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}${depthConfig.extrudePixels ? 1 : 0}_${depthConfig.intensity}`
       : '_d_off';
     const matKey = `mat_tex_${textureId}${depthKey}`;
     let mat = this.materialCache.get(matKey);
@@ -1363,9 +1627,9 @@ export class BabylonSceneService {
     if (!mat) {
       mat = new StandardMaterial(matKey, this.scene!);
       mat.metadata = { dataUrl: texDef?.dataUrl };
-      mat.specularColor = depthConfig.enabled ? new Color3(0.35, 0.35, 0.35) : new Color3(0.05, 0.05, 0.05);
-      mat.specularPower = depthConfig.enabled ? 24 : 64;
-      mat.invertNormalMapY = false;
+      mat.specularColor = hasNormalEffect ? new Color3(0.12, 0.12, 0.12) : new Color3(0.05, 0.05, 0.05);
+      mat.specularPower = hasNormalEffect ? 48 : 64;
+      mat.invertNormalMapY = true;
       mat.backFaceCulling = texDef?.backfaceCulling ?? true;
 
       if (texDef) {
@@ -1421,7 +1685,7 @@ export class BabylonSceneService {
           mat.needDepthPrePass = true;
         }
 
-        if (depthConfig.enabled) {
+        if (hasNormalEffect) {
           const bumpKey = `bump_${texDef.id}${depthKey}`;
           let bumpTex = this.textureCache.get(bumpKey);
 
@@ -1435,16 +1699,13 @@ export class BabylonSceneService {
               bTex.vOffset = animEntry.texture.vOffset;
             }
             mat!.bumpTexture = bTex;
-            mat!.bumpTexture.level = getDepthIntensityMultiplier(depthConfig.intensity);
-            mat!.useParallax = depthConfig.parallax;
-            mat!.useParallaxOcclusion = depthConfig.parallax;
-            mat!.parallaxScaleBias = 0.035;
+            mat!.bumpTexture.level = 1.0;
           };
 
           if (!bumpTex || !this.scene?.textures.includes(bumpTex)) {
             this.textureService.getOrCreateNormalMap(textureId, depthConfig).then(normalUrl => {
               if (this.scene && !this.scene.isDisposed && mat && this.scene.materials.includes(mat)) {
-                const loadedBump = new Texture(normalUrl, this.scene, true, false, Texture.BILINEAR_SAMPLINGMODE);
+                const loadedBump = new Texture(normalUrl, this.scene, true, false, Texture.NEAREST_SAMPLINGMODE);
                 loadedBump.metadata = { dataUrl: normalUrl };
                 this.textureCache.set(bumpKey, loadedBump);
                 applyBumpConfig(loadedBump);
@@ -1653,7 +1914,9 @@ export class BabylonSceneService {
 
     if (floor === 'grid') {
       this.floorMaterial.diffuseTexture = null;
+      this.floorMaterial.bumpTexture = null;
       this.floorMaterial.diffuseColor = new Color3(0.08, 0.12, 0.2);
+      this.floorMaterial.specularColor = new Color3(0, 0, 0);
       this.floorMaterial.useAlphaFromDiffuseTexture = false;
       return;
     }
@@ -1661,7 +1924,9 @@ export class BabylonSceneService {
     const textureSource = this.resolveFloorTexture(floor);
     if (!textureSource) {
       this.floorMaterial.diffuseTexture = null;
+      this.floorMaterial.bumpTexture = null;
       this.floorMaterial.diffuseColor = new Color3(0.15, 0.15, 0.15);
+      this.floorMaterial.specularColor = new Color3(0, 0, 0);
       this.floorMaterial.useAlphaFromDiffuseTexture = false;
       return;
     }
@@ -1684,6 +1949,43 @@ export class BabylonSceneService {
     this.floorMaterial.diffuseTexture = floorTex;
     this.floorMaterial.diffuseColor = new Color3(1, 1, 1);
     this.floorMaterial.useAlphaFromDiffuseTexture = isGlass;
+
+    const depthConfig = this.pixelDepth();
+    const hasNormalEffect = depthConfig.enabled && (depthConfig.pixelBevel || depthConfig.luminanceRelief);
+    if (hasNormalEffect) {
+      const preset = FLOOR_PRESET_TEXTURES[floor];
+      const floorTexId = preset ? preset.textureId : floor;
+      const bumpKey = `__floor_bump_${floor}_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}_${depthConfig.intensity}`;
+      let floorBump = this.textureCache.get(bumpKey);
+
+      const applyFloorBump = (bTex: Texture) => {
+        if (!this.floorMaterial) return;
+        bTex.uScale = 16;
+        bTex.vScale = 16;
+        bTex.wrapU = Texture.WRAP_ADDRESSMODE;
+        bTex.wrapV = Texture.WRAP_ADDRESSMODE;
+        this.floorMaterial.invertNormalMapY = true;
+        this.floorMaterial.specularColor = new Color3(0.08, 0.08, 0.08);
+        this.floorMaterial.specularPower = 48;
+        this.floorMaterial.bumpTexture = bTex;
+        this.floorMaterial.bumpTexture.level = 1.0;
+      };
+
+      if (!floorBump || !this.scene.textures.includes(floorBump)) {
+        this.textureService.getOrCreateNormalMap(floorTexId, depthConfig).then(normalUrl => {
+          if (this.scene && !this.scene.isDisposed && this.floorMaterial && this.sceneFloor() === floor) {
+            const loadedBump = new Texture(normalUrl, this.scene, true, false, Texture.NEAREST_SAMPLINGMODE);
+            this.textureCache.set(bumpKey, loadedBump);
+            applyFloorBump(loadedBump);
+          }
+        });
+      } else {
+        applyFloorBump(floorBump);
+      }
+    } else {
+      this.floorMaterial.bumpTexture = null;
+      this.floorMaterial.specularColor = new Color3(0, 0, 0);
+    }
   }
 
   // Scene Sky & Environment Presets
@@ -1895,6 +2197,9 @@ export class BabylonSceneService {
   }
 
   public setGizmoMode(mode: GizmoMode): void {
+    if (mode === 'paint' && this.viewportMode() !== 'textured') {
+      this.setViewportMode('textured');
+    }
     this.gizmoMode.set(mode);
     this.hideFaceHighlight();
     this.zone.run(() => this.activeFace.set(null));
@@ -1953,6 +2258,10 @@ export class BabylonSceneService {
     this.floorMaterial = null;
     this.hemiLight = null;
     this.dirLight = null;
+    for (const extMesh of this.extrusionMeshes.values()) {
+      extMesh.dispose();
+    }
+    this.extrusionMeshes.clear();
     this.boxMeshes.clear();
     for (const mat of this.materialCache.values()) {
       mat.dispose();

@@ -4,6 +4,7 @@ import { createEnvironmentInjector, runInInjectionContext, NgZone } from '@angul
 import { BabylonSceneService } from './babylon-scene.service';
 import { ProjectStore } from '../../../core/state/project.store';
 import { TextureService } from '../../../core/services/texture.service';
+import { TexturePainterService } from '../../../core/services/texture-painter.service';
 import { ThemeService } from '../../../core/services/theme.service';
 
 describe('BabylonSceneService', () => {
@@ -18,6 +19,7 @@ describe('BabylonSceneService', () => {
       { provide: NgZone, useValue: mockNgZone },
       ProjectStore,
       TextureService,
+      TexturePainterService,
       ThemeService,
       BabylonSceneService
     ], null as any);
@@ -124,13 +126,15 @@ describe('BabylonSceneService', () => {
 
   it('updates pixelDepth configuration signal', () => {
     expect(service.pixelDepth().enabled).toBe(false);
+    expect(service.pixelDepth().extrudePixels).toBe(true);
     service.setPixelDepth({ enabled: true });
     expect(service.pixelDepth().enabled).toBe(true);
 
-    service.setPixelDepth({ enabled: true, intensity: 'deep', pixelBevel: true, luminanceRelief: false });
+    service.setPixelDepth({ enabled: true, intensity: 'deep', pixelBevel: true, luminanceRelief: false, extrudePixels: false });
     expect(service.pixelDepth().intensity).toBe('deep');
     expect(service.pixelDepth().pixelBevel).toBe(true);
     expect(service.pixelDepth().luminanceRelief).toBe(false);
+    expect(service.pixelDepth().extrudePixels).toBe(false);
   });
 
   it('creates and updates meshes for all boxes', async () => {
@@ -410,6 +414,9 @@ describe('BabylonSceneService', () => {
     expect(woodMat.transparencyMode).toBe(Material.MATERIAL_ALPHATEST);
     expect(woodMat.alphaCutOff).toBe(0.5);
     expect(woodMat.backFaceCulling).toBe(true);
+    expect(woodMat.invertNormalMapY).toBe(true);
+    expect(woodMat.useParallax).toBe(false);
+    expect(woodMat.useParallaxOcclusion).toBe(false);
 
     // Glass material (semi-transparent)
     const glassMat = (service as any).getOrCreateTextureMaterial('default_glass.png');
