@@ -210,10 +210,11 @@ import {
                   </button>
                 </div>
                 <div class="flex items-center justify-between px-1">
-                  <span class="text-slate-300">Floor</span>
+                  <span class="text-slate-300">{{ 'renderStudio.floor' | translate }}</span>
                   <select
                     [value]="sceneService.sceneFloor()"
                     (change)="onFloorChange($event)"
+                    [attr.aria-label]="'renderStudio.floor' | translate"
                     class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1 py-0.5 text-xs focus:outline-none cursor-pointer max-w-[95px] truncate">
                     <option value="none">None</option>
                     <option value="grid">Grid</option>
@@ -501,25 +502,32 @@ import {
 
       <!-- Distraction-Free Render Mode Floating HUD -->
       @if (projectStore.isRenderMode()) {
-        <div class="absolute top-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-2 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 px-3 py-2 rounded-xl shadow-2xl text-xs z-30">
+        <div
+          role="toolbar"
+          [attr.aria-label]="'renderStudio.badge' | translate"
+          class="absolute top-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-2 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 px-3 py-2 rounded-xl shadow-2xl text-xs z-30">
           <!-- Render Mode Badge -->
           <div class="flex items-center gap-1.5 border-r border-slate-700/80 pr-2.5 text-amber-400 font-semibold tracking-wide uppercase text-[10px]">
             <svg lucideEye class="w-3.5 h-3.5 animate-pulse"></svg>
-            Render Studio
+            {{ 'renderStudio.badge' | translate }}
           </div>
 
           <!-- Sky & Atmosphere Popover Trigger -->
           <div class="relative border-r border-slate-700/80 pr-2">
             <button
+              type="button"
               (click)="toggleSkyPopover()"
+              [attr.aria-expanded]="showSkyPopover()"
+              aria-haspopup="dialog"
+              [attr.aria-label]="'renderStudio.skyTitle' | translate"
               [class.bg-sky-600]="sceneService.sceneSky() !== 'studio'"
               [class.text-white]="sceneService.sceneSky() !== 'studio'"
               [class.bg-slate-800]="sceneService.sceneSky() === 'studio'"
               [class.text-slate-300]="sceneService.sceneSky() === 'studio'"
-              title="Sky & Atmosphere Settings"
+              [title]="'renderStudio.skyTitle' | translate"
               class="px-2.5 py-1 rounded hover:bg-slate-700 transition flex items-center gap-1.5 border border-slate-700 font-medium">
               <svg lucideSun class="w-3.5 h-3.5 text-amber-400"></svg>
-              <span>Sky</span>
+              <span>{{ 'renderStudio.sky' | translate }}</span>
               <span class="text-[9px] px-1 py-0.2 rounded font-mono uppercase bg-slate-950/60 text-sky-400">
                 {{ skyPresetBadge() }}
               </span>
@@ -529,29 +537,42 @@ import {
               <!-- Click-outside backdrop -->
               <div class="fixed inset-0 z-40" (click)="showSkyPopover.set(false)"></div>
 
-              <div class="absolute top-full mt-2 left-0 w-72 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
+              <div
+                role="dialog"
+                [attr.aria-label]="'renderStudio.skyTitle' | translate"
+                class="absolute top-full mt-2 left-0 w-72 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span class="font-semibold text-slate-200">Sky & Atmosphere</span>
-                  <span class="text-[10px] font-mono text-sky-400 uppercase">{{ skyPresetBadge() }}</span>
+                  <span class="font-semibold text-slate-200">{{ 'renderStudio.skyTitle' | translate }}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-mono text-sky-400 uppercase">{{ skyPresetBadge() }}</span>
+                    <button
+                      type="button"
+                      (click)="resetSkyDefaults()"
+                      class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                      {{ 'common.reset' | translate }}
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Preset Selector Grid -->
                 <div class="space-y-1.5">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Environment Preset</div>
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">{{ 'renderStudio.envPreset' | translate }}</div>
                   <div class="grid grid-cols-4 gap-1">
                     @for (preset of [
-                      { id: 'studio', label: 'Studio' },
-                      { id: 'minetest_day', label: 'Day' },
-                      { id: 'minetest_sunset', label: 'Sunset' },
-                      { id: 'minetest_night', label: 'Night' }
+                      { id: 'studio', label: ('renderStudio.presetStudio' | translate) },
+                      { id: 'minetest_day', label: ('renderStudio.presetDay' | translate) },
+                      { id: 'minetest_sunset', label: ('renderStudio.presetSunset' | translate) },
+                      { id: 'minetest_night', label: ('renderStudio.presetNight' | translate) }
                     ]; track preset.id) {
                       <button
+                        type="button"
                         (click)="sceneService.setSceneSky($any(preset.id))"
+                        [attr.aria-pressed]="sceneService.sceneSky() === preset.id"
                         [class.bg-sky-600]="sceneService.sceneSky() === preset.id"
                         [class.text-white]="sceneService.sceneSky() === preset.id"
                         [class.bg-slate-800]="sceneService.sceneSky() !== preset.id"
                         [class.text-slate-400]="sceneService.sceneSky() !== preset.id"
-                        class="py-1 rounded text-center font-medium transition hover:bg-slate-700">
+                        class="py-1 rounded text-center font-medium transition hover:bg-slate-700 truncate px-1">
                         {{ preset.label }}
                       </button>
                     }
@@ -561,7 +582,7 @@ import {
                 <!-- Sun Elevation Slider -->
                 <div class="space-y-1">
                   <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-slate-300">Sun Elevation</span>
+                    <span class="text-slate-300">{{ 'renderStudio.sunElevation' | translate }}</span>
                     <span class="font-mono text-sky-400">{{ sceneService.skyAtmosphere().sunElevation }}°</span>
                   </div>
                   <input
@@ -569,6 +590,7 @@ import {
                     min="4"
                     max="85"
                     step="1"
+                    [attr.aria-label]="'renderStudio.sunElevation' | translate"
                     [value]="sceneService.skyAtmosphere().sunElevation"
                     (input)="onSunElevationInput($event)"
                     class="w-full accent-sky-500 cursor-pointer" />
@@ -577,7 +599,7 @@ import {
                 <!-- Sun Azimuth Slider -->
                 <div class="space-y-1">
                   <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-slate-300">Sun Azimuth (Orbit)</span>
+                    <span class="text-slate-300">{{ 'renderStudio.sunAzimuth' | translate }}</span>
                     <span class="font-mono text-sky-400">{{ sceneService.skyAtmosphere().sunAzimuth }}°</span>
                   </div>
                   <input
@@ -585,6 +607,7 @@ import {
                     min="0"
                     max="360"
                     step="1"
+                    [attr.aria-label]="'renderStudio.sunAzimuth' | translate"
                     [value]="sceneService.skyAtmosphere().sunAzimuth"
                     (input)="onSunAzimuthInput($event)"
                     class="w-full accent-sky-500 cursor-pointer" />
@@ -594,7 +617,7 @@ import {
                 @if (sceneService.sceneSky() === 'minetest_day' || sceneService.sceneSky() === 'minetest_sunset') {
                   <div class="space-y-1">
                     <div class="flex items-center justify-between text-[11px]">
-                      <span class="text-slate-300">Atmospheric Haze</span>
+                      <span class="text-slate-300">{{ 'renderStudio.atmosphericHaze' | translate }}</span>
                       <span class="font-mono text-sky-400">{{ sceneService.skyAtmosphere().turbidity }}</span>
                     </div>
                     <input
@@ -602,6 +625,7 @@ import {
                       min="1"
                       max="12"
                       step="0.5"
+                      [attr.aria-label]="'renderStudio.atmosphericHaze' | translate"
                       [value]="sceneService.skyAtmosphere().turbidity"
                       (input)="onTurbidityInput($event)"
                       class="w-full accent-sky-500 cursor-pointer" />
@@ -610,14 +634,14 @@ import {
 
                 <!-- Atmosphere Feature Toggles -->
                 <div class="pt-1.5 border-t border-slate-800 space-y-1.5">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Atmosphere Effects</div>
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">{{ 'renderStudio.atmosphereEffects' | translate }}</div>
                   <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
                     <input
                       type="checkbox"
                       [checked]="sceneService.skyAtmosphere().cloudsEnabled"
                       (change)="sceneService.setSkyAtmosphere({ cloudsEnabled: !sceneService.skyAtmosphere().cloudsEnabled })"
                       class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>3D Luanti Voxel Clouds</span>
+                    <span>{{ 'renderStudio.voxelClouds' | translate }}</span>
                   </label>
                   <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
                     <input
@@ -625,7 +649,7 @@ import {
                       [checked]="sceneService.skyAtmosphere().horizonFog"
                       (change)="sceneService.setSkyAtmosphere({ horizonFog: !sceneService.skyAtmosphere().horizonFog })"
                       class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>Seamless Horizon Fog</span>
+                    <span>{{ 'renderStudio.horizonFog' | translate }}</span>
                   </label>
                 </div>
               </div>
@@ -634,10 +658,11 @@ import {
 
           <!-- Floor Platform Selector -->
           <div class="flex items-center gap-1 border-r border-slate-700/80 pr-2">
-            <span class="text-slate-400 text-[11px]">Floor:</span>
+            <span class="text-slate-400 text-[11px]">{{ 'renderStudio.floor' | translate }}:</span>
             <select
               [value]="sceneService.sceneFloor()"
               (change)="onFloorChange($event)"
+              [attr.aria-label]="'renderStudio.floor' | translate"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1.5 py-1 text-xs focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[160px] truncate">
               <optgroup label="Environment">
                 <option value="none">None (Void)</option>
@@ -667,7 +692,11 @@ import {
           <!-- Pixel Art Depth & Relief Popover Trigger -->
           <div class="relative border-r border-slate-700/80 pr-2">
             <button
+              type="button"
               (click)="toggleDepthPopover()"
+              [attr.aria-expanded]="showDepthPopover()"
+              aria-haspopup="dialog"
+              [attr.aria-label]="'renderStudio.depthTitle' | translate"
               [class.bg-sky-600]="sceneService.pixelDepth().enabled"
               [class.text-white]="sceneService.pixelDepth().enabled"
               [class.bg-slate-800]="!sceneService.pixelDepth().enabled"
@@ -675,7 +704,7 @@ import {
               [title]="'viewport.pixelDepth' | translate"
               class="px-2.5 py-1 rounded hover:bg-slate-700 transition flex items-center gap-1.5 border border-slate-700 font-medium">
               <svg lucideBox class="w-3.5 h-3.5 text-amber-400"></svg>
-              <span>3D Depth</span>
+              <span>{{ 'renderStudio.depth3d' | translate }}</span>
               <span class="text-[9px] px-1 py-0.2 rounded font-mono uppercase bg-slate-950/60 text-sky-400">
                 {{ sceneService.pixelDepth().enabled ? sceneService.pixelDepth().intensity : 'off' }}
               </span>
@@ -686,22 +715,33 @@ import {
               <!-- Click-outside backdrop -->
               <div class="fixed inset-0 z-40" (click)="showDepthPopover.set(false)"></div>
 
-              <div class="absolute top-full mt-2 left-0 w-72 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
+              <div
+                role="dialog"
+                [attr.aria-label]="'renderStudio.depthTitle' | translate"
+                class="absolute top-full mt-2 left-0 w-72 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span class="font-semibold text-slate-200">Pixel Art Depth & Relief</span>
-                  <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().enabled"
-                      (change)="sceneService.setPixelDepth({ enabled: !sceneService.pixelDepth().enabled })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span class="text-[11px] text-slate-300 font-medium">Enabled</span>
-                  </label>
+                  <span class="font-semibold text-slate-200">{{ 'renderStudio.depthTitle' | translate }}</span>
+                  <div class="flex items-center gap-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        [checked]="sceneService.pixelDepth().enabled"
+                        (change)="sceneService.setPixelDepth({ enabled: !sceneService.pixelDepth().enabled })"
+                        class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                      <span class="text-[11px] text-slate-300 font-medium">{{ 'renderStudio.enabled' | translate }}</span>
+                    </label>
+                    <button
+                      type="button"
+                      (click)="resetDepthDefaults()"
+                      class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                      {{ 'common.reset' | translate }}
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Individual Style Checkboxes + Per-Style Intensity Sliders -->
                 <div class="space-y-2.5">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Depth Styles & Intensity</div>
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">{{ 'renderStudio.depthStyles' | translate }}</div>
 
                   <!-- 1. Pixel Bevel (Mosaic) -->
                   <div class="space-y-1">
@@ -712,7 +752,7 @@ import {
                           [checked]="sceneService.pixelDepth().pixelBevel"
                           (change)="sceneService.setPixelDepth({ pixelBevel: !sceneService.pixelDepth().pixelBevel })"
                           class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                        <span>Pixel Bevel (Mosaic)</span>
+                        <span>{{ 'renderStudio.pixelBevel' | translate }}</span>
                       </label>
                       @if (sceneService.pixelDepth().pixelBevel) {
                         <span class="font-mono text-[11px] text-sky-400">{{ sceneService.pixelDepth().bevelIntensity ?? 20 }}%</span>
@@ -724,6 +764,7 @@ import {
                         min="5"
                         max="100"
                         step="1"
+                        [attr.aria-label]="'renderStudio.pixelBevel' | translate"
                         [value]="sceneService.pixelDepth().bevelIntensity ?? 20"
                         (input)="onDepthStyleIntensityInput('bevelIntensity', $event)"
                         class="w-full accent-sky-500 cursor-pointer" />
@@ -739,7 +780,7 @@ import {
                           [checked]="sceneService.pixelDepth().luminanceRelief"
                           (change)="sceneService.setPixelDepth({ luminanceRelief: !sceneService.pixelDepth().luminanceRelief })"
                           class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                        <span>Luminance Relief</span>
+                        <span>{{ 'renderStudio.luminanceRelief' | translate }}</span>
                       </label>
                       @if (sceneService.pixelDepth().luminanceRelief) {
                         <span class="font-mono text-[11px] text-sky-400">{{ sceneService.pixelDepth().reliefIntensity ?? 20 }}%</span>
@@ -751,6 +792,7 @@ import {
                         min="5"
                         max="100"
                         step="1"
+                        [attr.aria-label]="'renderStudio.luminanceRelief' | translate"
                         [value]="sceneService.pixelDepth().reliefIntensity ?? 20"
                         (input)="onDepthStyleIntensityInput('reliefIntensity', $event)"
                         class="w-full accent-sky-500 cursor-pointer" />
@@ -766,7 +808,7 @@ import {
                           [checked]="sceneService.pixelDepth().extrudePixels"
                           (change)="sceneService.setPixelDepth({ extrudePixels: !sceneService.pixelDepth().extrudePixels })"
                           class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                        <span>3D Pixel Extrusion (Voxel)</span>
+                        <span>{{ 'renderStudio.pixelExtrusion' | translate }}</span>
                       </label>
                       @if (sceneService.pixelDepth().extrudePixels) {
                         <span class="font-mono text-[11px] text-sky-400">{{ sceneService.pixelDepth().extrusionIntensity ?? 20 }}%</span>
@@ -778,6 +820,7 @@ import {
                         min="5"
                         max="100"
                         step="1"
+                        [attr.aria-label]="'renderStudio.pixelExtrusion' | translate"
                         [value]="sceneService.pixelDepth().extrusionIntensity ?? 20"
                         (input)="onDepthStyleIntensityInput('extrusionIntensity', $event)"
                         class="w-full accent-sky-500 cursor-pointer" />
@@ -787,17 +830,23 @@ import {
 
                 <!-- Quick Intensity Presets -->
                 <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Quick Intensity</div>
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">{{ 'renderStudio.quickIntensity' | translate }}</div>
                   <div class="grid grid-cols-3 gap-1">
-                    @for (lvl of ['subtle', 'medium', 'deep']; track lvl) {
+                    @for (lvl of [
+                      { id: 'subtle', label: ('renderStudio.subtle' | translate) },
+                      { id: 'medium', label: ('renderStudio.medium' | translate) },
+                      { id: 'deep', label: ('renderStudio.deep' | translate) }
+                    ]; track lvl.id) {
                       <button
-                        (click)="sceneService.setPixelDepth({ intensity: $any(lvl) })"
-                        [class.bg-sky-600]="sceneService.pixelDepth().intensity === lvl"
-                        [class.text-white]="sceneService.pixelDepth().intensity === lvl"
-                        [class.bg-slate-800]="sceneService.pixelDepth().intensity !== lvl"
-                        [class.text-slate-400]="sceneService.pixelDepth().intensity !== lvl"
+                        type="button"
+                        (click)="sceneService.setPixelDepth({ intensity: $any(lvl.id) })"
+                        [attr.aria-pressed]="sceneService.pixelDepth().intensity === lvl.id"
+                        [class.bg-sky-600]="sceneService.pixelDepth().intensity === lvl.id"
+                        [class.text-white]="sceneService.pixelDepth().intensity === lvl.id"
+                        [class.bg-slate-800]="sceneService.pixelDepth().intensity !== lvl.id"
+                        [class.text-slate-400]="sceneService.pixelDepth().intensity !== lvl.id"
                         class="py-1 rounded text-center capitalize font-medium transition hover:bg-slate-700">
-                        {{ lvl }}
+                        {{ lvl.label }}
                       </button>
                     }
                   </div>
@@ -805,17 +854,20 @@ import {
 
                 <!-- Presets -->
                 <div class="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                  <span class="text-slate-500">Presets:</span>
+                  <span class="text-slate-500">{{ 'renderStudio.presets' | translate }}:</span>
                   <div class="flex gap-1">
                     <button
+                      type="button"
                       (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: true, luminanceRelief: false, extrudePixels: false })"
-                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Mosaic</button>
+                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">{{ 'renderStudio.presetMosaic' | translate }}</button>
                     <button
+                      type="button"
                       (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: false, luminanceRelief: true, extrudePixels: false })"
-                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Relief</button>
+                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">{{ 'renderStudio.presetRelief' | translate }}</button>
                     <button
+                      type="button"
                       (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: true, luminanceRelief: true, extrudePixels: true })"
-                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Full 3D</button>
+                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">{{ 'renderStudio.presetFull3d' | translate }}</button>
                   </div>
                 </div>
               </div>
@@ -824,17 +876,20 @@ import {
 
           <!-- Turntable Auto-Rotation Button -->
           <button
+            type="button"
             (click)="toggleTurntable()"
+            [attr.aria-pressed]="sceneService.isTurntableActive()"
             [class.bg-amber-600]="sceneService.isTurntableActive()"
             [class.text-white]="sceneService.isTurntableActive()"
             class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1">
             <svg lucideRotateCw class="w-3.5 h-3.5" [class.animate-spin]="sceneService.isTurntableActive()"></svg>
-            <span>Turntable</span>
+            <span>{{ 'renderStudio.turntable' | translate }}</span>
           </button>
 
           <!-- Screenshot Capture Studio -->
           <div class="flex items-center gap-1 border-r border-slate-700/80 pr-2">
             <button
+              type="button"
               (click)="captureScreenshot('1080p', false)"
               title="Download 1080p Screenshot"
               class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium transition flex items-center gap-1">
@@ -843,6 +898,7 @@ import {
             </button>
 
             <button
+              type="button"
               (click)="captureScreenshot('4k', false)"
               title="Download 4K Ultra-HD Screenshot"
               class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
@@ -850,17 +906,20 @@ import {
             </button>
 
             <button
+              type="button"
               (click)="captureScreenshot('icon', true)"
               title="Download 512x512 Transparent Icon (Ideal for inventory/textures)"
               class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition flex items-center gap-1">
-              <span>Icon</span>
+              <span>{{ 'renderStudio.icon' | translate }}</span>
             </button>
           </div>
 
           <!-- Theme Toggle (Render Mode) -->
           <button
+            type="button"
             (click)="themeService.toggleTheme()"
-            [title]="themeService.theme() === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
+            [attr.aria-label]="'header.themeToggle' | translate"
+            [title]="'header.themeToggle' | translate"
             class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
             @if (themeService.theme() === 'dark') {
               <svg lucideSun class="w-4 h-4 text-amber-400"></svg>
@@ -871,11 +930,12 @@ import {
 
           <!-- Exit Render Mode Button -->
           <button
+            type="button"
             (click)="projectStore.toggleRenderMode(false)"
-            title="Exit presentation render mode (Esc)"
+            [title]="'renderStudio.exit' | translate"
             class="px-2.5 py-1 rounded bg-rose-600/80 hover:bg-rose-600 text-white font-medium transition flex items-center gap-1">
             <svg lucideX class="w-3.5 h-3.5"></svg>
-            <span>Exit (Esc)</span>
+            <span>{{ 'renderStudio.exit' | translate }}</span>
           </button>
         </div>
       }
@@ -1393,6 +1453,20 @@ export class ViewportComponent implements OnInit, OnDestroy {
     if (!isNaN(val)) {
       this.sceneService.setPixelDepth({ [key]: val });
     }
+  }
+
+  resetSkyDefaults(): void {
+    this.sceneService.setSceneSky(this.sceneService.sceneSky());
+  }
+
+  resetDepthDefaults(): void {
+    this.sceneService.setPixelDepth({
+      enabled: false,
+      pixelBevel: true,
+      luminanceRelief: true,
+      extrudePixels: false,
+      intensity: 'subtle'
+    });
   }
 
   onFloorChange(event: Event): void {

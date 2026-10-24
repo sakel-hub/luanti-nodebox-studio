@@ -247,6 +247,41 @@ export interface TranslationDictionary {
     shareOnFacebook: string;
     viewGitHub: string;
   };
+  renderStudio: {
+    badge: string;
+    sky: string;
+    skyTitle: string;
+    envPreset: string;
+    presetStudio: string;
+    presetDay: string;
+    presetSunset: string;
+    presetNight: string;
+    sunElevation: string;
+    sunAzimuth: string;
+    atmosphericHaze: string;
+    atmosphereEffects: string;
+    voxelClouds: string;
+    horizonFog: string;
+    floor: string;
+    depth3d: string;
+    depthTitle: string;
+    enabled: string;
+    depthStyles: string;
+    pixelBevel: string;
+    luminanceRelief: string;
+    pixelExtrusion: string;
+    quickIntensity: string;
+    subtle: string;
+    medium: string;
+    deep: string;
+    presets: string;
+    presetMosaic: string;
+    presetRelief: string;
+    presetFull3d: string;
+    turntable: string;
+    icon: string;
+    exit: string;
+  };
 }
 
 // Recursive dot-notation key path type generator
