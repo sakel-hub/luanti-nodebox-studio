@@ -5,23 +5,24 @@ import { ProjectStore } from '../../core/state/project.store';
 import { TextureService, TextureDefinition } from '../../core/services/texture.service';
 import { FaceDirection, LUANTI_FACE_DIRECTIONS } from '../../core/models/nodebox.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-texture-studio',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipDirective],
+  imports: [CommonModule, FormsModule, TooltipDirective, TranslatePipe],
   template: `
     <div class="h-full flex flex-col bg-slate-900 border-l border-slate-800 text-xs select-none overflow-y-auto">
       <!-- Panel Header -->
       <div class="p-3 border-b border-slate-800 flex items-center justify-between">
-        <span class="font-semibold text-slate-200">Face Textures</span>
+        <span class="font-semibold text-slate-200">{{ 'textureStudio.title' | translate }}</span>
       </div>
 
       <div class="p-3 space-y-4">
         <!-- Luanti 6-Face Mapping Cards -->
         <div class="space-y-2">
           <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400">
-            Luanti 6 Faces (Index 1 &rarr; 6)
+            {{ 'textureStudio.faces' | translate }} (Index 1 &rarr; 6)
           </div>
 
           <div class="grid grid-cols-2 gap-2">
@@ -62,7 +63,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
           <!-- Flip X Control for Selected Face -->
           <div class="flex items-center justify-between p-2 rounded bg-slate-950/80 border border-slate-800 text-[11px]">
             <span class="text-slate-300 truncate mr-2">
-              Flip X for <strong class="text-sky-400 capitalize">{{ selectedFace() }}</strong>
+              {{ 'textureStudio.flipX' | translate }} (<strong class="text-sky-400 capitalize">{{ selectedFace() }}</strong>)
               <span class="text-slate-500 text-[10px] ml-1">({{ getFaceAxisName(selectedFace()) }})</span>
             </span>
 
@@ -74,7 +75,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
               [class.bg-slate-900]="!isCurrentFaceFlipped()"
               [class.text-slate-300]="!isCurrentFaceFlipped()"
               [class.border-slate-700]="!isCurrentFaceFlipped()"
-              [appTooltip]="'Flip texture horizontally across X axis (Luanti: ^[transformFX)'"
+              [appTooltip]="'textureStudio.flipX' | translate"
               appTooltipPlacement="top"
               class="px-2.5 py-1 rounded text-[11px] font-medium border hover:border-slate-500 transition flex items-center gap-1.5 shadow-sm flex-shrink-0">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -85,7 +86,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                 <path d="M12 8v2"/>
                 <path d="M12 2v2"/>
               </svg>
-              <span>Flip X</span>
+              <span>{{ 'textureStudio.flipX' | translate }}</span>
               <span class="font-mono text-[9px] opacity-75 font-normal">^[transformFX</span>
             </button>
           </div>
@@ -94,15 +95,15 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
         <!-- Texture Palette Picker -->
         <div class="space-y-2">
           <div class="flex justify-between items-center text-[11px] font-semibold tracking-wider uppercase text-slate-400">
-            <span>Texture Palette</span>
+            <span>{{ 'textureStudio.title' | translate }}</span>
             <div class="flex items-center gap-2">
               <button
                 (click)="cleanUnusedTextures()"
                 [disabled]="unusedCustomCount() === 0"
-                [appTooltip]="'Remove custom textures not currently used on any face in this project'"
+                [appTooltip]="'textureStudio.cleanUnused' | translate"
                 appTooltipPlacement="top"
                 class="text-[10px] text-amber-400 hover:text-amber-300 disabled:opacity-30 disabled:hover:text-amber-400 font-medium transition">
-                Clean unused ({{ unusedCustomCount() }})
+                {{ 'textureStudio.cleanUnused' | translate }} ({{ unusedCustomCount() }})
               </button>
               <span class="text-slate-700">|</span>
               <button
@@ -162,7 +163,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
         <!-- Custom Texture Upload -->
         <div class="pt-2 border-t border-slate-800 space-y-2">
           <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400">
-            Custom Texture
+            {{ 'textureStudio.customTextures' | translate }}
           </div>
 
           <label
@@ -188,9 +189,9 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
               [class.text-sky-300]="isDraggingOver()"
               [class.text-slate-300]="!isDraggingOver()"
               class="text-[11px] font-medium block">
-              {{ isDraggingOver() ? 'Drop image here to upload' : 'Upload PNG / JPG texture' }}
+              {{ 'textureStudio.upload' | translate }}
             </span>
-            <span class="text-[10px] text-slate-500 block">Drag & drop or click to browse</span>
+            <span class="text-[10px] text-slate-500 block">{{ 'textureStudio.dropNotice' | translate }}</span>
             <input
               type="file"
               accept="image/png, image/jpeg, image/webp"
@@ -213,7 +214,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
               <div class="flex items-center gap-2">
                 <span class="text-base">🎬</span>
                 <div>
-                  <h3 class="font-semibold text-xs text-white">Animated Texture Sheet</h3>
+                  <h3 class="font-semibold text-xs text-white">{{ 'textureStudio.animationTitle' | translate }}</h3>
                   <p class="text-[10px] text-slate-400 truncate max-w-[200px]">{{ targetTex.name }}</p>
                 </div>
               </div>
@@ -230,7 +231,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
               <!-- Enable Toggle -->
               <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer">
                 <div>
-                  <span class="font-medium text-slate-200">Luanti Vertical Frames</span>
+                  <span class="font-medium text-slate-200">{{ 'textureStudio.animationTitle' | translate }}</span>
                   <p class="text-[10px] text-slate-500">animation.type = "vertical_frames"</p>
                 </div>
                 <input
@@ -256,7 +257,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                   <!-- Playback & Frame Scrubber -->
                   <div class="w-full space-y-1">
                     <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                      <span>Frame {{ currentPreviewFrame() + 1 }} / {{ computedTotalFrames() }}</span>
+                      <span>{{ 'textureStudio.frameScrub' | translate:{ frame: currentPreviewFrame() + 1, total: computedTotalFrames() } }}</span>
                       <span>{{ computedFPS() }} FPS</span>
                     </div>
 
@@ -265,7 +266,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                         type="button"
                         (click)="togglePlayback()"
                         class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-medium text-slate-200 transition">
-                        {{ isPlaying() ? '⏸ Pause' : '▶ Play' }}
+                        {{ isPlaying() ? ('textureStudio.pause' | translate) : ('textureStudio.play' | translate) }}
                       </button>
                       <input
                         type="range"
@@ -281,7 +282,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                 <!-- Frame Size Dimensions -->
                 <div class="space-y-1.5">
                   <div class="flex items-center justify-between text-[11px] font-medium text-slate-300">
-                    <span>Frame Dimensions (aspect_w &times; aspect_h)</span>
+                    <span>{{ 'textureStudio.frames' | translate }} (aspect_w &times; aspect_h)</span>
                     <span class="text-slate-500 text-[10px]">Image: {{ imageNaturalWidth() }}&times;{{ imageNaturalHeight() }}</span>
                   </div>
                   <div class="grid grid-cols-2 gap-2">
@@ -312,18 +313,21 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                     <button
                       type="button"
                       (click)="setQuickAspect(16, 16)"
+                      [appTooltip]="'textureStudio.quickAspect'"
                       class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300">
                       16&times;16
                     </button>
                     <button
                       type="button"
                       (click)="setQuickAspect(32, 32)"
+                      [appTooltip]="'textureStudio.quickAspect'"
                       class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300">
                       32&times;32
                     </button>
                     <button
                       type="button"
                       (click)="setQuickAspect(64, 64)"
+                      [appTooltip]="'textureStudio.quickAspect'"
                       class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-300">
                       64&times;64
                     </button>
@@ -333,7 +337,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                 <!-- Animation Duration / Speed -->
                 <div class="space-y-1">
                   <div class="flex items-center justify-between text-[11px] font-medium text-slate-300">
-                    <span>Loop Duration (seconds)</span>
+                    <span>{{ 'textureStudio.length' | translate }}</span>
                     <span class="text-sky-400 font-mono font-bold">{{ editLength() }}s</span>
                   </div>
                   <input
@@ -354,8 +358,8 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                     (change)="editBackfaceCulling.set(!$any($event.target).checked)"
                     class="w-4 h-4 rounded text-sky-500 bg-slate-900 border-slate-700 focus:ring-sky-500" />
                   <div>
-                    <span class="text-slate-200">Render Two-Sided (backface_culling = false)</span>
-                    <p class="text-[10px] text-slate-500">Recommended for flames, foliage, and internal faces</p>
+                    <span class="text-slate-200">{{ 'textureStudio.backfaceCulling' | translate }}</span>
+                    <p class="text-[10px] text-slate-500">backface_culling = false (two-sided)</p>
                   </div>
                 </label>
               }
@@ -367,13 +371,13 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
                 type="button"
                 (click)="closeAnimationModal()"
                 class="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition text-xs font-medium">
-                Cancel
+                {{ 'common.cancel' | translate }}
               </button>
               <button
                 type="button"
                 (click)="saveAnimationSettings()"
                 class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition text-xs font-medium shadow-sm">
-                Apply Animation
+                {{ 'textureStudio.saveAnimation' | translate }}
               </button>
             </div>
           </div>

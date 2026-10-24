@@ -7,13 +7,15 @@ import { LuaParserService, ParseResult } from '../../core/services/lua-parser.se
 import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model';
 import { TextureService } from '../../core/services/texture.service';
 import { safeGetItem, safeSetItem } from '../../core/utils/storage.utils';
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
 
 @Component({
   selector: 'app-code-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TooltipDirective, TranslatePipe],
   template: `
     <div
       [style.height.px]="isEmbedded ? null : (isExpanded() ? drawerHeight() : 40)"
@@ -26,7 +28,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
           (mousedown)="startResize($event)"
           (touchstart)="startResizeTouch($event)"
           (dblclick)="isExpanded.set(!isExpanded())"
-          title="Drag up/down to resize code drawer, double-click to toggle"
+          [appTooltip]="'codeDrawer.title'"
           class="h-1.5 w-full bg-slate-950/60 hover:bg-sky-500 active:bg-sky-400 cursor-row-resize flex items-center justify-center transition-colors group">
           <div class="w-12 h-0.5 rounded-full bg-slate-700 group-hover:bg-white transition-colors"></div>
         </div>
@@ -46,7 +48,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
               </svg>
-              <span>Lua Code & Import/Export</span>
+              <span>{{ 'codeDrawer.title' | translate }}</span>
             </button>
           }
 
@@ -59,7 +61,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
                 [class.text-white]="activeTab() === 'export'"
                 [class.text-slate-400]="activeTab() !== 'export'"
                 class="px-2.5 py-1 rounded text-xs font-medium transition">
-                Export Lua
+                {{ 'codeDrawer.exportTab' | translate }}
               </button>
               <button
                 (click)="activeTab.set('import')"
@@ -67,7 +69,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
                 [class.text-white]="activeTab() === 'import'"
                 [class.text-slate-400]="activeTab() !== 'import'"
                 class="px-2.5 py-1 rounded text-xs font-medium transition">
-                Import from Mod
+                {{ 'codeDrawer.importTab' | translate }}
               </button>
             </div>
           }
@@ -80,6 +82,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
             <select
               [ngModel]="projectStore.project().format"
               (ngModelChange)="onFormatChange($event)"
+              [appTooltip]="'codeDrawer.format'"
               class="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-sky-500 font-mono">
               <option value="fractions_16">Fractions (16ths: -8/16)</option>
               <option value="divisible_16_8">Divisible 16/8 (-4/8, 16/8)</option>
@@ -92,6 +95,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
             <select
               [ngModel]="projectStore.project().exportTemplate"
               (ngModelChange)="onTemplateChange($event)"
+              [appTooltip]="'codeDrawer.template'"
               class="bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-sky-500 font-mono">
               <option value="register_node">core.register_node</option>
               <option value="node_box">node_box = &#123; ... &#125;</option>
@@ -101,6 +105,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
             <!-- Copy Code Button -->
             <button
               (click)="copyCode()"
+              [appTooltip]="'codeDrawer.copyCode'"
               class="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1 rounded font-medium shadow-sm transition active:scale-95 text-xs">
               <svg *ngIf="!copied()" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
@@ -108,13 +113,13 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
               <svg *ngIf="copied()" class="w-3.5 h-3.5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
-              <span>{{ copied() ? 'Copied!' : 'Copy Code' }}</span>
+              <span>{{ copied() ? ('common.copied' | translate) : ('common.copy' | translate) }}</span>
             </button>
 
             <!-- Download Lua File -->
             <button
               (click)="downloadLua()"
-              title="Download as .lua file"
+              [appTooltip]="'codeDrawer.downloadLua'"
               class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -139,7 +144,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
             <div class="flex-1 flex flex-col space-y-2 min-h-0">
               <div class="flex flex-wrap items-center justify-between text-xs gap-2">
                 <span class="text-slate-400">
-                  Paste Lua code from any Luanti mod:
+                  {{ 'codeDrawer.importCode' | translate }}:
                 </span>
                 <div class="flex items-center gap-3">
                   <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
@@ -156,7 +161,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
               <!-- Paste textarea -->
               <textarea
                 [(ngModel)]="pastedCode"
-                placeholder="-- Paste Lua nodebox definition here, e.g.:&#10;fixed = {&#10;    {-8/16, -8/16, -8/16, 8/16, 0, 8/16},&#10;    {-4/16, 0, -4/16, 4/16, 8/16, 4/16},&#10;}"
+                [placeholder]="'codeDrawer.importPlaceholder' | translate"
                 class="flex-1 bg-slate-950 border border-slate-800 rounded p-2.5 font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-sky-500 resize-none select-text min-h-[140px]"></textarea>
 
               <!-- Import Actions & Feedback -->
@@ -167,7 +172,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
                       <span class="text-amber-400">{{ res.warnings.join(' | ') }}</span>
                     } @else if (res.boxes.length > 0) {
                       <span class="text-emerald-400">
-                        Successfully imported {{ res.boxes.length }} boxes!
+                        {{ 'codeDrawer.importedSuccess' | translate:{ count: res.boxes.length } }}
                         {{ res.nodeName ? 'Node: ' + res.nodeName : '' }}
                       </span>
                     }
@@ -177,11 +182,12 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
                 <button
                   (click)="executeImport()"
                   [disabled]="!pastedCode.trim()"
+                  [appTooltip]="'codeDrawer.importExecute'"
                   class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium text-xs shadow-sm transition active:scale-95">
                   <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                   </svg>
-                  Parse & Visualize in 3D
+                  {{ 'codeDrawer.importExecute' | translate }}
                 </button>
               </div>
             </div>

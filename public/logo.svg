@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Rounded App Icon Squircle Container -->
+  <rect x="12" y="12" width="488" height="488" rx="112" fill="#090d16" />
+  <rect x="18" y="18" width="476" height="476" rx="106" fill="#0f172a" stroke="#1e293b" stroke-width="8" />
+  <rect x="24" y="24" width="464" height="464" rx="100" fill="#0f172a" fill-opacity="0" stroke="#38bdf8" stroke-opacity="0.45" stroke-width="4" />
+
+  <!-- Outer 1x1x1 Luanti Node Boundary Cage Backplane -->
+  <polygon
+    points="256,52 432,154 432,358 256,460 80,358 80,154"
+    fill="#1e1b4b"
+    fill-opacity="0.5"
+    stroke="#38bdf8"
+    stroke-opacity="0.35"
+    stroke-width="3.5"
+    stroke-dasharray="12 8" />
+
+  <!-- Soft Drop Shadow Under Main NodeBox -->
+  <polygon
+    points="256,114 408,202 408,364 256,452 104,364 104,202"
+    fill="#020617"
+    fill-opacity="0.75" />
+
+  <!-- ===================================================== -->
+  <!-- MAIN 3D STEPPED NODEBOX (2x2x2 Voxel with Cutout)     -->
+  <!-- ===================================================== -->
+
+  <!-- 1. Outer Top L-Face (+Y, Bright Sky Cyan) -->
+  <polygon
+    points="256,94 400,177 328,218.5 256,177 184,218.5 112,177"
+    fill="#38bdf8"
+    stroke="#bae6fd"
+    stroke-width="3"
+    stroke-linejoin="round" />
+  <!-- Top-back brightest quad (+Y highlight) -->
+  <polygon
+    points="256,94 328,135.5 256,177 184,135.5"
+    fill="#7dd3fc"
+    stroke="#bae6fd"
+    stroke-width="2.5"
+    stroke-linejoin="round" />
+
+  <!-- 2. Outer Left L-Face (-X, Vibrant Azure Blue) -->
+  <polygon
+    points="112,177 184,218.5 184,301.5 256,343 256,426 112,343"
+    fill="#0284c7"
+    stroke="#7dd3fc"
+    stroke-width="3"
+    stroke-linejoin="round" />
+  <!-- Left-bottom deeper shaded quad (back-bottom-left octant) -->
+  <polygon
+    points="112,260 184,301.5 184,384.5 112,343"
+    fill="#0369a1"
+    stroke="#38bdf8"
+    stroke-opacity="0.6"
+    stroke-width="2.5"
+    stroke-linejoin="round" />
+  <!-- Left-bottom front shaded quad (front-bottom-left octant) -->
+  <polygon
+    points="184,301.5 256,343 256,426 184,384.5"
+    fill="#0369a1"
+    stroke="#38bdf8"
+    stroke-opacity="0.6"
+    stroke-width="2.5"
+    stroke-linejoin="round" />
+
+  <!-- 3. Outer Right L-Face (+Z, Rich Indigo Violet) -->
+  <polygon
+    points="400,177 400,343 256,426 256,343 328,301.5 328,218.5"
+    fill="#4f46e5"
+    stroke="#818cf8"
+    stroke-width="3"
+    stroke-linejoin="round" />
+  <!-- Right-bottom deeper shaded quad (front-bottom-right octant) -->
+  <polygon
+    points="256,343 328,301.5 328,384.5 256,426"
+    fill="#3730a3"
+    stroke="#6366f1"
+    stroke-opacity="0.6"
+    stroke-width="2.5"
+    stroke-linejoin="round" />
+  <!-- Right-bottom back shaded quad (back-bottom-right octant) -->
+  <polygon
+    points="328,301.5 400,260 400,343 328,384.5"
+    fill="#3730a3"
+    stroke="#6366f1"
+    stroke-opacity="0.6"
+    stroke-width="2.5"
+    stroke-linejoin="round" />
+
+  <!-- 4. Inner Recessed Wall (Left side of cutout, facing Front-Right +Z -> Indigo) -->
+  <polygon
+    points="256,177 256,260 184,301.5 184,218.5"
+    fill="#4338ca"
+    stroke="#a5b4fc"
+    stroke-width="3"
+    stroke-linejoin="round" />
+
+  <!-- 5. Inner Recessed Wall (Right side of cutout, facing Front-Left -X -> Azure) -->
+  <polygon
+    points="256,177 328,218.5 328,301.5 256,260"
+    fill="#0369a1"
+    stroke="#7dd3fc"
+    stroke-width="3"
+    stroke-linejoin="round" />
+
+  <!-- 6. Inner Recessed Step Top Face (k=1, Medium Sky Cyan) -->
+  <polygon
+    points="256,260 328,301.5 256,343 184,301.5"
+    fill="#0ea5e9"
+    stroke="#bae6fd"
+    stroke-width="3.5"
+    stroke-linejoin="round" />
+
+  <!-- Outer Contour Highlight Frame of Main Stepped NodeBox -->
+  <polygon
+    points="256,94 400,177 400,343 256,426 112,343 112,177"
+    fill="#000000"
+    fill-opacity="0"
+    stroke="#7dd3fc"
+    stroke-width="4.5"
+    stroke-linejoin="round" />
+
+  <!-- Cast Shadow of Floating Sub-Box on Recessed Step Top Face (centered at 256, 301.5) -->
+  <polygon
+    points="256,275 302,301.5 256,328 210,301.5"
+    fill="#020617"
+    fill-opacity="0.45" />
+
+  <!-- ===================================================== -->
+  <!-- ACTIVE FLOATING SUB-NODEBOX (Luanti Mese Amber/Gold)  -->
+  <!-- ===================================================== -->
+  <!-- Top face (+Y) -->
+  <polygon
+    points="256,142 314,175.5 256,209 198,175.5"
+    fill="#fde047"
+    stroke="#fef9c3"
+    stroke-width="3.5"
+    stroke-linejoin="round" />
+  <!-- Left face (-X) -->
+  <polygon
+    points="198,175.5 256,209 256,276 198,242.5"
+    fill="#f59e0b"
+    stroke="#fef08a"
+    stroke-width="3.5"
+    stroke-linejoin="round" />
+  <!-- Right face (+Z) -->
+  <polygon
+    points="314,175.5 314,242.5 256,276 256,209"
+    fill="#d97706"
+    stroke="#fde047"
+    stroke-width="3.5"
+    stroke-linejoin="round" />
+
+  <!-- ===================================================== -->
+  <!-- 3D GIZMO AXIS ARROWS & NODE CAGE VERTEX HANDLES       -->
+  <!-- ===================================================== -->
+  <!-- +Y Axis Arrow (Emerald Green, Top) -->
+  <polygon points="251,94 261,94 261,56 274,56 256,30 238,56 251,56" fill="#34d399" />
+
+  <!-- -X Axis Arrow (Rose Red, Bottom-Left) -->
+  <polygon points="109.5,338.7 114.5,347.3 83.3,365.3 89.8,376.6 58.3,374.0 71.8,345.4 78.3,356.7" fill="#fb7185" />
+
+  <!-- +Z Axis Arrow (Sky Cyan, Bottom-Right) -->
+  <polygon points="402.5,338.7 397.5,347.3 428.7,365.3 422.2,376.6 453.7,374.0 440.2,345.4 433.7,356.7" fill="#38bdf8" />
+
+  <!-- NodeBox Bounding Cage Corner Handles (White/Sky Square Gizmo Grips) -->
+  <rect x="101" y="166" width="22" height="22" rx="5" fill="#f8fafc" stroke="#0284c7" stroke-width="4.5" />
+  <rect x="389" y="166" width="22" height="22" rx="5" fill="#f8fafc" stroke="#4f46e5" stroke-width="4.5" />
+  <rect x="245" y="415" width="22" height="22" rx="5" fill="#f8fafc" stroke="#0284c7" stroke-width="4.5" />
+</svg>

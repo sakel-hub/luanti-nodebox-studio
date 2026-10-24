@@ -8,8 +8,12 @@ import { TextureStudioComponent } from './features/texture-studio/texture-studio
 import { CodeDrawerComponent } from './features/code-drawer/code-drawer.component';
 import { PresetsDialogComponent } from './features/presets/presets-dialog.component';
 import { ShortcutsDialogComponent } from './features/shortcuts/shortcuts-dialog.component';
+import { HelpDialogComponent } from './features/help/help-dialog.component';
+import { ShareDialogComponent } from './features/share/share-dialog.component';
 import { ProjectStore } from './core/state/project.store';
 import { KeyboardShortcutsService } from './core/services/keyboard-shortcuts.service';
+import { TranslationService } from './core/i18n/translation.service';
+import { TranslatePipe } from './core/i18n/translate.pipe';
 import { safeGetItem, safeSetItem } from './core/utils/storage.utils';
 
 export type RightTab = 'inspector' | 'textures';
@@ -28,7 +32,10 @@ export type MobileTab = 'none' | 'layers' | 'inspector' | 'textures' | 'code';
     TextureStudioComponent,
     CodeDrawerComponent,
     PresetsDialogComponent,
-    ShortcutsDialogComponent
+    ShortcutsDialogComponent,
+    HelpDialogComponent,
+    ShareDialogComponent,
+    TranslatePipe
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.scss']
@@ -36,17 +43,20 @@ export type MobileTab = 'none' | 'layers' | 'inspector' | 'textures' | 'code';
 export class App {
   public projectStore = inject(ProjectStore);
   public keyboardShortcuts = inject(KeyboardShortcutsService);
+  public translation = inject(TranslationService);
   public activeRightTab = signal<RightTab>('inspector');
   public showPresetsModal = signal<boolean>(false);
+  public showHelpModal = signal<boolean>(false);
+  public showShareModal = signal<boolean>(false);
 
   // Mobile navigation and sheet state
   public mobileSheetTab = signal<MobileTab>('none');
   public mobileSheetTitle = computed(() => {
     switch (this.mobileSheetTab()) {
-      case 'layers': return 'Boxes & Layers';
-      case 'inspector': return 'Coordinates & Dimensions';
-      case 'textures': return '6-Face Texture Studio';
-      case 'code': return 'Lua Code Generator & Importer';
+      case 'layers': return this.translation.t('layers.title');
+      case 'inspector': return this.translation.t('inspector.title');
+      case 'textures': return this.translation.t('textureStudio.title');
+      case 'code': return this.translation.t('codeDrawer.title');
       default: return '';
     }
   });

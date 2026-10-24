@@ -6,12 +6,24 @@ import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model'
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { KeyboardShortcutsService } from '../../core/services/keyboard-shortcuts.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { TranslationService } from '../../core/i18n/translation.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@lucide/angular';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipDirective, LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TooltipDirective,
+    TranslatePipe,
+    LucideUndo,
+    LucideRedo,
+    LucideKeyboard,
+    LucideSun,
+    LucideMoon
+  ],
   template: `
     <header class="h-12 bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between text-xs select-none z-20 relative">
       <!-- ========================================== -->
@@ -20,11 +32,12 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
       <div class="flex md:hidden items-center justify-between w-full">
         <!-- Mobile Logo & App Title -->
         <div class="flex items-center gap-2 min-w-0">
-          <div class="w-7 h-7 rounded bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </div>
+          <img
+            src="logo.svg"
+            alt="Luanti NodeBox Studio"
+            width="28"
+            height="28"
+            class="w-7 h-7 rounded-md shadow-md flex-shrink-0" />
           <div class="truncate">
             <div class="font-bold text-slate-100 text-xs tracking-tight flex items-center gap-1.5">
               <span>NodeBox</span>
@@ -33,32 +46,52 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
           </div>
         </div>
 
-        <!-- Mobile Right Quick Actions: Undo, Redo, Menu -->
+        <!-- Mobile Right Quick Actions: Quick Guide, Share, Undo, Redo, Menu -->
         <div class="flex items-center gap-1">
+          <!-- Quick Guide -->
+          <button
+            (click)="openHelp.emit()"
+            [attr.aria-label]="'header.help' | translate"
+            class="w-8 h-8 rounded flex items-center justify-center text-sky-400 hover:bg-slate-800 transition active:scale-95">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+
+          <!-- Share -->
+          <button
+            (click)="openShare.emit()"
+            [attr.aria-label]="'header.share' | translate"
+            class="w-8 h-8 rounded flex items-center justify-center text-purple-400 hover:bg-slate-800 transition active:scale-95">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </button>
+
           <!-- Undo -->
           <button
             (click)="projectStore.undo()"
             [disabled]="!projectStore.canUndo()"
-            aria-label="Undo"
-            class="w-9 h-9 rounded flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95">
-            <svg lucideUndo class="w-4 h-4"></svg>
+            [attr.aria-label]="'common.undo' | translate"
+            class="w-8 h-8 rounded flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95">
+            <svg lucideUndo class="w-3.5 h-3.5"></svg>
           </button>
 
           <!-- Redo -->
           <button
             (click)="projectStore.redo()"
             [disabled]="!projectStore.canRedo()"
-            aria-label="Redo"
-            class="w-9 h-9 rounded flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95">
-            <svg lucideRedo class="w-4 h-4"></svg>
+            [attr.aria-label]="'common.redo' | translate"
+            class="w-8 h-8 rounded flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition active:scale-95">
+            <svg lucideRedo class="w-3.5 h-3.5"></svg>
           </button>
 
           <!-- Hamburger Overflow Menu Button -->
           <button
             (click)="toggleMobileMenu()"
             [attr.aria-expanded]="showMobileMenu()"
-            aria-label="Toggle project menu"
-            class="w-9 h-9 rounded bg-slate-900 border border-slate-700/80 flex items-center justify-center text-slate-200 hover:bg-slate-800 transition active:scale-95 ml-1">
+            [attr.aria-label]="'header.menu' | translate"
+            class="w-8 h-8 rounded bg-slate-900 border border-slate-700/80 flex items-center justify-center text-slate-200 hover:bg-slate-800 transition active:scale-95 ml-1">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -74,15 +107,16 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
         <div class="flex items-center gap-3">
           <!-- Logo -->
           <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            </div>
+            <img
+              src="logo.svg"
+              alt="Luanti NodeBox Studio"
+              width="30"
+              height="30"
+              class="w-7.5 h-7.5 rounded-md shadow-md flex-shrink-0" />
             <div>
               <div class="font-bold text-slate-100 text-xs tracking-tight flex items-center gap-1.5">
-                <span>Luanti NodeBox Studio</span>
-                <span class="text-[9px] bg-sky-950 text-sky-400 border border-sky-800 px-1.5 py-0.2 rounded font-mono">PWA</span>
+                <span>{{ 'header.title' | translate }}</span>
+                <span class="text-[9px] bg-sky-950 text-sky-400 border border-sky-800 px-1.5 py-0.2 rounded font-mono">{{ 'header.pwaBadge' | translate }}</span>
               </div>
             </div>
           </div>
@@ -95,16 +129,16 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
               type="text"
               [ngModel]="projectStore.project().name"
               (ngModelChange)="projectStore.setProjectName($event)"
-              title="Project title"
-              class="bg-transparent hover:bg-slate-900 focus:bg-slate-900 border border-transparent hover:border-slate-800 focus:border-slate-700 rounded px-2 py-1 text-slate-200 font-medium focus:outline-none transition w-36" />
+              [title]="'header.projectTitle' | translate"
+              class="bg-transparent hover:bg-slate-900 focus:bg-slate-900 border border-transparent hover:border-slate-800 focus:border-slate-700 rounded px-2 py-1 text-slate-200 font-medium focus:outline-none transition w-32 lg:w-36" />
             <span class="text-slate-500">:</span>
             <input
               type="text"
               [ngModel]="projectStore.project().nodeName"
               (ngModelChange)="projectStore.setNodeName($event)"
-              title="Luanti node registration string (modname:nodename)"
-              placeholder="mod:nodename"
-              class="bg-transparent hover:bg-slate-900 focus:bg-slate-900 border border-transparent hover:border-slate-800 focus:border-slate-700 rounded px-2 py-1 text-slate-400 font-mono focus:outline-none transition w-44" />
+              [title]="'header.nodeName' | translate"
+              [placeholder]="'header.nodeNamePlaceholder' | translate"
+              class="bg-transparent hover:bg-slate-900 focus:bg-slate-900 border border-transparent hover:border-slate-800 focus:border-slate-700 rounded px-2 py-1 text-slate-400 font-mono focus:outline-none transition w-40 lg:w-44" />
           </div>
         </div>
 
@@ -114,7 +148,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
           <button
             (click)="projectStore.undo()"
             [disabled]="!projectStore.canUndo()"
-            [appTooltip]="'Undo'"
+            [appTooltip]="'common.undo' | translate"
             [appTooltipShortcutId]="'edit_undo'"
             class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:pointer-events-none transition">
             <svg lucideUndo class="w-4 h-4"></svg>
@@ -122,7 +156,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
           <button
             (click)="projectStore.redo()"
             [disabled]="!projectStore.canRedo()"
-            [appTooltip]="'Redo'"
+            [appTooltip]="'common.redo' | translate"
             [appTooltipShortcutId]="'edit_redo'"
             class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:pointer-events-none transition">
             <svg lucideRedo class="w-4 h-4"></svg>
@@ -133,18 +167,18 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
           <!-- Presets Button -->
           <button
             (click)="openPresets.emit()"
-            [appTooltip]="'Model presets and starter templates'"
+            [appTooltip]="'header.presets' | translate"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-300 font-medium transition">
             <svg class="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
-            Presets
+            {{ 'header.presets' | translate }}
           </button>
 
           <!-- Presentation Render Mode Button -->
           <button
             (click)="projectStore.toggleRenderMode(true)"
-            [appTooltip]="'Distraction-free presentation render mode'"
+            [appTooltip]="'header.renderMode' | translate"
             [appTooltipShortcutId]="'view_render_mode'"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-medium transition text-xs">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,27 +191,27 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
           <!-- Keyboard Shortcuts Button -->
           <button
             (click)="shortcutsService.openShortcutsModal()"
-            [appTooltip]="'Keyboard Shortcuts'"
+            [appTooltip]="'header.shortcuts' | translate"
             [appTooltipShortcutId]="'help_shortcuts'"
             class="flex items-center gap-1 px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-300 font-medium transition text-xs">
             <svg lucideKeyboard class="w-3.5 h-3.5 text-sky-400"></svg>
-            <span class="hidden sm:inline">Shortcuts</span>
+            <span class="hidden lg:inline">{{ 'header.shortcuts' | translate }}</span>
           </button>
 
           <!-- New Button -->
           <button
             (click)="confirmReset()"
-            [appTooltip]="'Reset and start new model'"
+            [appTooltip]="'header.newProject' | translate"
             class="px-2.5 py-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
-            New
+            {{ 'common.new' | translate }}
           </button>
         </div>
 
-        <!-- Right: Grid Snap, JSON Export/Import, PWA Install -->
-        <div class="flex items-center gap-2">
+        <!-- Right: Grid Snap, Language Switcher, Share, GitHub, Help, Theme -->
+        <div class="flex items-center gap-1.5 lg:gap-2">
           <!-- Snap Resolution Selector -->
           <div class="flex items-center gap-1 text-[11px] bg-slate-900 border border-slate-800 rounded px-2 py-0.5">
-            <span class="text-slate-500 font-mono">Snap:</span>
+            <span class="text-slate-500 font-mono">{{ 'header.snap' | translate }}:</span>
             <select
               [ngModel]="projectStore.project().snapResolution"
               (ngModelChange)="projectStore.setSnapResolution($event)"
@@ -189,21 +223,21 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
           </div>
 
           <!-- Model Height Selector (1 Node vs 2 Nodes) -->
-          <div class="flex items-center gap-1 text-[11px] bg-slate-900 border border-slate-800 rounded px-2 py-0.5">
-            <span class="text-slate-500 font-mono">Height:</span>
+          <div class="hidden xl:flex items-center gap-1 text-[11px] bg-slate-900 border border-slate-800 rounded px-2 py-0.5">
+            <span class="text-slate-500 font-mono">{{ 'header.height' | translate }}:</span>
             <select
               [ngModel]="projectStore.project().nodeHeight"
               (ngModelChange)="projectStore.setNodeHeight(+$event)"
               class="bg-transparent text-slate-300 focus:outline-none cursor-pointer font-mono">
-              <option [value]="1">1 Node</option>
-              <option [value]="2">2 Nodes</option>
+              <option [value]="1">1</option>
+              <option [value]="2">2</option>
             </select>
           </div>
 
           <!-- Project JSON Save / Load -->
           <button
             (click)="exportProjectJson()"
-            title="Save project as JSON"
+            [appTooltip]="'header.saveJson' | translate"
             class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -211,7 +245,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
           </button>
 
           <label
-            title="Load project JSON"
+            [appTooltip]="'header.loadJson' | translate"
             class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer transition">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -219,10 +253,57 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             <input type="file" accept=".json" (change)="importProjectJson($event)" class="hidden" />
           </label>
 
+          <div class="h-4 w-px bg-slate-800 mx-0.5"></div>
+
+          <!-- Language Switcher Dropdown -->
+          <div class="relative">
+            <select
+              [ngModel]="translationService.currentLocale()"
+              (ngModelChange)="translationService.setLocale($event)"
+              [title]="'Language / Jazyk / Sprache'"
+              class="bg-slate-900 border border-slate-700/80 hover:border-slate-600 rounded px-1.5 py-1 text-slate-200 text-xs font-medium cursor-pointer focus:outline-none focus:border-sky-500">
+              @for (loc of translationService.supportedLocales; track loc.id) {
+                <option [value]="loc.id">{{ loc.flag }} {{ loc.nativeName }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Quick Guide / Help Button -->
+          <button
+            (click)="openHelp.emit()"
+            [appTooltip]="'header.help' | translate"
+            class="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-sky-400 hover:text-sky-300 transition">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+
+          <!-- Social Share Button -->
+          <button
+            (click)="openShare.emit()"
+            [appTooltip]="'header.share' | translate"
+            class="p-1.5 rounded bg-purple-950/40 hover:bg-purple-900/50 border border-purple-800/60 text-purple-300 hover:text-purple-200 transition">
+            <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </button>
+
+          <!-- Dedicated GitHub Repository Link -->
+          <a
+            href="https://github.com/sakel-hub/luanti-nodebox-studio"
+            target="_blank"
+            rel="noopener noreferrer"
+            [appTooltip]="'header.github' | translate"
+            class="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-400 hover:text-slate-100 transition flex items-center justify-center">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+            </svg>
+          </a>
+
           <!-- Theme Toggle (Dark / Light) -->
           <button
             (click)="themeService.toggleTheme()"
-            [appTooltip]="themeService.theme() === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+            [appTooltip]="themeService.theme() === 'dark' ? ('header.themeLight' | translate) : ('header.themeDark' | translate)"
             class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
             @if (themeService.theme() === 'dark') {
               <svg lucideSun class="w-4 h-4 text-amber-400"></svg>
@@ -239,7 +320,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Install App
+              {{ 'header.installApp' | translate }}
             </button>
           }
         </div>
@@ -259,7 +340,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Project Settings & Tools"
+        [attr.aria-label]="'header.menu' | translate"
         class="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-menu-in">
         <!-- Drawer Header -->
         <div class="h-14 px-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
@@ -267,11 +348,11 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             <div class="w-6 h-6 rounded bg-sky-500 flex items-center justify-center text-white text-xs font-bold">
               ⚙
             </div>
-            <span class="font-bold text-sm text-slate-100">Project Settings</span>
+            <span class="font-bold text-sm text-slate-100">{{ 'header.menu' | translate }}</span>
           </div>
           <button
             (click)="closeMobileMenu()"
-            aria-label="Close menu"
+            [attr.aria-label]="'common.close' | translate"
             class="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -281,12 +362,69 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
 
         <!-- Drawer Body (Scrollable) -->
         <div class="flex-1 overflow-y-auto p-4 space-y-5 text-xs text-slate-200">
+          <!-- Language Selection -->
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Language / Jazyk</label>
+            <select
+              [ngModel]="translationService.currentLocale()"
+              (ngModelChange)="translationService.setLocale($event)"
+              class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-slate-100 text-xs font-medium">
+              @for (loc of translationService.supportedLocales; track loc.id) {
+                <option [value]="loc.id">{{ loc.flag }} {{ loc.nativeName }} ({{ loc.name }})</option>
+              }
+            </select>
+          </div>
+
+          <!-- Quick Guide & Social Share -->
+          <div class="space-y-2 pt-2 border-t border-slate-800">
+            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Documentation & Sharing</label>
+            <div class="flex flex-col gap-2">
+              <button
+                (click)="openHelp.emit(); closeMobileMenu()"
+                class="w-full flex items-center justify-between p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 text-sky-400 transition">
+                <span class="flex items-center gap-2 font-medium">
+                  <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{{ 'header.help' | translate }}</span>
+                </span>
+                <span class="text-sky-400">›</span>
+              </button>
+
+              <button
+                (click)="openShare.emit(); closeMobileMenu()"
+                class="w-full flex items-center justify-between p-2.5 rounded-lg bg-purple-950/30 hover:bg-purple-900/40 border border-purple-800/50 text-purple-300 transition">
+                <span class="flex items-center gap-2 font-medium">
+                  <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  <span>{{ 'header.share' | translate }}</span>
+                </span>
+                <span class="text-purple-400">›</span>
+              </button>
+
+              <a
+                href="https://github.com/sakel-hub/luanti-nodebox-studio"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="w-full flex items-center justify-between p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 text-slate-300 transition">
+                <span class="flex items-center gap-2 font-medium">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                  </svg>
+                  <span>{{ 'header.github' | translate }}</span>
+                </span>
+                <span class="text-slate-500">↗</span>
+              </a>
+            </div>
+          </div>
+
           <!-- 1. Project Naming -->
-          <div class="space-y-2">
-            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Project Naming</label>
+          <div class="space-y-2 pt-2 border-t border-slate-800">
+            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">{{ 'header.projectTitle' | translate }}</label>
             <div class="space-y-2">
               <div>
-                <span class="text-[10px] text-slate-500 mb-0.5 block">Title</span>
+                <span class="text-[10px] text-slate-500 mb-0.5 block">{{ 'header.projectTitle' | translate }}</span>
                 <input
                   type="text"
                   [ngModel]="projectStore.project().name"
@@ -295,12 +433,12 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                   class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-sky-500 text-xs" />
               </div>
               <div>
-                <span class="text-[10px] text-slate-500 mb-0.5 block">Luanti Node (mod:name)</span>
+                <span class="text-[10px] text-slate-500 mb-0.5 block">{{ 'header.nodeName' | translate }}</span>
                 <input
                   type="text"
                   [ngModel]="projectStore.project().nodeName"
                   (ngModelChange)="projectStore.setNodeName($event)"
-                  placeholder="mod:nodename"
+                  [placeholder]="'header.nodeNamePlaceholder' | translate"
                   class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-slate-300 font-mono focus:outline-none focus:border-sky-500 text-xs" />
               </div>
             </div>
@@ -311,7 +449,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Grid & Bounds</label>
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <span class="text-[10px] text-slate-500 mb-0.5 block">Snap Resolution</span>
+                <span class="text-[10px] text-slate-500 mb-0.5 block">{{ 'header.snap' | translate }}</span>
                 <select
                   [ngModel]="projectStore.project().snapResolution"
                   (ngModelChange)="projectStore.setSnapResolution($event)"
@@ -322,7 +460,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                 </select>
               </div>
               <div>
-                <span class="text-[10px] text-slate-500 mb-0.5 block">Boundary Cage</span>
+                <span class="text-[10px] text-slate-500 mb-0.5 block">{{ 'header.height' | translate }}</span>
                 <select
                   [ngModel]="projectStore.project().nodeHeight"
                   (ngModelChange)="projectStore.setNodeHeight(+$event)"
@@ -345,7 +483,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                   <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                   </svg>
-                  Presets Library
+                  {{ 'header.presets' | translate }}
                 </span>
                 <span class="text-slate-500">›</span>
               </button>
@@ -358,7 +496,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
-                  Presentation Render Mode
+                  {{ 'header.renderMode' | translate }}
                 </span>
                 <span class="text-amber-400">›</span>
               </button>
@@ -375,14 +513,14 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                 <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                 </svg>
-                Save JSON
+                {{ 'header.saveJson' | translate }}
               </button>
 
               <label class="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 transition font-medium cursor-pointer">
                 <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                Load JSON
+                {{ 'header.loadJson' | translate }}
                 <input type="file" accept=".json" (change)="importProjectJson($event); closeMobileMenu()" class="hidden" />
               </label>
             </div>
@@ -390,11 +528,11 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             <button
               (click)="confirmReset(); closeMobileMenu()"
               class="w-full p-2.5 rounded-lg bg-red-950/20 hover:bg-red-900/30 border border-red-800/40 text-red-300 flex items-center justify-center gap-1.5 transition mt-2 font-medium">
-              <span>New / Reset Project</span>
+              <span>{{ 'header.newProject' | translate }}</span>
             </button>
           </div>
 
-          <!-- 5. Appearance & Help -->
+          <!-- 5. Appearance & Shortcuts -->
           <div class="space-y-2 pt-2 border-t border-slate-800">
             <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Preferences</label>
             <div class="flex flex-col gap-2">
@@ -404,10 +542,10 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                 <span class="flex items-center gap-2 font-medium">
                   @if (themeService.theme() === 'dark') {
                     <svg lucideSun class="w-4 h-4 text-amber-400"></svg>
-                    <span>Switch to Light Theme</span>
+                    <span>{{ 'header.themeLight' | translate }}</span>
                   } @else {
                     <svg lucideMoon class="w-4 h-4 text-sky-400"></svg>
-                    <span>Switch to Dark Theme</span>
+                    <span>{{ 'header.themeDark' | translate }}</span>
                   }
                 </span>
               </button>
@@ -417,7 +555,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                 class="w-full flex items-center justify-between p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 transition">
                 <span class="flex items-center gap-2 font-medium">
                   <svg lucideKeyboard class="w-4 h-4 text-sky-400"></svg>
-                  <span>Keyboard Shortcuts</span>
+                  <span>{{ 'header.shortcuts' | translate }}</span>
                 </span>
                 <span class="text-slate-500">?</span>
               </button>
@@ -433,7 +571,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span>Install Mobile App (PWA)</span>
+                <span>{{ 'header.installApp' | translate }}</span>
               </button>
             </div>
           }
@@ -444,10 +582,14 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
 })
 export class HeaderComponent {
   @Output() openPresets = new EventEmitter<void>();
+  @Output() openHelp = new EventEmitter<void>();
+  @Output() openShare = new EventEmitter<void>();
 
   public projectStore = inject(ProjectStore);
   public shortcutsService = inject(KeyboardShortcutsService);
   public themeService = inject(ThemeService);
+  public translationService = inject(TranslationService);
+
   public canInstallPwa = signal<boolean>(false);
   public showMobileMenu = signal<boolean>(false);
   private deferredPrompt: any = null;
@@ -484,7 +626,8 @@ export class HeaderComponent {
   }
 
   confirmReset(): void {
-    if (confirm('Start a new project? Any unsaved changes to this model will be replaced.')) {
+    const msg = this.translationService.t('header.resetConfirmMessage');
+    if (confirm(msg)) {
       this.projectStore.resetProject();
     }
   }

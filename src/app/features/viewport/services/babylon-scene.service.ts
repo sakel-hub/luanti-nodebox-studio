@@ -102,6 +102,16 @@ export class BabylonSceneService {
   public sceneFloor = signal<SceneFloor>('none');
   public sceneSky = signal<SceneSky>('studio');
   public isTurntableActive = signal<boolean>(false);
+  private isRenderingPaused = false;
+
+  private onVisibilityChange = (): void => {
+    if (typeof document === 'undefined') return;
+    this.isRenderingPaused = document.hidden;
+    if (!document.hidden && this.scene && this.scene.activeCamera) {
+      this.scene.render();
+    }
+  };
+
   public pixelDepth = signal<PixelDepthConfig>(DEFAULT_PIXEL_DEPTH_CONFIG);
 
   constructor() {
@@ -211,15 +221,20 @@ export class BabylonSceneService {
       // Setup Pointer Picking
       this.setupPointerPicking();
 
-      // Render Loop
+      // Render Loop (automatically paused when tab is inactive to preserve GPU/battery)
       this.engine.runRenderLoop(() => {
-        if (this.scene && this.scene.activeCamera) {
+        if (!this.isRenderingPaused && this.scene && this.scene.activeCamera) {
           this.scene.render();
         }
       });
 
       // Canvas wheel listener for Orthographic zoom
       canvas.addEventListener('wheel', this.onCanvasWheel, { passive: false });
+
+      // Pause render loop when page/tab is hidden
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', this.onVisibilityChange);
+      }
 
       // Continuous Resize Observer with RAF throttling guarantees smooth rendering and zero flicker
       this.resizeObserver = new ResizeObserver(() => {
@@ -1625,6 +1640,9 @@ export class BabylonSceneService {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     window.removeEventListener('resize', this.triggerSmoothResize);
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
     this.canvas?.removeEventListener('wheel', this.onCanvasWheel);
     this.canvas = null;
     this.gizmoManager?.dispose();
@@ -1639,7 +1657,13 @@ export class BabylonSceneService {
     this.hemiLight = null;
     this.dirLight = null;
     this.boxMeshes.clear();
+    for (const mat of this.materialCache.values()) {
+      mat.dispose();
+    }
     this.materialCache.clear();
+    for (const tex of this.textureCache.values()) {
+      tex.dispose();
+    }
     this.textureCache.clear();
     this.animatedTextures.clear();
     this.cageMesh = null;

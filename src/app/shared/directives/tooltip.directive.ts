@@ -7,6 +7,8 @@ import {
   inject
 } from '@angular/core';
 import { KeyboardShortcutsService } from '../../core/services/keyboard-shortcuts.service';
+import { TranslationService } from '../../core/i18n/translation.service';
+import { TranslationKey } from '../../core/i18n/translation.types';
 
 @Directive({
   selector: '[appTooltip]',
@@ -15,19 +17,23 @@ import { KeyboardShortcutsService } from '../../core/services/keyboard-shortcuts
 export class TooltipDirective implements OnDestroy {
   private el: ElementRef | null = null;
   private shortcutsService: KeyboardShortcutsService | null = null;
+  private translationService: TranslationService | null = null;
 
   @Input() appTooltip: string = '';
+  @Input() appTooltipKey?: TranslationKey;
   @Input() appTooltipShortcut?: string;
   @Input() appTooltipShortcutId?: string;
   @Input() appTooltipPlacement: 'top' | 'bottom' | 'left' | 'right' = 'bottom';
   @Input() appTooltipDelay: number = 150;
 
   private tooltipEl: HTMLElement | null = null;
+  private currentTooltipId: string | null = null;
   private showTimeout: any = null;
 
   constructor(
     el?: ElementRef,
-    shortcutsService?: KeyboardShortcutsService
+    shortcutsService?: KeyboardShortcutsService,
+    translationService?: TranslationService
   ) {
     if (el) {
       this.el = el;
@@ -46,6 +52,16 @@ export class TooltipDirective implements OnDestroy {
         this.shortcutsService = inject(KeyboardShortcutsService);
       } catch {
         this.shortcutsService = null;
+      }
+    }
+
+    if (translationService) {
+      this.translationService = translationService;
+    } else {
+      try {
+        this.translationService = inject(TranslationService);
+      } catch {
+        this.translationService = null;
       }
     }
   }
@@ -86,7 +102,7 @@ export class TooltipDirective implements OnDestroy {
 
   private scheduleShow(): void {
     this.clearTimeout();
-    if (!this.appTooltip) return;
+    if (!this.appTooltip && !this.appTooltipKey) return;
 
     this.showTimeout = setTimeout(() => {
       this.show();
@@ -100,13 +116,29 @@ export class TooltipDirective implements OnDestroy {
     }
   }
 
+  private resolveTooltipText(): string {
+    if (this.appTooltipKey && this.translationService) {
+      return this.translationService.t(this.appTooltipKey);
+    }
+
+    let text = this.appTooltip;
+    if (this.translationService && text && !text.includes(' ') && text.includes('.')) {
+      const translated = this.translationService.t(text as TranslationKey);
+      if (translated !== text) {
+        return translated;
+      }
+    }
+
+    return text;
+  }
+
   private show(): void {
     if (this.tooltipEl || typeof document === 'undefined' || !this.el) return;
 
-    // Parse shorthand syntax: e.g. "Move Tool|W"
-    let text = this.appTooltip;
+    let text = this.resolveTooltipText();
     let shortcut = this.appTooltipShortcut;
 
+    // Parse shorthand syntax: e.g. "Move Tool|W"
     if (!shortcut && text.includes('|')) {
       const parts = text.split('|');
       text = parts[0].trim();
@@ -120,7 +152,11 @@ export class TooltipDirective implements OnDestroy {
       }
     }
 
+    const tipId = `luanti-tip-${Math.random().toString(36).substring(2, 9)}`;
+    this.currentTooltipId = tipId;
+
     const tip = document.createElement('div');
+    tip.id = tipId;
     tip.className = 'luanti-tooltip fixed z-[9999] px-2 py-1 text-xs font-medium border rounded-md shadow-2xl backdrop-blur-md pointer-events-none flex items-center gap-1.5 whitespace-nowrap transition-opacity duration-150';
     tip.style.opacity = '0';
     tip.setAttribute('role', 'tooltip');
@@ -138,6 +174,11 @@ export class TooltipDirective implements OnDestroy {
 
     document.body.appendChild(tip);
     this.tooltipEl = tip;
+
+    // Accessibility link
+    if (this.el.nativeElement && typeof this.el.nativeElement.setAttribute === 'function') {
+      this.el.nativeElement.setAttribute('aria-describedby', tipId);
+    }
 
     this.positionTooltip();
     tip.style.opacity = '1';
@@ -192,6 +233,13 @@ export class TooltipDirective implements OnDestroy {
       left = viewportWidth - tipRect.width - padding;
     }
 
+    // Clamp vertically within screen boundaries
+    if (top < padding) {
+      top = padding;
+    } else if (top + tipRect.height > viewportHeight - padding) {
+      top = viewportHeight - tipRect.height - padding;
+    }
+
     this.tooltipEl.style.top = `${Math.round(top)}px`;
     this.tooltipEl.style.left = `${Math.round(left)}px`;
   }
@@ -201,6 +249,12 @@ export class TooltipDirective implements OnDestroy {
     if (this.tooltipEl) {
       this.tooltipEl.remove();
       this.tooltipEl = null;
+    }
+    if (this.currentTooltipId && this.el && this.el.nativeElement && typeof this.el.nativeElement.getAttribute === 'function') {
+      if (this.el.nativeElement.getAttribute('aria-describedby') === this.currentTooltipId) {
+        this.el.nativeElement.removeAttribute('aria-describedby');
+      }
+      this.currentTooltipId = null;
     }
   }
 }

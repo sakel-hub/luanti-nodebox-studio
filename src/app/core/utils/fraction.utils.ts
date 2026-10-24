@@ -79,9 +79,9 @@ export function formatCoordinate(value: number, format: FractionFormat, baseReso
 
     case 'fractions_simplified':
     default: {
-      const num16 = floatToGridStep(value, 64);
-      if (num16 === 0) return '0';
-      const { num, den } = simplifyFraction(num16, 64);
+      const num64 = floatToGridStep(value, 64);
+      if (num64 === 0) return '0';
+      const { num, den } = simplifyFraction(num64, 64);
       if (den === 1) return `${num}`;
       return `${num}/${den}`;
     }

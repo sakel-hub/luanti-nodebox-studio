@@ -9,12 +9,15 @@ import {
   parseCoordinateString
 } from '../../core/utils/fraction.utils';
 
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
 export type InputMode = 'grid' | 'fractions' | 'decimals';
 
 @Component({
   selector: 'app-box-inspector',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TooltipDirective, TranslatePipe],
   template: `
     <div class="h-full flex flex-col bg-slate-900 border-l border-slate-800 text-xs select-none overflow-y-auto">
       @if (projectStore.selectedBox(); as box) {
@@ -32,7 +35,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
               [class.bg-sky-600]="inputMode() === 'grid'"
               [class.text-white]="inputMode() === 'grid'"
               [class.text-slate-400]="inputMode() !== 'grid'"
-              title="Grid Units (-8 to +8)"
+              [appTooltip]="'inspector.gridUnits' | translate"
               class="px-2 py-0.5 rounded text-[11px] font-medium transition">
               Grid
             </button>
@@ -41,7 +44,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
               [class.bg-sky-600]="inputMode() === 'fractions'"
               [class.text-white]="inputMode() === 'fractions'"
               [class.text-slate-400]="inputMode() !== 'fractions'"
-              title="Fractions (-8/16, 5/16)"
+              [appTooltip]="'inspector.fractions' | translate"
               class="px-2 py-0.5 rounded text-[11px] font-medium transition">
               Fraction
             </button>
@@ -50,7 +53,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
               [class.bg-sky-600]="inputMode() === 'decimals'"
               [class.text-white]="inputMode() === 'decimals'"
               [class.text-slate-400]="inputMode() !== 'decimals'"
-              title="Decimals (-0.5 to +0.5)"
+              [appTooltip]="'inspector.decimals' | translate"
               class="px-2 py-0.5 rounded text-[11px] font-medium transition">
               Float
             </button>
@@ -62,19 +65,19 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
           <div *ngIf="box.locked" class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5">
               <span>🔒</span>
-              <span>This box is locked against editing.</span>
+              <span>{{ 'inspector.lockedWarning' | translate }}</span>
             </div>
             <button
               (click)="projectStore.toggleBoxLock(box.id)"
               class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-medium transition">
-              Unlock
+              {{ 'layers.unlock' | translate }}
             </button>
           </div>
 
           <!-- Coordinates Group -->
           <div class="space-y-3">
             <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400">
-              Min Coordinates (Start)
+              {{ 'inspector.minCoords' | translate }}
             </div>
             <div class="grid grid-cols-3 gap-2">
               <div>
@@ -107,7 +110,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
             </div>
 
             <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400 pt-1">
-              Max Coordinates (End)
+              {{ 'inspector.maxCoords' | translate }}
             </div>
             <div class="grid grid-cols-3 gap-2">
               <div>
@@ -143,7 +146,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
           <!-- Dimensions & Center Info -->
           <div class="bg-slate-950/70 p-2.5 rounded border border-slate-800 space-y-1.5 font-mono text-[11px]">
             <div class="flex justify-between text-slate-400">
-              <span>Size (W &times; H &times; D):</span>
+              <span>{{ 'inspector.dimensions' | translate }}:</span>
               <span class="text-slate-200">
                 {{ formatVal(box.maxX - box.minX) }} &times;
                 {{ formatVal(box.maxY - box.minY) }} &times;
@@ -163,7 +166,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
           <!-- Nudge Controls -->
           <div class="space-y-2">
             <div class="flex justify-between items-center text-[11px] font-semibold tracking-wider uppercase text-slate-400">
-              <span>Nudge Position</span>
+              <span>{{ 'inspector.nudge' | translate }}</span>
               <span class="text-[10px] font-mono text-slate-500">Step: 1/{{ projectStore.project().snapResolution }}</span>
             </div>
             <div class="grid grid-cols-3 gap-2">
@@ -172,7 +175,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                 <button
                   (click)="nudge(box.id, 'x', -1)"
                   [disabled]="box.locked"
-                  title="Move -X (West)"
+                  [appTooltip]="'inspector.nudge' | translate"
                   class="flex-1 py-1 text-center hover:bg-slate-800 text-red-400 active:bg-slate-700 transition">
                   -X
                 </button>
@@ -180,7 +183,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                 <button
                   (click)="nudge(box.id, 'x', 1)"
                   [disabled]="box.locked"
-                  title="Move +X (East)"
+                  [appTooltip]="'inspector.nudge' | translate"
                   class="flex-1 py-1 text-center hover:bg-slate-800 text-red-400 active:bg-slate-700 transition">
                   +X
                 </button>
@@ -191,7 +194,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                 <button
                   (click)="nudge(box.id, 'y', -1)"
                   [disabled]="box.locked"
-                  title="Move -Y (Down)"
+                  [appTooltip]="'inspector.nudge' | translate"
                   class="flex-1 py-1 text-center hover:bg-slate-800 text-green-400 active:bg-slate-700 transition">
                   -Y
                 </button>
@@ -199,7 +202,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                 <button
                   (click)="nudge(box.id, 'y', 1)"
                   [disabled]="box.locked"
-                  title="Move +Y (Up)"
+                  [appTooltip]="'inspector.nudge' | translate"
                   class="flex-1 py-1 text-center hover:bg-slate-800 text-green-400 active:bg-slate-700 transition">
                   +Y
                 </button>
@@ -210,7 +213,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                 <button
                   (click)="nudge(box.id, 'z', -1)"
                   [disabled]="box.locked"
-                  title="Move -Z (Front/South)"
+                  [appTooltip]="'inspector.nudge' | translate"
                   class="flex-1 py-1 text-center hover:bg-slate-800 text-blue-400 active:bg-slate-700 transition">
                   -Z
                 </button>
@@ -218,7 +221,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                 <button
                   (click)="nudge(box.id, 'z', 1)"
                   [disabled]="box.locked"
-                  title="Move +Z (Back/North)"
+                  [appTooltip]="'inspector.nudge' | translate"
                   class="flex-1 py-1 text-center hover:bg-slate-800 text-blue-400 active:bg-slate-700 transition">
                   +Z
                 </button>
@@ -229,27 +232,27 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
           <!-- Symmetry / Mirroring -->
           <div class="space-y-2">
             <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400">
-              Symmetry & Mirroring
+              {{ 'inspector.flip' | translate }}
             </div>
             <div class="grid grid-cols-3 gap-2">
               <button
                 (click)="flip(box.id, 'x')"
                 [disabled]="box.locked"
-                title="Mirror along X axis (e.g. for symmetric chair/table legs)"
+                [appTooltip]="'inspector.flip' | translate"
                 class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-slate-300 font-medium transition text-center active:scale-95">
                 Flip X
               </button>
               <button
                 (click)="flip(box.id, 'y')"
                 [disabled]="box.locked"
-                title="Mirror along Y axis"
+                [appTooltip]="'inspector.flip' | translate"
                 class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-slate-300 font-medium transition text-center active:scale-95">
                 Flip Y
               </button>
               <button
                 (click)="flip(box.id, 'z')"
                 [disabled]="box.locked"
-                title="Mirror along Z axis"
+                [appTooltip]="'inspector.flip' | translate"
                 class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-slate-300 font-medium transition text-center active:scale-95">
                 Flip Z
               </button>
@@ -259,12 +262,13 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
           <!-- Rotation 90° -->
           <div class="space-y-2">
             <div class="flex justify-between items-center text-[11px] font-semibold tracking-wider uppercase text-slate-400">
-              <span>Rotate 90&deg;</span>
+              <span>{{ 'inspector.rotate90' | translate }}</span>
               <div class="flex bg-slate-950 p-0.5 rounded border border-slate-800 text-[10px]">
                 <button
                   (click)="rotateOrigin.set('center')"
                   [class.text-sky-400]="rotateOrigin() === 'center'"
                   [class.font-bold]="rotateOrigin() === 'center'"
+                  [appTooltip]="'inspector.rotateCenter' | translate"
                   class="px-1.5 py-0.5 text-slate-400 hover:text-slate-200 transition">
                   Center
                 </button>
@@ -272,6 +276,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                   (click)="rotateOrigin.set('origin')"
                   [class.text-sky-400]="rotateOrigin() === 'origin'"
                   [class.font-bold]="rotateOrigin() === 'origin'"
+                  [appTooltip]="'inspector.rotateOrigin' | translate"
                   class="px-1.5 py-0.5 text-slate-400 hover:text-slate-200 transition">
                   Origin (0,0,0)
                 </button>
@@ -281,21 +286,21 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
               <button
                 (click)="rotate(box.id, 'x', 1)"
                 [disabled]="box.locked"
-                title="Rotate 90 degrees around X"
+                [appTooltip]="'inspector.rotate90' | translate"
                 class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-red-400 font-medium transition text-center active:scale-95 disabled:opacity-40">
                 &circlearrowright; 90&deg; X
               </button>
               <button
                 (click)="rotate(box.id, 'y', 1)"
                 [disabled]="box.locked"
-                title="Rotate 90 degrees around Y"
+                [appTooltip]="'inspector.rotate90' | translate"
                 class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-green-400 font-medium transition text-center active:scale-95 disabled:opacity-40">
                 &circlearrowright; 90&deg; Y
               </button>
               <button
                 (click)="rotate(box.id, 'z', 1)"
                 [disabled]="box.locked"
-                title="Rotate 90 degrees around Z"
+                [appTooltip]="'inspector.rotate90' | translate"
                 class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-blue-400 font-medium transition text-center active:scale-95 disabled:opacity-40">
                 &circlearrowright; 90&deg; Z
               </button>
@@ -307,20 +312,22 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
             <button
               (click)="centerBox(box.id)"
               [disabled]="box.locked"
+              [appTooltip]="'inspector.center' | translate"
               class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 font-medium transition text-center">
-              Center on X/Z
+              {{ 'inspector.center' | translate }}
             </button>
             <button
               (click)="snapToGrid(box.id)"
               [disabled]="box.locked"
+              [appTooltip]="'inspector.snapGrid' | translate"
               class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 font-medium transition text-center">
-              Snap to Grid
+              {{ 'inspector.snapGrid' | translate }}
             </button>
           </div>
         </div>
       } @else {
         <div class="p-8 text-center text-slate-500">
-          Select a box from the 3D scene or layer list to inspect and edit its coordinates.
+          {{ 'inspector.noBoxSelected' | translate }}
         </div>
       }
     </div>

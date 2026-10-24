@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ProjectStore } from '../../core/state/project.store';
 import { formatCoordinate } from '../../core/utils/fraction.utils';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import {
   LucidePlus,
   LucideEye,
@@ -24,6 +25,7 @@ import {
     CommonModule,
     FormsModule,
     TooltipDirective,
+    TranslatePipe,
     LucidePlus,
     LucideEye,
     LucideEyeOff,
@@ -40,7 +42,7 @@ import {
       <!-- Panel Header -->
       <div class="p-3 border-b border-slate-800 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-sm text-slate-200">Boxes & Layers</span>
+          <span class="font-semibold text-sm text-slate-200">{{ 'layers.title' | translate }}</span>
           <span class="bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full font-mono">
             {{ projectStore.boxes().length }}
           </span>
@@ -48,18 +50,17 @@ import {
         <div class="flex items-center gap-1.5">
           <button
             (click)="projectStore.rotateAllBoxes('y', 1)"
-            [appTooltip]="'Rotate entire model 90° clockwise around Y'"
-            class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md transition active:scale-95 flex items-center justify-center"
-            title="Rotate model 90° Y">
+            [appTooltip]="'inspector.rotate90' | translate"
+            class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md transition active:scale-95 flex items-center justify-center">
             <svg lucideRotateCw class="w-3.5 h-3.5"></svg>
           </button>
           <button
             (click)="addBox()"
-            [appTooltip]="'Add new box'"
+            [appTooltip]="'layers.addBox' | translate"
             [appTooltipShortcutId]="'box_new'"
             class="flex items-center gap-1 bg-sky-600 hover:bg-sky-500 text-white text-xs px-2.5 py-1.5 rounded-md font-medium shadow-sm transition active:scale-95">
             <svg lucidePlus class="w-3.5 h-3.5"></svg>
-            Add Box
+            {{ 'layers.addBox' | translate }}
           </button>
         </div>
       </div>
@@ -70,7 +71,7 @@ import {
           type="text"
           [ngModel]="searchQuery()"
           (ngModelChange)="searchQuery.set($event)"
-          placeholder="Filter boxes..."
+          [placeholder]="'common.search' | translate"
           class="w-full bg-slate-950/80 border border-slate-700/80 rounded px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition" />
       </div>
 
@@ -79,7 +80,7 @@ import {
         (click)="onBackgroundClick($event)"
         class="flex-1 overflow-y-auto divide-y divide-slate-800/60"
         role="listbox"
-        aria-label="Boxes list">
+        [attr.aria-label]="'layers.title' | translate">
         @for (box of filteredBoxes(); track box.id; let idx = $index) {
           <div
             (click)="selectBox(box.id, $event)"
@@ -99,7 +100,7 @@ import {
                 [ngModel]="box.color"
                 (ngModelChange)="updateColor(box.id, $event)"
                 (click)="$event.stopPropagation()"
-                title="Change display color"
+                [title]="'layers.color' | translate"
                 class="w-4 h-4 rounded cursor-pointer border-0 bg-transparent p-0 flex-shrink-0" />
 
               <!-- Box Name (Editable) -->
@@ -122,7 +123,7 @@ import {
               <!-- Visibility -->
               <button
                 (click)="toggleVisibility(box.id)"
-                [appTooltip]="box.visible ? 'Hide box' : 'Show box'"
+                [appTooltip]="(box.visible ? 'layers.hide' : 'layers.show') | translate"
                 [appTooltipShortcutId]="'box_visibility'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
                 <svg *ngIf="box.visible" lucideEye class="w-3.5 h-3.5"></svg>
@@ -132,7 +133,7 @@ import {
               <!-- Lock -->
               <button
                 (click)="toggleLock(box.id)"
-                [appTooltip]="box.locked ? 'Unlock box' : 'Lock box against accidental edits'"
+                [appTooltip]="(box.locked ? 'layers.unlock' : 'layers.lock') | translate"
                 [appTooltipShortcutId]="'box_lock'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
                 <svg *ngIf="box.locked" lucideLock class="w-3.5 h-3.5 text-amber-400"></svg>
@@ -142,7 +143,7 @@ import {
               <!-- Duplicate -->
               <button
                 (click)="duplicateBox(box.id)"
-                [appTooltip]="'Duplicate box'"
+                [appTooltip]="'layers.duplicate' | translate"
                 [appTooltipShortcutId]="'box_duplicate'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
                 <svg lucideCopy class="w-3.5 h-3.5"></svg>
@@ -152,14 +153,14 @@ import {
               <button
                 *ngIf="canMoveUp(box.id)"
                 (click)="moveBox(box.id, -1)"
-                [appTooltip]="'Move layer up'"
+                [appTooltip]="'layers.moveUp' | translate"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
                 <svg lucideArrowUp class="w-3.5 h-3.5"></svg>
               </button>
               <button
                 *ngIf="canMoveDown(box.id)"
                 (click)="moveBox(box.id, 1)"
-                [appTooltip]="'Move layer down'"
+                [appTooltip]="'layers.moveDown' | translate"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
                 <svg lucideArrowDown class="w-3.5 h-3.5"></svg>
               </button>
@@ -167,7 +168,7 @@ import {
               <!-- Delete -->
               <button
                 (click)="deleteBox(box.id)"
-                [appTooltip]="'Delete box'"
+                [appTooltip]="'layers.deleteBox' | translate"
                 [appTooltipShortcutId]="'box_delete'"
                 class="p-1 rounded hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition">
                 <svg lucideTrash2 class="w-3.5 h-3.5"></svg>
@@ -176,7 +177,7 @@ import {
           </div>
         } @empty {
           <div class="p-6 text-center text-xs text-slate-500">
-            No boxes found. Click <strong>Add Box</strong> or load a preset.
+            {{ 'layers.empty' | translate }}
           </div>
         }
       </div>

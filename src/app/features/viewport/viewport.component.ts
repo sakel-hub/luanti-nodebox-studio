@@ -22,11 +22,12 @@ import { ProjectStore } from '../../core/state/project.store';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { ThemeService } from '../../core/services/theme.service';
 import { TextureService } from '../../core/services/texture.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-viewport',
   standalone: true,
-  imports: [CommonModule, TooltipDirective],
+  imports: [CommonModule, TooltipDirective, TranslatePipe],
   template: `
     <div class="relative w-full h-full bg-slate-950 overflow-hidden flex flex-col" style="contain: strict;">
       <!-- 3D Canvas with touch-none for gesture isolation -->
@@ -55,14 +56,14 @@ import { TextureService } from '../../core/services/texture.service';
 
             @if (showMobileCameraMenu()) {
               <div class="absolute top-11 left-0 w-44 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl p-1.5 z-30 flex flex-col gap-1 text-xs animate-sheet-up">
-                <div class="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">Camera Angles</div>
+                <div class="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">{{ 'viewport.cameraAngles' | translate }}</div>
                 @for (preset of [
-                  { id: 'iso', name: 'Isometric' },
-                  { id: 'top', name: 'Top (+Y)' },
-                  { id: 'front', name: 'Front (-Z)' },
-                  { id: 'back', name: 'Back (+Z)' },
-                  { id: 'left', name: 'Left (-X)' },
-                  { id: 'right', name: 'Right (+X)' }
+                  { id: 'iso', name: ('viewport.iso' | translate) },
+                  { id: 'top', name: ('viewport.top' | translate) },
+                  { id: 'front', name: ('viewport.front' | translate) },
+                  { id: 'back', name: ('viewport.back' | translate) },
+                  { id: 'left', name: ('viewport.left' | translate) },
+                  { id: 'right', name: ('viewport.right' | translate) }
                 ]; track preset.id) {
                   <button
                     (click)="setPreset($any(preset.id))"
@@ -77,7 +78,7 @@ import { TextureService } from '../../core/services/texture.service';
                 <button
                   (click)="toggleCameraMode()"
                   class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 transition font-medium flex items-center justify-between">
-                  <span>Projection</span>
+                  <span>{{ 'viewport.projection' | translate }}</span>
                   <span class="font-mono text-sky-400 text-[11px] font-semibold">{{ sceneService.cameraMode() === 'orthographic' ? 'Ortho' : 'Persp' }}</span>
                 </button>
               </div>
@@ -88,7 +89,7 @@ import { TextureService } from '../../core/services/texture.service';
           <div class="relative pointer-events-auto">
             <button
               (click)="toggleMobileShadingMenu()"
-              aria-label="Viewport display settings"
+              [attr.aria-label]="'viewport.shading' | translate"
               class="h-9 px-3 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-lg active:scale-95 transition">
               <span>🎨 {{ sceneService.viewportMode() | titlecase }}</span>
               <span class="text-[10px] text-slate-400">▾</span>
@@ -96,7 +97,7 @@ import { TextureService } from '../../core/services/texture.service';
 
             @if (showMobileShadingMenu()) {
               <div class="absolute top-11 right-0 w-48 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl p-2 z-30 flex flex-col gap-1.5 text-xs animate-sheet-up">
-                <div class="text-[10px] font-semibold text-slate-400 px-1 uppercase tracking-wider">Shading Mode</div>
+                <div class="text-[10px] font-semibold text-slate-400 px-1 uppercase tracking-wider">{{ 'viewport.shading' | translate }}</div>
                 <div class="grid grid-cols-3 gap-1">
                   <button
                     (click)="setRenderMode('textured'); closeMobileMenus()"
@@ -122,9 +123,9 @@ import { TextureService } from '../../core/services/texture.service';
                 </div>
 
                 <div class="h-px bg-slate-800 my-0.5"></div>
-                <div class="text-[10px] font-semibold text-slate-400 px-1 uppercase tracking-wider">Display Helpers</div>
+                <div class="text-[10px] font-semibold text-slate-400 px-1 uppercase tracking-wider">{{ 'viewport.tools' | translate }}</div>
                 <div class="flex items-center justify-between px-1">
-                  <span class="text-slate-300">Floor Grid</span>
+                  <span class="text-slate-300">{{ 'viewport.grid' | translate }}</span>
                   <button
                     (click)="toggleGrid()"
                     [class.text-sky-400]="sceneService.showGrid()"
@@ -134,7 +135,7 @@ import { TextureService } from '../../core/services/texture.service';
                   </button>
                 </div>
                 <div class="flex items-center justify-between px-1">
-                  <span class="text-slate-300">Node Cage</span>
+                  <span class="text-slate-300">{{ 'viewport.cage' | translate }}</span>
                   <button
                     (click)="toggleCage()"
                     [class.text-sky-400]="sceneService.showCage()"
@@ -144,7 +145,7 @@ import { TextureService } from '../../core/services/texture.service';
                   </button>
                 </div>
                 <div class="flex items-center justify-between px-1">
-                  <span class="text-slate-300">Height</span>
+                  <span class="text-slate-300">{{ 'header.height' | translate }}</span>
                   <button
                     (click)="toggleNodeHeight()"
                     class="font-semibold text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
@@ -156,7 +157,7 @@ import { TextureService } from '../../core/services/texture.service';
                 <button
                   (click)="resetCamera(); closeMobileMenus()"
                   class="w-full text-center py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition">
-                  Reset View
+                  {{ 'viewport.resetView' | translate }}
                 </button>
               </div>
             }
@@ -170,9 +171,9 @@ import { TextureService } from '../../core/services/texture.service';
             [class.bg-emerald-600]="sceneService.gizmoMode() === 'position'"
             [class.text-white]="sceneService.gizmoMode() === 'position'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'position'"
-            aria-label="Move tool"
+            [attr.aria-label]="'viewport.move' | translate"
             class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
-            title="Move tool (G)">
+            [title]="'viewport.move' | translate">
             ✥
           </button>
           <button
@@ -180,9 +181,9 @@ import { TextureService } from '../../core/services/texture.service';
             [class.bg-emerald-600]="sceneService.gizmoMode() === 'resize'"
             [class.text-white]="sceneService.gizmoMode() === 'resize'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'resize'"
-            aria-label="Face resize tool"
+            [attr.aria-label]="'viewport.resize' | translate"
             class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
-            title="Resize Faces">
+            [title]="'viewport.resize' | translate">
             ⬚
           </button>
           <button
@@ -190,9 +191,9 @@ import { TextureService } from '../../core/services/texture.service';
             [class.bg-emerald-600]="sceneService.gizmoMode() === 'scale'"
             [class.text-white]="sceneService.gizmoMode() === 'scale'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'scale'"
-            aria-label="Scale tool"
+            [attr.aria-label]="'viewport.scale' | translate"
             class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
-            title="Scale tool (S)">
+            [title]="'viewport.scale' | translate">
             ⤢
           </button>
           <button
@@ -200,9 +201,9 @@ import { TextureService } from '../../core/services/texture.service';
             [class.bg-emerald-600]="sceneService.gizmoMode() === 'rotation'"
             [class.text-white]="sceneService.gizmoMode() === 'rotation'"
             [class.text-slate-400]="sceneService.gizmoMode() !== 'rotation'"
-            aria-label="Rotate tool"
+            [attr.aria-label]="'viewport.rotate' | translate"
             class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
-            title="Rotate tool (R)">
+            [title]="'viewport.rotate' | translate">
             ↻
           </button>
           <button
@@ -210,17 +211,17 @@ import { TextureService } from '../../core/services/texture.service';
             [class.bg-slate-700]="sceneService.gizmoMode() === 'none'"
             [class.text-white]="sceneService.gizmoMode() === 'none'"
             [class.text-slate-500]="sceneService.gizmoMode() !== 'none'"
-            aria-label="Select only"
+            [attr.aria-label]="'viewport.selectOff' | translate"
             class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
-            title="Select only">
+            [title]="'viewport.selectOff' | translate">
             ✕
           </button>
           <div class="w-full h-px bg-slate-800 my-0.5"></div>
           <button
             (click)="resetCamera()"
-            aria-label="Focus view"
+            [attr.aria-label]="'viewport.resetView' | translate"
             class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-slate-400 hover:text-white transition active:scale-90"
-            title="Center Camera">
+            [title]="'viewport.resetView' | translate">
             ⌖
           </button>
         </div>
@@ -235,37 +236,37 @@ import { TextureService } from '../../core/services/texture.service';
           <div class="flex items-center space-x-1 border-r border-slate-700/80 pr-2 mr-1">
             <button
               (click)="setPreset('iso')"
-              [appTooltip]="'Isometric View'"
+              [appTooltip]="'viewport.iso' | translate"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition font-mono font-medium">
               Iso
             </button>
             <button
               (click)="setPreset('top')"
-              [appTooltip]="'Top View (+Y)'"
+              [appTooltip]="'viewport.top' | translate"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition font-mono font-medium">
               Top
             </button>
             <button
               (click)="setPreset('front')"
-              [appTooltip]="'Front View (-Z)'"
+              [appTooltip]="'viewport.front' | translate"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition font-mono font-medium">
               Front
             </button>
             <button
               (click)="setPreset('back')"
-              [appTooltip]="'Back View (+Z)'"
+              [appTooltip]="'viewport.back' | translate"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition font-mono font-medium">
               Back
             </button>
             <button
               (click)="setPreset('left')"
-              [appTooltip]="'Left View (-X)'"
+              [appTooltip]="'viewport.left' | translate"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition font-mono font-medium">
               Left
             </button>
             <button
               (click)="setPreset('right')"
-              [appTooltip]="'Right View (+X)'"
+              [appTooltip]="'viewport.right' | translate"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition font-mono font-medium">
               Right
             </button>
@@ -277,7 +278,7 @@ import { TextureService } from '../../core/services/texture.service';
               (click)="toggleCameraMode()"
               [class.bg-sky-600]="sceneService.cameraMode() === 'orthographic'"
               [class.text-white]="sceneService.cameraMode() === 'orthographic'"
-              [appTooltip]="'Toggle Perspective / Orthographic projection'"
+              [appTooltip]="'viewport.projection' | translate"
               [appTooltipShortcutId]="'view_ortho'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition font-mono font-medium">
               {{ sceneService.cameraMode() === 'orthographic' ? 'Ortho' : 'Persp' }}
@@ -288,7 +289,7 @@ import { TextureService } from '../../core/services/texture.service';
           <div class="flex items-center space-x-1 border-r border-slate-700/80 pr-2 mr-1">
             <button
               (click)="setRenderMode('textured')"
-              [appTooltip]="'Textured Shading Mode'"
+              [appTooltip]="'viewport.textures' | translate"
               [class.bg-sky-600]="sceneService.viewportMode() === 'textured'"
               [class.text-white]="sceneService.viewportMode() === 'textured'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
@@ -296,7 +297,7 @@ import { TextureService } from '../../core/services/texture.service';
             </button>
             <button
               (click)="setRenderMode('colored')"
-              [appTooltip]="'Solid Colors Shading Mode'"
+              [appTooltip]="'viewport.solid' | translate"
               [class.bg-sky-600]="sceneService.viewportMode() === 'colored'"
               [class.text-white]="sceneService.viewportMode() === 'colored'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
@@ -304,7 +305,7 @@ import { TextureService } from '../../core/services/texture.service';
             </button>
             <button
               (click)="setRenderMode('wireframe')"
-              [appTooltip]="'Wireframe Shading Mode'"
+              [appTooltip]="'viewport.wire' | translate"
               [class.bg-sky-600]="sceneService.viewportMode() === 'wireframe'"
               [class.text-white]="sceneService.viewportMode() === 'wireframe'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
@@ -318,7 +319,7 @@ import { TextureService } from '../../core/services/texture.service';
               (click)="setGizmo('position')"
               [class.bg-emerald-600]="sceneService.gizmoMode() === 'position'"
               [class.text-white]="sceneService.gizmoMode() === 'position'"
-              [appTooltip]="'Move box along grid axes'"
+              [appTooltip]="'viewport.move' | translate"
               [appTooltipShortcutId]="'tool_move'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
               Move
@@ -327,25 +328,25 @@ import { TextureService } from '../../core/services/texture.service';
               (click)="setGizmo('resize')"
               [class.bg-emerald-600]="sceneService.gizmoMode() === 'resize'"
               [class.text-white]="sceneService.gizmoMode() === 'resize'"
-              [appTooltip]="'Resize individual faces'"
+              [appTooltip]="'viewport.resize' | translate"
               [appTooltipShortcutId]="'tool_resize'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
-              Resize (Faces)
+              Resize
             </button>
             <button
               (click)="setGizmo('scale')"
               [class.bg-emerald-600]="sceneService.gizmoMode() === 'scale'"
               [class.text-white]="sceneService.gizmoMode() === 'scale'"
-              [appTooltip]="'Scale box symmetrically from center'"
+              [appTooltip]="'viewport.scale' | translate"
               [appTooltipShortcutId]="'tool_scale'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
-              Scale (Center)
+              Scale
             </button>
             <button
               (click)="setGizmo('rotation')"
               [class.bg-emerald-600]="sceneService.gizmoMode() === 'rotation'"
               [class.text-white]="sceneService.gizmoMode() === 'rotation'"
-              [appTooltip]="'Rotate box in 90° steps'"
+              [appTooltip]="'viewport.rotate' | translate"
               [appTooltipShortcutId]="'tool_rotate'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition">
               Rotate
@@ -353,7 +354,7 @@ import { TextureService } from '../../core/services/texture.service';
             <button
               (click)="setGizmo('none')"
               [class.bg-slate-700]="sceneService.gizmoMode() === 'none'"
-              [appTooltip]="'Selection mode only (Gizmos off)'"
+              [appTooltip]="'viewport.selectOff' | translate"
               [appTooltipShortcutId]="'tool_select'"
               class="px-2 py-1 rounded hover:bg-slate-800 text-slate-400 transition">
               Off
@@ -365,7 +366,7 @@ import { TextureService } from '../../core/services/texture.service';
             (click)="toggleCage()"
             [class.text-sky-400]="sceneService.showCage()"
             [class.text-slate-500]="!sceneService.showCage()"
-            [appTooltip]="'Toggle boundary node cage'"
+            [appTooltip]="'viewport.cage' | translate"
             [appTooltipShortcutId]="'view_cage'"
             class="px-2 py-1 rounded hover:bg-slate-800 transition flex items-center gap-1">
             Cage
@@ -374,14 +375,14 @@ import { TextureService } from '../../core/services/texture.service';
             (click)="toggleGrid()"
             [class.text-sky-400]="sceneService.showGrid()"
             [class.text-slate-500]="!sceneService.showGrid()"
-            [appTooltip]="'Toggle reference grid'"
+            [appTooltip]="'viewport.grid' | translate"
             [appTooltipShortcutId]="'view_grid'"
             class="px-2 py-1 rounded hover:bg-slate-800 transition flex items-center gap-1">
             Grid
           </button>
           <button
             (click)="toggleNodeHeight()"
-            [appTooltip]="'Toggle model height: 1 Node ([-0.5, 0.5]) or 2 Nodes tall ([-0.5, 1.5])'"
+            [appTooltip]="(projectStore.project().nodeHeight === 2 ? 'viewport.height1' : 'viewport.height2') | translate"
             [class.bg-sky-600]="projectStore.project().nodeHeight === 2"
             [class.text-white]="projectStore.project().nodeHeight === 2"
             [class.text-slate-300]="projectStore.project().nodeHeight !== 2"
@@ -393,10 +394,10 @@ import { TextureService } from '../../core/services/texture.service';
           </button>
           <button
             (click)="resetCamera()"
-            [appTooltip]="'Center and frame camera on model'"
+            [appTooltip]="'viewport.resetView' | translate"
             [appTooltipShortcutId]="'view_reset'"
             class="px-2 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition">
-            Reset View
+            {{ 'viewport.resetView' | translate }}
           </button>
         </div>
       }

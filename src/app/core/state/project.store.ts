@@ -85,15 +85,44 @@ export class ProjectStore {
     }
   }
 
+  private sanitizeProject(parsed: any): NodeboxProject {
+    if (!parsed || typeof parsed !== 'object') return DEFAULT_PROJECT;
+    return {
+      ...DEFAULT_PROJECT,
+      ...parsed,
+      id: parsed.id || `proj_${Date.now()}`,
+      name: parsed.name || DEFAULT_PROJECT.name,
+      nodeName: parsed.nodeName || DEFAULT_PROJECT.nodeName,
+      nodeHeight: parsed.nodeHeight ?? 1,
+      format: parsed.format || DEFAULT_PROJECT.format,
+      exportTemplate: parsed.exportTemplate || DEFAULT_PROJECT.exportTemplate,
+      snapResolution: parsed.snapResolution || DEFAULT_PROJECT.snapResolution,
+      globalTextures: {
+        ...DEFAULT_PROJECT.globalTextures,
+        ...(parsed.globalTextures || {})
+      },
+      boxes: Array.isArray(parsed.boxes) && parsed.boxes.length > 0 ? parsed.boxes.map((b: any, idx: number) => ({
+        id: b.id || `box_${Date.now()}_${idx}`,
+        name: b.name || `Box ${idx + 1}`,
+        minX: typeof b.minX === 'number' ? b.minX : -0.5,
+        minY: typeof b.minY === 'number' ? b.minY : -0.5,
+        minZ: typeof b.minZ === 'number' ? b.minZ : -0.5,
+        maxX: typeof b.maxX === 'number' ? b.maxX : 0.5,
+        maxY: typeof b.maxY === 'number' ? b.maxY : 0.5,
+        maxZ: typeof b.maxZ === 'number' ? b.maxZ : 0.5,
+        visible: b.visible ?? true,
+        locked: b.locked ?? false,
+        textures: b.textures ? { ...b.textures } : undefined
+      })) : DEFAULT_PROJECT.boxes
+    };
+  }
+
   private loadInitialProject(): NodeboxProject {
     const saved = safeGetItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          nodeHeight: parsed.nodeHeight ?? 1
-        };
+        return this.sanitizeProject(parsed);
       } catch {
         // Fallback to default on corrupted JSON
       }
@@ -485,11 +514,9 @@ export class ProjectStore {
 
   public loadProject(project: NodeboxProject): void {
     this.recordState();
-    this.project.set({
-      ...project,
-      nodeHeight: project.nodeHeight ?? 1
-    });
-    this.selectedBoxId.set(project.boxes[0]?.id ?? null);
+    const sanitized = this.sanitizeProject(project);
+    this.project.set(sanitized);
+    this.selectedBoxId.set(sanitized.boxes[0]?.id ?? null);
   }
 
   public resetProject(): void {
