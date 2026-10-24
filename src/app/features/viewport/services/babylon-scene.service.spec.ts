@@ -551,5 +551,76 @@ describe('BabylonSceneService', () => {
     expect(snowMesh.scaling.y).toBeCloseTo(0.25);
     expect(snowMesh.position.y).toBeCloseTo((-0.5 + -0.25) / 2);
   });
+
+  it('creates 3D skybox, atmospheric materials, 3D voxel clouds, and horizon fog across sky presets', async () => {
+    const { NullEngine, Scene, HemisphericLight, DirectionalLight, Vector3 } = await import('@babylonjs/core');
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    (service as any).engine = engine;
+    (service as any).scene = scene;
+    (service as any).hemiLight = new HemisphericLight('Hemi', new Vector3(0, 1, 0), scene);
+    (service as any).dirLight = new DirectionalLight('Dir', new Vector3(-1, -2, -1), scene);
+
+    // 1. Switch to Luanti Day
+    service.setSceneSky('minetest_day');
+    expect(service.sceneSky()).toBe('minetest_day');
+    expect(service.skyAtmosphere().preset).toBe('minetest_day');
+    expect(service.skyAtmosphere().cloudsEnabled).toBe(true);
+    expect(service.skyAtmosphere().horizonFog).toBe(true);
+
+    const skyboxMesh = (service as any).skyboxMesh;
+    const skyMaterial = (service as any).skyMaterial;
+    const cloudMesh = (service as any).cloudMesh;
+    expect(skyboxMesh).toBeDefined();
+    expect(skyboxMesh.infiniteDistance).toBe(true);
+    expect(skyboxMesh.isPickable).toBe(false);
+    expect(skyboxMesh.material).toBe(skyMaterial);
+    expect(cloudMesh).toBeDefined();
+    expect(cloudMesh.isEnabled()).toBe(true);
+    expect(scene.fogEnabled).toBe(true);
+    expect(scene.fogMode).toBe(Scene.FOGMODE_EXP2);
+
+    // 2. Customize sun elevation, azimuth, turbidity, and toggle clouds/fog
+    service.setSkyAtmosphere({
+      sunElevation: 22,
+      sunAzimuth: 135,
+      turbidity: 6.5,
+      cloudsEnabled: false,
+      horizonFog: false
+    });
+    expect(service.skyAtmosphere().sunElevation).toBe(22);
+    expect(service.skyAtmosphere().sunAzimuth).toBe(135);
+    expect(skyMaterial.turbidity).toBe(6.5);
+    expect(cloudMesh.isEnabled()).toBe(false);
+    expect(scene.fogEnabled).toBe(false);
+
+    // 3. Switch to Sunset -> restores sunset defaults (clouds & fog enabled, SkyMaterial active)
+    service.setSceneSky('minetest_sunset');
+    expect(service.skyAtmosphere().sunElevation).toBe(9);
+    expect(skyboxMesh.material).toBe(skyMaterial);
+    expect(cloudMesh.isEnabled()).toBe(true);
+    expect(scene.fogEnabled).toBe(true);
+
+    // 4. Switch to Midnight -> starry night material active
+    service.setSceneSky('minetest_night');
+    const nightSkyMaterial = (service as any).nightSkyMaterial;
+    expect(skyboxMesh.material).toBe(nightSkyMaterial);
+    expect(cloudMesh.isEnabled()).toBe(true);
+
+    // 5. Switch to Studio -> GradientMaterial active, clouds & fog off by default
+    service.setSceneSky('studio');
+    const studioSkyMaterial = (service as any).studioSkyMaterial;
+    expect(skyboxMesh.material).toBe(studioSkyMaterial);
+    expect(cloudMesh.isEnabled()).toBe(false);
+    expect(scene.fogEnabled).toBe(false);
+
+    // 6. Clean up all skybox and cloud resources on destroy()
+    service.destroy();
+    expect((service as any).skyboxMesh).toBeNull();
+    expect((service as any).skyMaterial).toBeNull();
+    expect((service as any).studioSkyMaterial).toBeNull();
+    expect((service as any).nightSkyMaterial).toBeNull();
+    expect((service as any).cloudMesh).toBeNull();
+  });
 });
 

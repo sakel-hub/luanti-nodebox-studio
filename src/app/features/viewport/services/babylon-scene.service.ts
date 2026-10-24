@@ -21,8 +21,11 @@ import {
   PointerEventTypes,
   Tools,
   VertexBuffer,
-  VertexData
+  VertexData,
+  DynamicTexture
 } from '@babylonjs/core';
+import { SkyMaterial } from '@babylonjs/materials/sky';
+import { GradientMaterial } from '@babylonjs/materials/gradient';
 import { Box, FaceDirection, AABB, NeighborConnectionState } from '../../../core/models/nodebox.model';
 import { computeNodeBoxUVBuffer } from '../../../core/utils/uv-projection.utils';
 import { ProjectStore } from '../../../core/state/project.store';
@@ -77,6 +80,55 @@ export type SceneFloor =
 export type SceneSky = 'studio' | 'minetest_day' | 'minetest_sunset' | 'minetest_night';
 export type ScreenshotResolution = 'viewport' | '1080p' | '4k' | 'icon';
 
+export interface SkyAtmosphereConfig {
+  preset: SceneSky;
+  sunElevation: number;   // 2..88 degrees above horizon
+  sunAzimuth: number;     // 0..360 degrees around Y axis
+  turbidity: number;      // 1..15 atmospheric haze / Mie glow
+  rayleigh: number;       // 0.5..4.0 sky blue scattering
+  cloudsEnabled: boolean; // Toggle 3D blocky Luanti clouds
+  horizonFog: boolean;    // Toggle exponential horizon fog fade
+}
+
+export const SKY_PRESET_DEFAULTS: Record<SceneSky, SkyAtmosphereConfig> = {
+  studio: {
+    preset: 'studio',
+    sunElevation: 58,
+    sunAzimuth: 215,
+    turbidity: 2.0,
+    rayleigh: 1.8,
+    cloudsEnabled: false,
+    horizonFog: false
+  },
+  minetest_day: {
+    preset: 'minetest_day',
+    sunElevation: 55,
+    sunAzimuth: 215,
+    turbidity: 2.2,
+    rayleigh: 1.8,
+    cloudsEnabled: true,
+    horizonFog: true
+  },
+  minetest_sunset: {
+    preset: 'minetest_sunset',
+    sunElevation: 9,
+    sunAzimuth: 255,
+    turbidity: 7.5,
+    rayleigh: 2.8,
+    cloudsEnabled: true,
+    horizonFog: true
+  },
+  minetest_night: {
+    preset: 'minetest_night',
+    sunElevation: 48,
+    sunAzimuth: 220,
+    turbidity: 2.0,
+    rayleigh: 1.0,
+    cloudsEnabled: true,
+    horizonFog: true
+  }
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -103,6 +155,13 @@ export class BabylonSceneService {
   private gridMesh: Mesh | null = null;
   private floorMesh: Mesh | null = null;
   private floorMaterial: StandardMaterial | null = null;
+  private skyboxMesh: Mesh | null = null;
+  private skyMaterial: SkyMaterial | null = null;
+  private studioSkyMaterial: GradientMaterial | null = null;
+  private nightSkyMaterial: StandardMaterial | null = null;
+  private nightSkyTexture: DynamicTexture | null = null;
+  private cloudMesh: Mesh | null = null;
+  private cloudMaterial: StandardMaterial | null = null;
   private faceHighlightMesh: Mesh | null = null;
   private ghostNeighborMeshes = new Map<string, Mesh>();
   private wallmountedPlaneMesh: Mesh | null = null;
@@ -135,6 +194,7 @@ export class BabylonSceneService {
   public cameraMode = signal<CameraMode>('perspective');
   public sceneFloor = signal<SceneFloor>('none');
   public sceneSky = signal<SceneSky>('studio');
+  public skyAtmosphere = signal<SkyAtmosphereConfig>({ ...SKY_PRESET_DEFAULTS.studio });
   public isTurntableActive = signal<boolean>(false);
   private isRenderingPaused = false;
 
@@ -266,7 +326,7 @@ export class BabylonSceneService {
       this.camera.upperRadiusLimit = 10.0;
       this.camera.wheelPrecision = 40;
       this.camera.minZ = 0.05;
-      this.camera.maxZ = 100.0;
+      this.camera.maxZ = 250.0;
       this.camera.attachControl(canvas, true);
 
       // Setup Lights
@@ -282,9 +342,12 @@ export class BabylonSceneService {
       // Apply initial environment sky / lighting
       this.applySkySettings(this.sceneSky());
 
-      // Live animation ticker for Luanti animated vertical texture sheets
+      // Live animation ticker for Luanti animated vertical texture sheets & subtle cloud drift
       this.scene.onBeforeRenderObservable.add(() => {
         this.updateAnimatedTextures();
+        if (this.cloudMesh && this.cloudMesh.isEnabled()) {
+          this.cloudMesh.position.x = ((performance.now() * 0.00025) % 24) - 12;
+        }
       });
 
       // Setup Helpers (1x1x1 Node cage, 16x16 Grid, Floor Platform, Face Highlight)
@@ -1859,9 +1922,10 @@ export class BabylonSceneService {
   // Scene Floor Platform
   private buildFloorPlatform(): void {
     if (!this.scene) return;
-    this.floorMesh = MeshBuilder.CreateGround('SceneFloor', { width: 16, height: 16, subdivisions: 1 }, this.scene);
+    this.floorMesh = MeshBuilder.CreateGround('SceneFloor', { width: 48, height: 48, subdivisions: 1 }, this.scene);
     this.floorMesh.position.y = -0.501; // Slightly below nodebox bottom (-0.5) to avoid z-fighting
     this.floorMesh.isPickable = false;
+    this.floorMesh.applyFog = true;
     this.floorMaterial = new StandardMaterial('SceneFloorMat', this.scene);
     this.floorMaterial.specularColor = new Color3(0, 0, 0);
     this.floorMaterial.roughness = 1.0;
@@ -1936,8 +2000,8 @@ export class BabylonSceneService {
     let floorTex = this.textureCache.get(cacheKey);
     if (!floorTex) {
       floorTex = new Texture(textureSource, this.scene, false, false, Texture.NEAREST_SAMPLINGMODE);
-      floorTex.uScale = 16;
-      floorTex.vScale = 16;
+      floorTex.uScale = 48;
+      floorTex.vScale = 48;
       floorTex.wrapU = Texture.WRAP_ADDRESSMODE;
       floorTex.wrapV = Texture.WRAP_ADDRESSMODE;
       if (isGlass) {
@@ -1960,8 +2024,8 @@ export class BabylonSceneService {
 
       const applyFloorBump = (bTex: Texture) => {
         if (!this.floorMaterial) return;
-        bTex.uScale = 16;
-        bTex.vScale = 16;
+        bTex.uScale = 48;
+        bTex.vScale = 48;
         bTex.wrapU = Texture.WRAP_ADDRESSMODE;
         bTex.wrapV = Texture.WRAP_ADDRESSMODE;
         this.floorMaterial.invertNormalMapY = true;
@@ -1991,18 +2055,245 @@ export class BabylonSceneService {
   // Scene Sky & Environment Presets
   public setSceneSky(sky: SceneSky): void {
     this.sceneSky.set(sky);
+    const defaults = SKY_PRESET_DEFAULTS[sky] ?? SKY_PRESET_DEFAULTS.studio;
+    this.skyAtmosphere.set({ ...defaults });
     this.applySkySettings(sky);
+  }
+
+  public setSkyAtmosphere(partial: Partial<SkyAtmosphereConfig>): void {
+    if (partial.preset && partial.preset !== this.sceneSky()) {
+      const defaults = SKY_PRESET_DEFAULTS[partial.preset] ?? SKY_PRESET_DEFAULTS.studio;
+      this.sceneSky.set(partial.preset);
+      this.skyAtmosphere.set({ ...defaults, ...partial });
+    } else {
+      this.skyAtmosphere.update((curr) => ({ ...curr, ...partial }));
+    }
+    this.applySkySettings(this.sceneSky());
+  }
+
+  private ensureSkyboxCreated(): void {
+    if (!this.scene) return;
+    if (!this.skyboxMesh) {
+      this.skyboxMesh = MeshBuilder.CreateSphere('SceneSkyBox', { diameter: 120, segments: 32 }, this.scene);
+      this.skyboxMesh.infiniteDistance = true;
+      this.skyboxMesh.isPickable = false;
+      this.skyboxMesh.applyFog = false;
+      this.skyboxMesh.renderingGroupId = 0;
+    }
+
+    if (!this.skyMaterial) {
+      this.skyMaterial = new SkyMaterial('SceneSkyMaterial', this.scene);
+      this.skyMaterial.backFaceCulling = false;
+      this.skyMaterial.dithering = true;
+      this.skyMaterial.useSunPosition = true;
+    }
+
+    if (!this.studioSkyMaterial) {
+      this.studioSkyMaterial = new GradientMaterial('SceneStudioSkyMaterial', this.scene);
+      this.studioSkyMaterial.backFaceCulling = false;
+      this.studioSkyMaterial.disableLighting = true;
+      this.studioSkyMaterial.scale = 0.025;
+      this.studioSkyMaterial.offset = 0;
+      this.studioSkyMaterial.smoothness = 1.25;
+    }
+
+    if (!this.nightSkyMaterial) {
+      this.nightSkyMaterial = new StandardMaterial('SceneNightSkyMaterial', this.scene);
+      this.nightSkyMaterial.backFaceCulling = false;
+      this.nightSkyMaterial.disableLighting = true;
+      this.nightSkyMaterial.diffuseColor = new Color3(0, 0, 0);
+      this.nightSkyMaterial.specularColor = new Color3(0, 0, 0);
+      this.nightSkyTexture = this.buildNightSkyDynamicTexture();
+      if (this.nightSkyTexture) {
+        // StandardMaterial adds vEmissiveColor + emissiveTexture in the fragment shader,
+        // so emissiveColor must be (0, 0, 0) to prevent washing out the starfield to white.
+        this.nightSkyMaterial.emissiveColor = new Color3(0, 0, 0);
+        this.nightSkyMaterial.emissiveTexture = this.nightSkyTexture;
+      } else {
+        this.nightSkyMaterial.emissiveColor = new Color3(0.04, 0.07, 0.14);
+      }
+    }
+  }
+
+  private buildNightSkyDynamicTexture(): DynamicTexture | null {
+    if (!this.scene) return null;
+    try {
+      const width = 1024;
+      const height = 512;
+      const tex = new DynamicTexture('SceneNightSkyTex', { width, height }, this.scene, false, Texture.NEAREST_SAMPLINGMODE);
+      tex.wrapU = Texture.WRAP_ADDRESSMODE;
+      tex.wrapV = Texture.CLAMP_ADDRESSMODE;
+      const ctx = tex.getContext();
+      if (!ctx || typeof ctx.createLinearGradient !== 'function') {
+        return tex;
+      }
+
+      // On a sphere, y = 0 is Zenith (+Y), y = height * 0.5 is Horizon (Y = 0), y = height is Nadir (-Y)
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0.0, '#02040a');  // Deep space zenith
+      grad.addColorStop(0.32, '#060c1d'); // Upper night sky
+      grad.addColorStop(0.49, '#0d1730'); // Horizon glow (matches nightHorizon fog)
+      grad.addColorStop(0.55, '#080e1f'); // Below horizon
+      grad.addColorStop(1.0, '#03060f');  // Nadir
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Deterministic PRNG for crisp Luanti pixel-art starfield across the upper sky hemisphere
+      let seed = 133742;
+      const nextRand = () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
+
+      const starColors = ['#ffffff', '#e0f2fe', '#bae6fd', '#fef3c7', '#c7d2fe'];
+      const horizonY = Math.floor(height * 0.48);
+      for (let i = 0; i < 420; i++) {
+        const sx = Math.floor(nextRand() * width);
+        // Concentrate stars between zenith (y = 16) and just above horizon (y = horizonY)
+        const sy = 12 + Math.floor(nextRand() * (horizonY - 14));
+        const size = nextRand() > 0.78 ? 3 : nextRand() > 0.35 ? 2 : 1;
+        const horizonFade = sy > horizonY - 35 ? (horizonY - sy) / 35 : 1.0;
+        const alpha = Math.max(0.15, (0.45 + nextRand() * 0.55) * horizonFade).toFixed(2);
+        const baseHex = starColors[i % starColors.length];
+        ctx.fillStyle = baseHex;
+        ctx.globalAlpha = Number(alpha);
+        ctx.fillRect(sx, sy, size, size);
+      }
+      ctx.globalAlpha = 1.0;
+
+      // Crisp blocky Luanti Moon with layered pixel-art halo in the upper sky hemisphere
+      const moonX = 640;
+      const moonY = 148;
+      ctx.fillStyle = 'rgba(147, 197, 253, 0.10)';
+      ctx.fillRect(moonX - 14, moonY - 14, 52, 52);
+      ctx.fillStyle = 'rgba(186, 230, 253, 0.22)';
+      ctx.fillRect(moonX - 7, moonY - 7, 38, 38);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(moonX, moonY, 24, 24);
+      // Subtle pixel-art lunar craters
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(moonX + 4, moonY + 5, 6, 6);
+      ctx.fillRect(moonX + 13, moonY + 13, 6, 5);
+      ctx.fillRect(moonX + 6, moonY + 15, 4, 3);
+
+      tex.update();
+      return tex;
+    } catch {
+      return null;
+    }
+  }
+
+  private ensureCloudLayerCreated(): void {
+    if (!this.scene || this.cloudMesh) return;
+
+    this.cloudMaterial = new StandardMaterial('SceneCloudMat', this.scene);
+    this.cloudMaterial.alpha = 0.84;
+    this.cloudMaterial.specularColor = new Color3(0, 0, 0);
+    this.cloudMaterial.backFaceCulling = false;
+
+    // Build a single combined mesh of blocky 3D Luanti cloud slabs overhead
+    const cloudClusters: Array<[number, number, number, number]> = [
+      // [centerX, centerZ, widthX, depthZ]
+      [-18, -14, 9, 6],
+      [-6, -18, 12, 7],
+      [10, -12, 10, 6],
+      [22, -16, 8, 5],
+      [-22, -2, 11, 6],
+      [-8, 2, 8, 5],
+      [6, -1, 11, 7],
+      [20, 4, 9, 6],
+      [-15, 14, 12, 6],
+      [0, 16, 10, 7],
+      [15, 15, 11, 6],
+      [-28, 10, 8, 5],
+      [28, -4, 9, 6]
+    ];
+
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const indices: number[] = [];
+    const minY = 10.5;
+    const maxY = 11.4;
+
+    const pushQuad = (
+      p0: [number, number, number],
+      p1: [number, number, number],
+      p2: [number, number, number],
+      p3: [number, number, number],
+      nx: number,
+      ny: number,
+      nz: number
+    ) => {
+      const base = positions.length / 3;
+      positions.push(...p0, ...p1, ...p2, ...p3);
+      for (let i = 0; i < 4; i++) {
+        normals.push(nx, ny, nz);
+      }
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
+
+    for (const [cx, cz, wx, wz] of cloudClusters) {
+      const x0 = cx - wx * 0.5;
+      const x1 = cx + wx * 0.5;
+      const z0 = cz - wz * 0.5;
+      const z1 = cz + wz * 0.5;
+
+      // Bottom (-Y), Top (+Y), and 4 side walls of the blocky cloud slab
+      pushQuad([x0, minY, z1], [x1, minY, z1], [x1, minY, z0], [x0, minY, z0], 0, -1, 0);
+      pushQuad([x0, maxY, z0], [x1, maxY, z0], [x1, maxY, z1], [x0, maxY, z1], 0, 1, 0);
+      pushQuad([x0, minY, z0], [x1, minY, z0], [x1, maxY, z0], [x0, maxY, z0], 0, 0, -1);
+      pushQuad([x1, minY, z1], [x0, minY, z1], [x0, maxY, z1], [x1, maxY, z1], 0, 0, 1);
+      pushQuad([x0, minY, z1], [x0, minY, z0], [x0, maxY, z0], [x0, maxY, z1], -1, 0, 0);
+      pushQuad([x1, minY, z0], [x1, minY, z1], [x1, maxY, z1], [x1, maxY, z0], 1, 0, 0);
+    }
+
+    const cloudMesh = new Mesh('SceneVoxelClouds', this.scene);
+    const vData = new VertexData();
+    vData.positions = positions;
+    vData.normals = normals;
+    vData.indices = indices;
+    vData.applyToMesh(cloudMesh);
+
+    cloudMesh.material = this.cloudMaterial;
+    cloudMesh.isPickable = false;
+    cloudMesh.applyFog = true;
+    this.cloudMesh = cloudMesh;
+  }
+
+  private computeSunVector(elevationDeg: number, azimuthDeg: number): Vector3 {
+    const elevRad = Math.max(2, Math.min(88, elevationDeg)) * (Math.PI / 180);
+    const azimRad = (azimuthDeg % 360) * (Math.PI / 180);
+    const cosElev = Math.cos(elevRad);
+    return new Vector3(
+      cosElev * Math.cos(azimRad),
+      Math.sin(elevRad),
+      cosElev * Math.sin(azimRad)
+    );
   }
 
   private applySkySettings(sky: SceneSky): void {
     if (!this.scene) return;
 
+    this.ensureSkyboxCreated();
+    this.ensureCloudLayerCreated();
+
+    const cfg = this.skyAtmosphere();
+    const sunDir = this.computeSunVector(cfg.sunElevation, cfg.sunAzimuth);
+
     switch (sky) {
       case 'studio': {
         const isDark = this.themeService.theme() === 'dark';
-        this.scene.clearColor = isDark
-          ? new Color4(0.06, 0.09, 0.16, 1.0) // Slate 950
-          : new Color4(0.96, 0.97, 0.98, 1.0); // Slate 50/100
+        const zenith = isDark ? new Color3(0.03, 0.05, 0.1) : new Color3(0.88, 0.92, 0.97);
+        const horizon = isDark ? new Color3(0.09, 0.13, 0.22) : new Color3(0.96, 0.97, 0.99);
+
+        this.scene.clearColor = new Color4(horizon.r, horizon.g, horizon.b, 1.0);
+        if (this.studioSkyMaterial && this.skyboxMesh) {
+          this.studioSkyMaterial.topColor = zenith;
+          this.studioSkyMaterial.bottomColor = horizon;
+          this.skyboxMesh.material = this.studioSkyMaterial;
+          this.skyboxMesh.setEnabled(true);
+        }
+
         if (this.hemiLight) {
           this.hemiLight.intensity = isDark ? 0.45 : 0.55;
           this.hemiLight.diffuse = isDark ? new Color3(1, 1, 1) : new Color3(1, 0.99, 0.96);
@@ -2010,42 +2301,107 @@ export class BabylonSceneService {
         }
         if (this.dirLight) {
           this.dirLight.intensity = isDark ? 0.95 : 1.0;
-          this.dirLight.direction = new Vector3(-1.2, -2.0, -1.0);
+          this.dirLight.direction = new Vector3(-sunDir.x, -sunDir.y, -sunDir.z);
+          this.dirLight.position = new Vector3(sunDir.x * 5, sunDir.y * 5, sunDir.z * 5);
           this.dirLight.diffuse = isDark ? new Color3(1, 1, 1) : new Color3(1, 0.98, 0.94);
         }
+
+        if (this.cloudMesh && this.cloudMaterial) {
+          this.cloudMaterial.diffuseColor = new Color3(0.92, 0.95, 1.0);
+          this.cloudMaterial.emissiveColor = new Color3(0.35, 0.38, 0.45);
+          this.cloudMesh.setEnabled(cfg.cloudsEnabled);
+        }
+
+        this.scene.fogEnabled = cfg.horizonFog;
+        this.scene.fogMode = cfg.horizonFog ? Scene.FOGMODE_EXP2 : Scene.FOGMODE_NONE;
+        this.scene.fogColor = horizon;
+        this.scene.fogDensity = 0.038;
         break;
       }
 
       case 'minetest_day':
-        this.scene.clearColor = new Color4(0.55, 0.72, 1.0, 1.0); // #8cb8ff Minetest daylight sky
-        if (this.hemiLight) {
-          this.hemiLight.intensity = 0.55;
-          this.hemiLight.diffuse = new Color3(0.95, 0.98, 1.0);
-          this.hemiLight.groundColor = new Color3(0.28, 0.38, 0.25);
-        }
-        if (this.dirLight) {
-          this.dirLight.intensity = 1.05;
-          this.dirLight.direction = new Vector3(-1.2, -2.5, -0.8);
-          this.dirLight.diffuse = new Color3(1.0, 0.98, 0.92);
-        }
-        break;
+      case 'minetest_sunset': {
+        // Blend between golden sunset (low sun elevation) and crisp daylight (high sun elevation)
+        const sunsetFactor = Math.max(0, Math.min(1, (26 - cfg.sunElevation) / 18));
+        const horizonColor = Color3.Lerp(
+          new Color3(0.64, 0.81, 0.99), // Crisp Luanti day horizon
+          new Color3(0.92, 0.52, 0.34), // Warm golden-coral sunset horizon
+          sunsetFactor
+        );
 
-      case 'minetest_sunset':
-        this.scene.clearColor = new Color4(0.85, 0.47, 0.34, 1.0); // #d97757 Minetest sunset sky
-        if (this.hemiLight) {
-          this.hemiLight.intensity = 0.45;
-          this.hemiLight.diffuse = new Color3(0.95, 0.65, 0.45);
-          this.hemiLight.groundColor = new Color3(0.25, 0.18, 0.2);
-        }
-        if (this.dirLight) {
-          this.dirLight.intensity = 1.1;
-          this.dirLight.direction = new Vector3(-2.2, -0.7, -0.6);
-          this.dirLight.diffuse = new Color3(1.0, 0.55, 0.28);
-        }
-        break;
+        this.scene.clearColor = new Color4(horizonColor.r, horizonColor.g, horizonColor.b, 1.0);
 
-      case 'minetest_night':
-        this.scene.clearColor = new Color4(0.035, 0.055, 0.1, 1.0); // #090e1a Minetest midnight sky
+        if (this.skyMaterial && this.skyboxMesh) {
+          this.skyMaterial.luminance = 1.0 - sunsetFactor * 0.1;
+          this.skyMaterial.turbidity = cfg.turbidity;
+          this.skyMaterial.rayleigh = cfg.rayleigh;
+          this.skyMaterial.mieCoefficient = 0.005 + sunsetFactor * 0.004;
+          this.skyMaterial.mieDirectionalG = 0.8 + sunsetFactor * 0.05;
+          this.skyMaterial.cloudiness = cfg.cloudsEnabled ? 0.16 : 0.04;
+          this.skyMaterial.useSunPosition = true;
+          this.skyMaterial.sunPosition = new Vector3(sunDir.x * 100, sunDir.y * 100, sunDir.z * 100);
+          this.skyboxMesh.material = this.skyMaterial;
+          this.skyboxMesh.setEnabled(true);
+        }
+
+        if (this.hemiLight) {
+          this.hemiLight.intensity = 0.55 - sunsetFactor * 0.1;
+          this.hemiLight.diffuse = Color3.Lerp(
+            new Color3(0.95, 0.98, 1.0),
+            new Color3(0.95, 0.65, 0.45),
+            sunsetFactor
+          );
+          this.hemiLight.groundColor = Color3.Lerp(
+            new Color3(0.28, 0.38, 0.25),
+            new Color3(0.25, 0.18, 0.2),
+            sunsetFactor
+          );
+        }
+
+        if (this.dirLight) {
+          this.dirLight.intensity = 1.05 + sunsetFactor * 0.05;
+          this.dirLight.direction = new Vector3(-sunDir.x, -sunDir.y, -sunDir.z);
+          this.dirLight.position = new Vector3(sunDir.x * 5, sunDir.y * 5, sunDir.z * 5);
+          this.dirLight.diffuse = Color3.Lerp(
+            new Color3(1.0, 0.98, 0.92),
+            new Color3(1.0, 0.55, 0.28),
+            sunsetFactor
+          );
+        }
+
+        if (this.cloudMesh && this.cloudMaterial) {
+          this.cloudMaterial.diffuseColor = Color3.Lerp(
+            new Color3(0.98, 0.99, 1.0),
+            new Color3(1.0, 0.65, 0.46),
+            sunsetFactor
+          );
+          this.cloudMaterial.emissiveColor = Color3.Lerp(
+            new Color3(0.46, 0.5, 0.56),
+            new Color3(0.45, 0.22, 0.16),
+            sunsetFactor
+          );
+          this.cloudMesh.setEnabled(cfg.cloudsEnabled);
+        }
+
+        this.scene.fogEnabled = cfg.horizonFog;
+        this.scene.fogMode = cfg.horizonFog ? Scene.FOGMODE_EXP2 : Scene.FOGMODE_NONE;
+        this.scene.fogColor = horizonColor;
+        this.scene.fogDensity = 0.038;
+        break;
+      }
+
+      case 'minetest_night': {
+        const nightHorizon = new Color3(0.05, 0.09, 0.18);
+        this.scene.clearColor = new Color4(nightHorizon.r, nightHorizon.g, nightHorizon.b, 1.0);
+
+        if (this.nightSkyTexture) {
+          this.nightSkyTexture.uOffset = ((cfg.sunAzimuth - 220) / 360) % 1;
+        }
+        if (this.nightSkyMaterial && this.skyboxMesh) {
+          this.skyboxMesh.material = this.nightSkyMaterial;
+          this.skyboxMesh.setEnabled(true);
+        }
+
         if (this.hemiLight) {
           this.hemiLight.intensity = 0.25;
           this.hemiLight.diffuse = new Color3(0.3, 0.4, 0.65);
@@ -2053,10 +2409,23 @@ export class BabylonSceneService {
         }
         if (this.dirLight) {
           this.dirLight.intensity = 0.6;
-          this.dirLight.direction = new Vector3(-1.2, -2.0, -1.0);
+          this.dirLight.direction = new Vector3(-sunDir.x, -sunDir.y, -sunDir.z);
+          this.dirLight.position = new Vector3(sunDir.x * 5, sunDir.y * 5, sunDir.z * 5);
           this.dirLight.diffuse = new Color3(0.45, 0.6, 0.9);
         }
+
+        if (this.cloudMesh && this.cloudMaterial) {
+          this.cloudMaterial.diffuseColor = new Color3(0.16, 0.22, 0.36);
+          this.cloudMaterial.emissiveColor = new Color3(0.05, 0.08, 0.15);
+          this.cloudMesh.setEnabled(cfg.cloudsEnabled);
+        }
+
+        this.scene.fogEnabled = cfg.horizonFog;
+        this.scene.fogMode = cfg.horizonFog ? Scene.FOGMODE_EXP2 : Scene.FOGMODE_NONE;
+        this.scene.fogColor = nightHorizon;
+        this.scene.fogDensity = 0.04;
         break;
+      }
     }
   }
 
@@ -2104,12 +2473,18 @@ export class BabylonSceneService {
     const wasCage = this.cageMesh?.isEnabled() ?? false;
     const wasGrid = this.gridMesh?.isEnabled() ?? false;
     const wasFloor = this.floorMesh?.isEnabled() ?? false;
+    const wasSkybox = this.skyboxMesh?.isEnabled() ?? false;
+    const wasClouds = this.cloudMesh?.isEnabled() ?? false;
+    const wasFog = this.scene.fogEnabled;
 
     if (transparent) {
       this.scene.clearColor = new Color4(0, 0, 0, 0);
       this.cageMesh?.setEnabled(false);
       this.gridMesh?.setEnabled(false);
       this.floorMesh?.setEnabled(false);
+      this.skyboxMesh?.setEnabled(false);
+      this.cloudMesh?.setEnabled(false);
+      this.scene.fogEnabled = false;
     }
 
     const prevGizmo = this.gizmoMode();
@@ -2128,6 +2503,9 @@ export class BabylonSceneService {
             this.cageMesh?.setEnabled(wasCage);
             this.gridMesh?.setEnabled(wasGrid);
             this.floorMesh?.setEnabled(wasFloor);
+            this.skyboxMesh?.setEnabled(wasSkybox);
+            this.cloudMesh?.setEnabled(wasClouds);
+            this.scene!.fogEnabled = wasFog;
           }
           if (prevGizmo !== 'none') {
             this.setGizmoMode(prevGizmo);
@@ -2232,7 +2610,9 @@ export class BabylonSceneService {
     }
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
-    window.removeEventListener('resize', this.triggerSmoothResize);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.triggerSmoothResize);
+    }
     if (typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);
     }
@@ -2256,6 +2636,20 @@ export class BabylonSceneService {
     this.floorMesh = null;
     this.floorMaterial?.dispose();
     this.floorMaterial = null;
+    this.cloudMesh?.dispose();
+    this.cloudMesh = null;
+    this.cloudMaterial?.dispose();
+    this.cloudMaterial = null;
+    this.skyboxMesh?.dispose();
+    this.skyboxMesh = null;
+    this.skyMaterial?.dispose();
+    this.skyMaterial = null;
+    this.studioSkyMaterial?.dispose();
+    this.studioSkyMaterial = null;
+    this.nightSkyMaterial?.dispose();
+    this.nightSkyMaterial = null;
+    this.nightSkyTexture?.dispose();
+    this.nightSkyTexture = null;
     this.hemiLight = null;
     this.dirLight = null;
     for (const extMesh of this.extrusionMeshes.values()) {

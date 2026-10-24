@@ -17,7 +17,6 @@ import {
   GizmoMode,
   ViewportMode,
   SceneFloor,
-  SceneSky,
   ScreenshotResolution
 } from './services/babylon-scene.service';
 import { ProjectStore } from '../../core/state/project.store';
@@ -509,18 +508,128 @@ import {
             Render Studio
           </div>
 
-          <!-- Sky & Lighting Selector -->
-          <div class="flex items-center gap-1 border-r border-slate-700/80 pr-2">
-            <span class="text-slate-400 text-[11px]">Sky:</span>
-            <select
-              [value]="sceneService.sceneSky()"
-              (change)="onSkyChange($event)"
-              class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1.5 py-1 text-xs focus:outline-none cursor-pointer">
-              <option value="studio">Studio</option>
-              <option value="minetest_day">Day</option>
-              <option value="minetest_sunset">Sunset</option>
-              <option value="minetest_night">Midnight</option>
-            </select>
+          <!-- Sky & Atmosphere Popover Trigger -->
+          <div class="relative border-r border-slate-700/80 pr-2">
+            <button
+              (click)="toggleSkyPopover()"
+              [class.bg-sky-600]="sceneService.sceneSky() !== 'studio'"
+              [class.text-white]="sceneService.sceneSky() !== 'studio'"
+              [class.bg-slate-800]="sceneService.sceneSky() === 'studio'"
+              [class.text-slate-300]="sceneService.sceneSky() === 'studio'"
+              title="Sky & Atmosphere Settings"
+              class="px-2.5 py-1 rounded hover:bg-slate-700 transition flex items-center gap-1.5 border border-slate-700 font-medium">
+              <svg lucideSun class="w-3.5 h-3.5 text-amber-400"></svg>
+              <span>Sky</span>
+              <span class="text-[9px] px-1 py-0.2 rounded font-mono uppercase bg-slate-950/60 text-sky-400">
+                {{ skyPresetBadge() }}
+              </span>
+            </button>
+
+            @if (showSkyPopover()) {
+              <!-- Click-outside backdrop -->
+              <div class="fixed inset-0 z-40" (click)="showSkyPopover.set(false)"></div>
+
+              <div class="absolute top-full mt-2 left-0 w-72 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span class="font-semibold text-slate-200">Sky & Atmosphere</span>
+                  <span class="text-[10px] font-mono text-sky-400 uppercase">{{ skyPresetBadge() }}</span>
+                </div>
+
+                <!-- Preset Selector Grid -->
+                <div class="space-y-1.5">
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Environment Preset</div>
+                  <div class="grid grid-cols-4 gap-1">
+                    @for (preset of [
+                      { id: 'studio', label: 'Studio' },
+                      { id: 'minetest_day', label: 'Day' },
+                      { id: 'minetest_sunset', label: 'Sunset' },
+                      { id: 'minetest_night', label: 'Night' }
+                    ]; track preset.id) {
+                      <button
+                        (click)="sceneService.setSceneSky($any(preset.id))"
+                        [class.bg-sky-600]="sceneService.sceneSky() === preset.id"
+                        [class.text-white]="sceneService.sceneSky() === preset.id"
+                        [class.bg-slate-800]="sceneService.sceneSky() !== preset.id"
+                        [class.text-slate-400]="sceneService.sceneSky() !== preset.id"
+                        class="py-1 rounded text-center font-medium transition hover:bg-slate-700">
+                        {{ preset.label }}
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <!-- Sun Elevation Slider -->
+                <div class="space-y-1">
+                  <div class="flex items-center justify-between text-[11px]">
+                    <span class="text-slate-300">Sun Elevation</span>
+                    <span class="font-mono text-sky-400">{{ sceneService.skyAtmosphere().sunElevation }}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="4"
+                    max="85"
+                    step="1"
+                    [value]="sceneService.skyAtmosphere().sunElevation"
+                    (input)="onSunElevationInput($event)"
+                    class="w-full accent-sky-500 cursor-pointer" />
+                </div>
+
+                <!-- Sun Azimuth Slider -->
+                <div class="space-y-1">
+                  <div class="flex items-center justify-between text-[11px]">
+                    <span class="text-slate-300">Sun Azimuth (Orbit)</span>
+                    <span class="font-mono text-sky-400">{{ sceneService.skyAtmosphere().sunAzimuth }}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    step="1"
+                    [value]="sceneService.skyAtmosphere().sunAzimuth"
+                    (input)="onSunAzimuthInput($event)"
+                    class="w-full accent-sky-500 cursor-pointer" />
+                </div>
+
+                <!-- Atmospheric Haze (Turbidity) Slider -->
+                @if (sceneService.sceneSky() === 'minetest_day' || sceneService.sceneSky() === 'minetest_sunset') {
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between text-[11px]">
+                      <span class="text-slate-300">Atmospheric Haze</span>
+                      <span class="font-mono text-sky-400">{{ sceneService.skyAtmosphere().turbidity }}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="12"
+                      step="0.5"
+                      [value]="sceneService.skyAtmosphere().turbidity"
+                      (input)="onTurbidityInput($event)"
+                      class="w-full accent-sky-500 cursor-pointer" />
+                  </div>
+                }
+
+                <!-- Atmosphere Feature Toggles -->
+                <div class="pt-1.5 border-t border-slate-800 space-y-1.5">
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Atmosphere Effects</div>
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                    <input
+                      type="checkbox"
+                      [checked]="sceneService.skyAtmosphere().cloudsEnabled"
+                      (change)="sceneService.setSkyAtmosphere({ cloudsEnabled: !sceneService.skyAtmosphere().cloudsEnabled })"
+                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                    <span>3D Luanti Voxel Clouds</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                    <input
+                      type="checkbox"
+                      [checked]="sceneService.skyAtmosphere().horizonFog"
+                      (change)="sceneService.setSkyAtmosphere({ horizonFog: !sceneService.skyAtmosphere().horizonFog })"
+                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                    <span>Seamless Horizon Fog</span>
+                  </label>
+                </div>
+              </div>
+            }
           </div>
 
           <!-- Floor Platform Selector -->
@@ -558,7 +667,7 @@ import {
           <!-- Pixel Art Depth & Relief Popover Trigger -->
           <div class="relative border-r border-slate-700/80 pr-2">
             <button
-              (click)="showDepthPopover.update(v => !v)"
+              (click)="toggleDepthPopover()"
               [class.bg-sky-600]="sceneService.pixelDepth().enabled"
               [class.text-white]="sceneService.pixelDepth().enabled"
               [class.bg-slate-800]="!sceneService.pixelDepth().enabled"
@@ -1057,6 +1166,19 @@ export class ViewportComponent implements OnInit, OnDestroy {
   public textureService = inject(TextureService);
   public painterService = inject(TexturePainterService);
   public showDepthPopover = signal<boolean>(false);
+  public showSkyPopover = signal<boolean>(false);
+  public skyPresetBadge = computed(() => {
+    switch (this.sceneService.sceneSky()) {
+      case 'minetest_day':
+        return 'day';
+      case 'minetest_sunset':
+        return 'sunset';
+      case 'minetest_night':
+        return 'night';
+      default:
+        return 'studio';
+    }
+  });
   public customFloorTextures = computed(() =>
     this.textureService.textures().filter((t) => t.isCustom)
   );
@@ -1107,6 +1229,19 @@ export class ViewportComponent implements OnInit, OnDestroy {
     if (this.showDepthPopover()) {
       this.showDepthPopover.set(false);
     }
+    if (this.showSkyPopover()) {
+      this.showSkyPopover.set(false);
+    }
+  }
+
+  toggleSkyPopover(): void {
+    this.showSkyPopover.update((v) => !v);
+    this.showDepthPopover.set(false);
+  }
+
+  toggleDepthPopover(): void {
+    this.showDepthPopover.update((v) => !v);
+    this.showSkyPopover.set(false);
   }
 
   setPreset(preset: CameraPreset): void {
@@ -1172,9 +1307,25 @@ export class ViewportComponent implements OnInit, OnDestroy {
     this.sceneService.toggleTurntable();
   }
 
-  onSkyChange(event: Event): void {
-    const val = (event.target as HTMLSelectElement).value as SceneSky;
-    this.sceneService.setSceneSky(val);
+  onSunElevationInput(event: Event): void {
+    const val = parseFloat((event.target as HTMLInputElement).value);
+    if (!isNaN(val)) {
+      this.sceneService.setSkyAtmosphere({ sunElevation: val });
+    }
+  }
+
+  onSunAzimuthInput(event: Event): void {
+    const val = parseFloat((event.target as HTMLInputElement).value);
+    if (!isNaN(val)) {
+      this.sceneService.setSkyAtmosphere({ sunAzimuth: val });
+    }
+  }
+
+  onTurbidityInput(event: Event): void {
+    const val = parseFloat((event.target as HTMLInputElement).value);
+    if (!isNaN(val)) {
+      this.sceneService.setSkyAtmosphere({ turbidity: val });
+    }
   }
 
   onFloorChange(event: Event): void {
