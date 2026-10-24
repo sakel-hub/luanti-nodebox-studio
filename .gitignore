@@ -21,13 +21,22 @@ yarn-error.log
 *.sublime-workspace
 
 # Visual Studio Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/mcp.json
-.history/*
+.vscode/
+.history/
+
+# AI Assistants and Agent Workspaces
+.agents/
+.gemini/
+.claude/
+.cursor/
+.cursorrules
+.cline/
+.roo/
+.continue/
+.copilot/
+.aider*
+*.system_generated
+.system_generated/
 
 # Miscellaneous
 /.angular/cache
