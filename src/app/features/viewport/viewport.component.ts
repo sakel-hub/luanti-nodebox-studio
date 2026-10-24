@@ -4,6 +4,7 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  computed,
   effect,
   inject,
   signal
@@ -23,6 +24,7 @@ import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { ThemeService } from '../../core/services/theme.service';
 import { TextureService } from '../../core/services/texture.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { NeighborConnectionState } from '../../core/models/nodebox.model';
 
 @Component({
   selector: 'app-viewport',
@@ -151,6 +153,28 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                     class="font-semibold text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                     {{ projectStore.project().nodeHeight === 2 ? '2 Nodes' : '1 Node' }}
                   </button>
+                </div>
+                <div class="flex items-center justify-between px-1">
+                  <span class="text-slate-300">Floor</span>
+                  <select
+                    [value]="sceneService.sceneFloor()"
+                    (change)="onFloorChange($event)"
+                    class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1 py-0.5 text-xs focus:outline-none cursor-pointer max-w-[95px] truncate">
+                    <option value="none">None</option>
+                    <option value="grid">Grid</option>
+                    <option value="grass">Grass</option>
+                    <option value="stone">Stone</option>
+                    <option value="wood">Wood</option>
+                    <option value="cobble">Cobble</option>
+                    <option value="brick">Brick</option>
+                    <option value="dirt">Dirt</option>
+                    <option value="glass">Glass</option>
+                    <option value="steel">Steel</option>
+                    <option value="mese">Mese</option>
+                    @for (tex of customFloorTextures(); track tex.id) {
+                      <option [value]="tex.id">{{ tex.name }}</option>
+                    }
+                  </select>
                 </div>
 
                 <div class="h-px bg-slate-800 my-0.5"></div>
@@ -434,11 +458,29 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             <select
               [value]="sceneService.sceneFloor()"
               (change)="onFloorChange($event)"
-              class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1.5 py-1 text-xs focus:outline-none cursor-pointer">
-              <option value="checkered">Checkered</option>
-              <option value="stone">Stone</option>
-              <option value="pedestal">Pedestal</option>
-              <option value="none">None</option>
+              class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1.5 py-1 text-xs focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[160px] truncate">
+              <optgroup label="Environment">
+                <option value="none">None (Void)</option>
+                <option value="grid">Studio Grid</option>
+              </optgroup>
+              <optgroup label="Default Textures">
+                <option value="grass">Grass</option>
+                <option value="stone">Smooth Stone</option>
+                <option value="wood">Wood Planks</option>
+                <option value="cobble">Cobblestone</option>
+                <option value="brick">Clay Brick</option>
+                <option value="dirt">Dirt</option>
+                <option value="glass">Glass</option>
+                <option value="steel">Steel Block</option>
+                <option value="mese">Mese Block</option>
+              </optgroup>
+              @if (customFloorTextures().length > 0) {
+                <optgroup label="Custom Textures">
+                  @for (tex of customFloorTextures(); track tex.id) {
+                    <option [value]="tex.id">{{ tex.name }}</option>
+                  }
+                </optgroup>
+              }
             </select>
           </div>
 
@@ -539,6 +581,168 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
           <span class="text-sky-300 font-mono text-[11px] font-semibold">({{ sceneService.getFaceAxisName(sceneService.activeFace()!) }})</span>
         </div>
       }
+
+      <!-- ========================================== -->
+      <!-- NODEBOX SIMULATION / PREVIEW OVERLAY       -->
+      <!-- ========================================== -->
+      @if (!projectStore.isRenderMode() && projectStore.project().nodeboxType !== 'fixed') {
+        <div class="absolute top-14 lg:top-3 right-2.5 lg:right-3 flex flex-col items-end gap-1.5 z-20 pointer-events-auto">
+          <div class="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-2.5 py-1.5 rounded-lg shadow-xl text-xs text-slate-200">
+            <!-- Mode indicator / Toggle -->
+            <span class="font-semibold text-[11px] uppercase tracking-wider text-sky-400 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full" [class.bg-emerald-400]="projectStore.simulationMode()" [class.bg-slate-500]="!projectStore.simulationMode()"></span>
+              {{ projectStore.project().nodeboxType | uppercase }}
+            </span>
+
+            <div class="h-3 w-px bg-slate-700 mx-0.5"></div>
+
+            <button
+              (click)="toggleSimulationMode()"
+              [class.bg-emerald-600]="projectStore.simulationMode()"
+              [class.text-white]="projectStore.simulationMode()"
+              [class.bg-slate-800]="!projectStore.simulationMode()"
+              [class.text-slate-300]="!projectStore.simulationMode()"
+              class="px-2 py-1 rounded font-medium transition hover:brightness-110 flex items-center gap-1">
+              <span>{{ projectStore.simulationMode() ? 'Simulation On' : 'Simulate' }}</span>
+            </button>
+          </div>
+
+          <!-- Connected Simulation Controls Panel -->
+          @if (projectStore.project().nodeboxType === 'connected' && projectStore.simulationMode()) {
+            <div class="flex flex-col gap-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2 rounded-lg shadow-2xl text-xs text-slate-200 min-w-[210px]">
+              <div class="flex items-center justify-between text-[10px] text-slate-400 uppercase font-semibold">
+                <span>Neighbors</span>
+                <div class="flex items-center gap-1">
+                  <button (click)="setConnectedPreset('line')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Line</button>
+                  <button (click)="setConnectedPreset('cross')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Cross</button>
+                  <button (click)="setConnectedPreset('all')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">All</button>
+                  <button (click)="setConnectedPreset('none')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">None</button>
+                </div>
+              </div>
+
+              <!-- 6 Directions Grid -->
+              <div class="grid grid-cols-3 gap-1 text-[11px] font-mono text-center">
+                <div></div>
+                <button
+                  (click)="toggleNeighbor('top')"
+                  [class.bg-emerald-600]="projectStore.neighborState().top"
+                  [class.text-white]="projectStore.neighborState().top"
+                  [class.bg-slate-800]="!projectStore.neighborState().top"
+                  [class.text-slate-400]="!projectStore.neighborState().top"
+                  class="py-1 rounded border border-slate-700/50 hover:border-slate-500 transition">
+                  +Y Top
+                </button>
+                <div></div>
+
+                <button
+                  (click)="toggleNeighbor('left')"
+                  [class.bg-emerald-600]="projectStore.neighborState().left"
+                  [class.text-white]="projectStore.neighborState().left"
+                  [class.bg-slate-800]="!projectStore.neighborState().left"
+                  [class.text-slate-400]="!projectStore.neighborState().left"
+                  class="py-1 rounded border border-slate-700/50 hover:border-slate-500 transition">
+                  -X Left
+                </button>
+                <div class="flex items-center justify-center text-[10px] text-slate-400 font-sans">Node</div>
+                <button
+                  (click)="toggleNeighbor('right')"
+                  [class.bg-emerald-600]="projectStore.neighborState().right"
+                  [class.text-white]="projectStore.neighborState().right"
+                  [class.bg-slate-800]="!projectStore.neighborState().right"
+                  [class.text-slate-400]="!projectStore.neighborState().right"
+                  class="py-1 rounded border border-slate-700/50 hover:border-slate-500 transition">
+                  +X Right
+                </button>
+
+                <button
+                  (click)="toggleNeighbor('front')"
+                  [class.bg-emerald-600]="projectStore.neighborState().front"
+                  [class.text-white]="projectStore.neighborState().front"
+                  [class.bg-slate-800]="!projectStore.neighborState().front"
+                  [class.text-slate-400]="!projectStore.neighborState().front"
+                  class="py-1 rounded border border-slate-700/50 hover:border-slate-500 transition">
+                  -Z Front
+                </button>
+                <button
+                  (click)="toggleNeighbor('bottom')"
+                  [class.bg-emerald-600]="projectStore.neighborState().bottom"
+                  [class.text-white]="projectStore.neighborState().bottom"
+                  [class.bg-slate-800]="!projectStore.neighborState().bottom"
+                  [class.text-slate-400]="!projectStore.neighborState().bottom"
+                  class="py-1 rounded border border-slate-700/50 hover:border-slate-500 transition">
+                  -Y Bot
+                </button>
+                <button
+                  (click)="toggleNeighbor('back')"
+                  [class.bg-emerald-600]="projectStore.neighborState().back"
+                  [class.text-white]="projectStore.neighborState().back"
+                  [class.bg-slate-800]="!projectStore.neighborState().back"
+                  [class.text-slate-400]="!projectStore.neighborState().back"
+                  class="py-1 rounded border border-slate-700/50 hover:border-slate-500 transition">
+                  +Z Back
+                </button>
+              </div>
+              <div class="text-[10px] text-slate-400 text-center italic mt-0.5">Click ghost blocks or buttons</div>
+            </div>
+          }
+
+          <!-- Wallmounted Preview Controls Panel -->
+          @if (projectStore.project().nodeboxType === 'wallmounted' && projectStore.simulationMode()) {
+            <div class="flex flex-col gap-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2 rounded-lg shadow-2xl text-xs text-slate-200 min-w-[200px]">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Mount Attachment</span>
+              <div class="flex flex-col gap-1">
+                <button
+                  (click)="setWallmountedSlot('wall_side')"
+                  [class.bg-sky-600]="projectStore.wallmountedPreviewSlot() === 'wall_side'"
+                  [class.text-white]="projectStore.wallmountedPreviewSlot() === 'wall_side'"
+                  [class.bg-slate-800]="projectStore.wallmountedPreviewSlot() !== 'wall_side'"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] transition">
+                  Vertical Wall (-X)
+                </button>
+                <button
+                  (click)="setWallmountedSlot('wall_bottom')"
+                  [class.bg-sky-600]="projectStore.wallmountedPreviewSlot() === 'wall_bottom'"
+                  [class.text-white]="projectStore.wallmountedPreviewSlot() === 'wall_bottom'"
+                  [class.bg-slate-800]="projectStore.wallmountedPreviewSlot() !== 'wall_bottom'"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] transition">
+                  Floor (-Y)
+                </button>
+                <button
+                  (click)="setWallmountedSlot('wall_top')"
+                  [class.bg-sky-600]="projectStore.wallmountedPreviewSlot() === 'wall_top'"
+                  [class.text-white]="projectStore.wallmountedPreviewSlot() === 'wall_top'"
+                  [class.bg-slate-800]="projectStore.wallmountedPreviewSlot() !== 'wall_top'"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] transition">
+                  Ceiling (+Y)
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Leveled Preview Controls Panel -->
+          @if (projectStore.project().nodeboxType === 'leveled' && projectStore.simulationMode()) {
+            <div class="flex flex-col gap-1.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2.5 rounded-lg shadow-2xl text-xs text-slate-200 min-w-[200px]">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-slate-400 font-semibold">Leveled Height:</span>
+                <span class="font-mono text-sky-400 font-bold">{{ projectStore.leveledPreviewHeight() }} / 16</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="16"
+                step="1"
+                [value]="projectStore.leveledPreviewHeight()"
+                (input)="onLeveledHeightInput($event)"
+                class="w-full accent-sky-500 cursor-pointer" />
+              <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                <span>1 (0.06)</span>
+                <span>8 (0.50)</span>
+                <span>16 (1.00)</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
     </div>
   `
 })
@@ -551,6 +755,9 @@ export class ViewportComponent implements OnInit, OnDestroy {
   public themeService = inject(ThemeService);
   public textureService = inject(TextureService);
   public showDepthPopover = signal<boolean>(false);
+  public customFloorTextures = computed(() =>
+    this.textureService.textures().filter((t) => t.isCustom)
+  );
 
   // Mobile viewport interaction signals
   public showMobileCameraMenu = signal<boolean>(false);
@@ -566,6 +773,7 @@ export class ViewportComponent implements OnInit, OnDestroy {
       this.textureService.textureUpdated();
       this.sceneService.onRenderModeChange(isRender);
       this.sceneService.updateBoxes(project.boxes, selectedId);
+      this.sceneService.updateSimulationHelpers();
     });
   }
 
@@ -644,5 +852,52 @@ export class ViewportComponent implements OnInit, OnDestroy {
 
   captureScreenshot(resolution: ScreenshotResolution, transparent: boolean): void {
     this.sceneService.captureScreenshot({ resolution, transparent });
+  }
+
+  toggleSimulationMode(): void {
+    this.projectStore.setSimulationMode(!this.projectStore.simulationMode());
+  }
+
+  toggleNeighbor(dir: keyof NeighborConnectionState): void {
+    this.projectStore.toggleNeighbor(dir);
+  }
+
+  setConnectedPreset(preset: 'line' | 'cross' | 'all' | 'none'): void {
+    if (preset === 'all') {
+      const dirs: (keyof NeighborConnectionState)[] = ['top', 'bottom', 'front', 'back', 'left', 'right'];
+      for (const d of dirs) {
+        this.projectStore.setNeighbor(d, true);
+      }
+    } else if (preset === 'none') {
+      const dirs: (keyof NeighborConnectionState)[] = ['top', 'bottom', 'front', 'back', 'left', 'right'];
+      for (const d of dirs) {
+        this.projectStore.setNeighbor(d, false);
+      }
+    } else if (preset === 'line') {
+      this.projectStore.setNeighbor('front', true);
+      this.projectStore.setNeighbor('back', true);
+      this.projectStore.setNeighbor('left', false);
+      this.projectStore.setNeighbor('right', false);
+      this.projectStore.setNeighbor('top', false);
+      this.projectStore.setNeighbor('bottom', false);
+    } else if (preset === 'cross') {
+      this.projectStore.setNeighbor('front', true);
+      this.projectStore.setNeighbor('back', true);
+      this.projectStore.setNeighbor('left', true);
+      this.projectStore.setNeighbor('right', true);
+      this.projectStore.setNeighbor('top', false);
+      this.projectStore.setNeighbor('bottom', false);
+    }
+  }
+
+  setWallmountedSlot(slot: 'wall_bottom' | 'wall_top' | 'wall_side'): void {
+    this.projectStore.setWallmountedPreviewSlot(slot);
+  }
+
+  onLeveledHeightInput(e: Event): void {
+    const val = parseInt((e.target as HTMLInputElement).value, 10);
+    if (!isNaN(val)) {
+      this.projectStore.setLeveledPreviewHeight(val);
+    }
   }
 }

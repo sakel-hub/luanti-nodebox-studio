@@ -45,12 +45,36 @@ describe('BabylonSceneService', () => {
     expect(service.cameraMode()).toBe('perspective');
   });
 
-  it('updates scene floor platform signal', () => {
+  it('updates scene floor platform signal and supports all default and custom floor textures', () => {
     service.setSceneFloor('grass');
     expect(service.sceneFloor()).toBe('grass');
 
     service.setSceneFloor('stone');
     expect(service.sceneFloor()).toBe('stone');
+
+    service.setSceneFloor('wood');
+    expect(service.sceneFloor()).toBe('wood');
+
+    service.setSceneFloor('cobble');
+    expect(service.sceneFloor()).toBe('cobble');
+
+    service.setSceneFloor('brick');
+    expect(service.sceneFloor()).toBe('brick');
+
+    service.setSceneFloor('dirt');
+    expect(service.sceneFloor()).toBe('dirt');
+
+    service.setSceneFloor('glass');
+    expect(service.sceneFloor()).toBe('glass');
+
+    service.setSceneFloor('steel');
+    expect(service.sceneFloor()).toBe('steel');
+
+    service.setSceneFloor('mese');
+    expect(service.sceneFloor()).toBe('mese');
+
+    service.setSceneFloor('custom_rug');
+    expect(service.sceneFloor()).toBe('custom_rug');
 
     service.setSceneFloor('grid');
     expect(service.sceneFloor()).toBe('grid');
@@ -395,6 +419,130 @@ describe('BabylonSceneService', () => {
     // Face highlight mesh
     (service as any).buildFaceHighlightMesh();
     expect((service as any).faceHighlightMesh.renderingGroupId).toBe(1);
+  });
+
+  it('correctly builds floor platform and updates floor materials for various presets', async () => {
+    const { NullEngine, Scene } = await import('@babylonjs/core');
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    (service as any).engine = engine;
+    (service as any).scene = scene;
+
+    (service as any).buildFloorPlatform();
+    const floorMesh = (service as any).floorMesh;
+    const floorMat = (service as any).floorMaterial;
+
+    expect(floorMesh).toBeDefined();
+    expect(floorMat).toBeDefined();
+    expect(floorMesh.position.y).toBe(-0.501);
+
+    // Initial floor is 'none' -> disabled
+    expect(service.sceneFloor()).toBe('none');
+    expect(floorMesh.isEnabled()).toBe(false);
+
+    // Set to grass -> enabled, diffuseTexture assigned
+    service.setSceneFloor('grass');
+    expect(floorMesh.isEnabled()).toBe(true);
+    expect(floorMat.diffuseTexture).toBeDefined();
+    expect(floorMat.useAlphaFromDiffuseTexture).toBe(false);
+
+    // Set to glass -> alpha enabled
+    service.setSceneFloor('glass');
+    expect(floorMesh.isEnabled()).toBe(true);
+    expect(floorMat.useAlphaFromDiffuseTexture).toBe(true);
+
+    // Set to grid -> enabled, no diffuse texture
+    service.setSceneFloor('grid');
+    expect(floorMesh.isEnabled()).toBe(true);
+    expect(floorMat.diffuseTexture).toBeNull();
+
+    // Set back to none -> disabled
+    service.setSceneFloor('none');
+    expect(floorMesh.isEnabled()).toBe(false);
+  });
+
+  it('correctly calculates isBoxVisibleInSimulation for connected slots', () => {
+    const defaultNeighbors = {
+      top: false,
+      bottom: false,
+      front: true,
+      back: false,
+      left: false,
+      right: false
+    };
+
+    const fixedBox = { slot: 'fixed' } as any;
+    expect(service.isBoxVisibleInSimulation(fixedBox, defaultNeighbors)).toBe(true);
+
+    const connectFrontBox = { slot: 'connect_front' } as any;
+    expect(service.isBoxVisibleInSimulation(connectFrontBox, defaultNeighbors)).toBe(true);
+
+    const disconnectedFrontBox = { slot: 'disconnected_front' } as any;
+    expect(service.isBoxVisibleInSimulation(disconnectedFrontBox, defaultNeighbors)).toBe(false);
+
+    const connectBackBox = { slot: 'connect_back' } as any;
+    expect(service.isBoxVisibleInSimulation(connectBackBox, defaultNeighbors)).toBe(false);
+
+    const disconnectedSidesBox = { slot: 'disconnected_sides' } as any;
+    // front is connected, so disconnected_sides is false
+    expect(service.isBoxVisibleInSimulation(disconnectedSidesBox, defaultNeighbors)).toBe(false);
+
+    // If no horizontal sides are connected
+    const isolatedNeighbors = { ...defaultNeighbors, front: false };
+    expect(service.isBoxVisibleInSimulation(disconnectedSidesBox, isolatedNeighbors)).toBe(true);
+
+    const disconnectedBox = { slot: 'disconnected' } as any;
+    expect(service.isBoxVisibleInSimulation(disconnectedBox, isolatedNeighbors)).toBe(true);
+  });
+
+  it('handles simulation mode for connected, wallmounted, and leveled types', async () => {
+    const { NullEngine, Scene } = await import('@babylonjs/core');
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    (service as any).engine = engine;
+    (service as any).scene = scene;
+
+    const projectStore = (service as any).projectStore as ProjectStore;
+    projectStore.setNodeboxType('connected');
+    projectStore.setSimulationMode(true);
+
+    (service as any).updateSimulationHelpers();
+    expect((service as any).ghostNeighborMeshes.size).toBe(6);
+
+    const ghostTop = (service as any).ghostNeighborMeshes.get('top');
+    expect(ghostTop).toBeDefined();
+    expect(ghostTop.isEnabled()).toBe(true);
+
+    // Switch to wallmounted
+    projectStore.setNodeboxType('wallmounted');
+    projectStore.setWallmountedPreviewSlot('wall_side');
+    (service as any).updateSimulationHelpers();
+
+    expect((service as any).wallmountedPlaneMesh).toBeDefined();
+    expect((service as any).wallmountedPlaneMesh.isEnabled()).toBe(true);
+    expect((service as any).wallmountedPlaneMesh.position.x).toBeCloseTo(-0.501);
+
+    // Test leveled clamping in updateSingleBoxMesh
+    projectStore.setNodeboxType('leveled');
+    projectStore.setLeveledPreviewHeight(4); // 4/16 = 0.25 -> clamped top Y = -0.5 + 0.25 = -0.25
+    const leveledBox = {
+      id: 'snow_layer',
+      name: 'Snow',
+      minX: -0.5,
+      minY: -0.5,
+      minZ: -0.5,
+      maxX: 0.5,
+      maxY: 0.5, // taller than level 4
+      maxZ: 0.5,
+      visible: true,
+      locked: false,
+      color: '#ffffff'
+    };
+    service.updateBoxes([leveledBox as any], 'snow_layer');
+    const snowMesh = (service as any).boxMeshes.get('snow_layer');
+    expect(snowMesh).toBeDefined();
+    expect(snowMesh.scaling.y).toBeCloseTo(0.25);
+    expect(snowMesh.position.y).toBeCloseTo((-0.5 + -0.25) / 2);
   });
 });
 

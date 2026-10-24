@@ -22,7 +22,7 @@ import {
   Tools,
   VertexBuffer
 } from '@babylonjs/core';
-import { Box, FaceDirection, LUANTI_FACE_DIRECTIONS, AABB } from '../../../core/models/nodebox.model';
+import { Box, FaceDirection, LUANTI_FACE_DIRECTIONS, AABB, NeighborConnectionState } from '../../../core/models/nodebox.model';
 import { computeNodeBoxUVBuffer } from '../../../core/utils/uv-projection.utils';
 import { ProjectStore } from '../../../core/state/project.store';
 import { TextureService } from '../../../core/services/texture.service';
@@ -44,7 +44,31 @@ export type CameraPreset = 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' 
 export type CameraMode = 'perspective' | 'orthographic';
 export type ViewportMode = 'textured' | 'colored' | 'wireframe';
 export type GizmoMode = 'none' | 'position' | 'scale' | 'resize' | 'rotation';
-export type SceneFloor = 'none' | 'grass' | 'stone' | 'grid';
+export const FLOOR_PRESET_TEXTURES: Record<string, { file: string; textureId: string; name: string }> = {
+  grass: { file: '/textures/default_grass.png', textureId: 'default_grass.png', name: 'Grass' },
+  stone: { file: '/textures/default_stone.png', textureId: 'default_stone.png', name: 'Smooth Stone' },
+  wood: { file: '/textures/default_wood.png', textureId: 'default_wood.png', name: 'Wood Planks' },
+  cobble: { file: '/textures/default_cobble.png', textureId: 'default_cobble.png', name: 'Cobblestone' },
+  brick: { file: '/textures/default_brick.png', textureId: 'default_brick.png', name: 'Clay Brick' },
+  dirt: { file: '/textures/default_dirt.png', textureId: 'default_dirt.png', name: 'Dirt' },
+  glass: { file: '/textures/default_glass.png', textureId: 'default_glass.png', name: 'Glass' },
+  steel: { file: '/textures/default_steel_block.png', textureId: 'default_steel_block.png', name: 'Steel Block' },
+  mese: { file: '/textures/default_mese_block.png', textureId: 'default_mese_block.png', name: 'Mese Block' }
+};
+
+export type SceneFloor =
+  | 'none'
+  | 'grid'
+  | 'grass'
+  | 'stone'
+  | 'wood'
+  | 'cobble'
+  | 'brick'
+  | 'dirt'
+  | 'glass'
+  | 'steel'
+  | 'mese'
+  | (string & {});
 export type SceneSky = 'studio' | 'minetest_day' | 'minetest_sunset' | 'minetest_night';
 export type ScreenshotResolution = 'viewport' | '1080p' | '4k' | 'icon';
 
@@ -73,6 +97,9 @@ export class BabylonSceneService {
   private floorMesh: Mesh | null = null;
   private floorMaterial: StandardMaterial | null = null;
   private faceHighlightMesh: Mesh | null = null;
+  private ghostNeighborMeshes = new Map<string, Mesh>();
+  private wallmountedPlaneMesh: Mesh | null = null;
+  private wallmountedPlaneMaterial: StandardMaterial | null = null;
   private materialCache = new Map<string, StandardMaterial>();
   private textureCache = new Map<string, Texture>();
   private animatedTextures = new Map<
@@ -139,6 +166,19 @@ export class BabylonSceneService {
           }
         }
       });
+
+      effect(() => {
+        // Track simulation state and update boxes and simulation helper meshes
+        this.projectStore.project()?.nodeboxType;
+        this.projectStore.simulationMode();
+        this.projectStore.neighborState();
+        this.projectStore.leveledPreviewHeight();
+        this.projectStore.wallmountedPreviewSlot();
+        if (this.scene) {
+          this.updateBoxes(this.projectStore.boxes(), this.projectStore.selectedBoxId());
+          this.updateSimulationHelpers();
+        }
+      });
     } catch {
       // Ignored outside injection context
     }
@@ -157,7 +197,7 @@ export class BabylonSceneService {
     this.materialCache.clear();
     this.animatedTextures.clear();
     for (const [key, tex] of this.textureCache.entries()) {
-      if (key.startsWith('bump_')) {
+      if (key.startsWith('bump_') || key.startsWith('__floor_')) {
         tex.dispose();
         this.textureCache.delete(key);
       }
@@ -165,6 +205,7 @@ export class BabylonSceneService {
     const project = this.projectStore.project();
     const selectedId = this.projectStore.selectedBoxId();
     this.updateBoxes(project.boxes, selectedId);
+    this.updateFloorMaterial();
   }
 
   public initialize(canvas: HTMLCanvasElement): void {
@@ -216,6 +257,7 @@ export class BabylonSceneService {
       this.buildReferenceGrid();
       this.buildFloorPlatform();
       this.buildFaceHighlightMesh();
+      this.updateSimulationHelpers();
 
       // Setup Gizmo Manager
       this.setupGizmoManager();
@@ -711,7 +753,7 @@ export class BabylonSceneService {
   public updateGizmoState(): void {
     if (!this.gizmoManager) return;
 
-    if (this.projectStore.isRenderMode()) {
+    if (this.projectStore.isRenderMode() || this.projectStore.simulationMode()) {
       this.gizmoManager.positionGizmoEnabled = false;
       this.gizmoManager.scaleGizmoEnabled = false;
       this.gizmoManager.rotationGizmoEnabled = false;
@@ -987,6 +1029,14 @@ export class BabylonSceneService {
         if (pointerInfo.event.button !== 0) return;
 
         const pickedMesh = pointerInfo.pickInfo?.pickedMesh;
+        if (pickedMesh && pickedMesh.metadata?.neighborDir) {
+          const dir = pickedMesh.metadata.neighborDir as keyof NeighborConnectionState;
+          this.zone.run(() => {
+            this.projectStore.toggleNeighbor(dir);
+          });
+          return;
+        }
+
         if (pickedMesh && pickedMesh.metadata?.boxId) {
           const targetBox = this.projectStore.project().boxes.find(b => b.id === pickedMesh.metadata.boxId);
           if (targetBox && !targetBox.locked) {
@@ -1035,14 +1085,40 @@ export class BabylonSceneService {
   private updateSingleBoxMesh(box: Box, isSelected: boolean): void {
     if (!this.scene) return;
 
+    const project = this.projectStore.project();
+    const nodeboxType = project?.nodeboxType ?? 'fixed';
+    const isSimMode = this.projectStore.simulationMode();
+    const neighbors = this.projectStore.neighborState();
+    const leveledHeight = this.projectStore.leveledPreviewHeight();
+    const wallSlot = this.projectStore.wallmountedPreviewSlot();
+
+    let isVisible = box.visible;
+    let effectiveMaxY = box.maxY;
+
+    if (isSimMode) {
+      if (nodeboxType === 'connected') {
+        isVisible = isVisible && this.isBoxVisibleInSimulation(box, neighbors);
+      } else if (nodeboxType === 'wallmounted') {
+        const slot = box.slot || 'wall_bottom';
+        isVisible = isVisible && (slot === wallSlot);
+      } else if (nodeboxType === 'leveled') {
+        // Leveled height: 1..16 -> map to [-0.5 + h/16]
+        const clampedY = -0.5 + (leveledHeight / 16);
+        effectiveMaxY = Math.min(box.maxY, clampedY);
+        if (effectiveMaxY <= box.minY) {
+          isVisible = false;
+        }
+      }
+    }
+
     let mesh = this.boxMeshes.get(box.id);
 
     const width = Math.max(0.001, box.maxX - box.minX);
-    const height = Math.max(0.001, box.maxY - box.minY);
+    const height = Math.max(0.001, effectiveMaxY - box.minY);
     const depth = Math.max(0.001, box.maxZ - box.minZ);
 
     const centerX = (box.minX + box.maxX) / 2;
-    const centerY = (box.minY + box.maxY) / 2;
+    const centerY = (box.minY + effectiveMaxY) / 2;
     const centerZ = (box.minZ + box.maxZ) / 2;
 
     if (mesh && !mesh.metadata?.isNodeBoxWrap) {
@@ -1064,20 +1140,146 @@ export class BabylonSceneService {
     if (mesh.rotationQuaternion) {
       mesh.rotationQuaternion = null;
     }
-    mesh.setEnabled(box.visible);
-    mesh.isPickable = !this.projectStore.isRenderMode() && !box.locked && box.visible;
+    mesh.setEnabled(isVisible);
+    mesh.isPickable = !this.projectStore.isRenderMode() && !isSimMode && !box.locked && isVisible;
 
     // Apply Node-Projected UVs (Luanti engine single-mesh projection practice)
-    const uvs = computeNodeBoxUVBuffer(box);
+    const effectiveBox = effectiveMaxY !== box.maxY ? { ...box, maxY: effectiveMaxY } : box;
+    const uvs = computeNodeBoxUVBuffer(effectiveBox);
     mesh.setVerticesData(VertexBuffer.UVKind, uvs, true);
 
     // Apply Material
     this.applyBoxMaterial(mesh, box, isSelected);
 
-    // Selection outline / highlight (disabled in Render Mode)
-    mesh.renderOutline = !this.projectStore.isRenderMode() && isSelected;
+    // Selection outline / highlight (disabled in Render Mode and Simulation Mode)
+    mesh.renderOutline = !this.projectStore.isRenderMode() && !isSimMode && isSelected;
     mesh.outlineColor = box.locked ? new Color3(0.95, 0.6, 0.1) : new Color3(0.9, 0.7, 0.1);
     mesh.outlineWidth = 0.02;
+  }
+
+  /**
+   * Helper function to check if a box is visible under the current simulation neighbor state.
+   */
+  public isBoxVisibleInSimulation(box: Box, neighbors: NeighborConnectionState): boolean {
+    const slot = box.slot || 'fixed';
+    if (slot === 'fixed') return true;
+
+    switch (slot) {
+      case 'connect_top': return neighbors.top;
+      case 'disconnected_top': return !neighbors.top;
+      case 'connect_bottom': return neighbors.bottom;
+      case 'disconnected_bottom': return !neighbors.bottom;
+      case 'connect_front': return neighbors.front;
+      case 'disconnected_front': return !neighbors.front;
+      case 'connect_back': return neighbors.back;
+      case 'disconnected_back': return !neighbors.back;
+      case 'connect_left': return neighbors.left;
+      case 'disconnected_left': return !neighbors.left;
+      case 'connect_right': return neighbors.right;
+      case 'disconnected_right': return !neighbors.right;
+      case 'disconnected_sides':
+        return !neighbors.front && !neighbors.back && !neighbors.left && !neighbors.right;
+      case 'disconnected':
+        return !neighbors.top && !neighbors.bottom && !neighbors.front && !neighbors.back && !neighbors.left && !neighbors.right;
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * Updates 3D preview helpers for simulation modes (ghost neighbor blocks, mounting planes).
+   */
+  public updateSimulationHelpers(): void {
+    if (!this.scene) return;
+
+    const project = this.projectStore.project();
+    const nodeboxType = project?.nodeboxType ?? 'fixed';
+    const isSimMode = this.projectStore.simulationMode();
+    const neighbors = this.projectStore.neighborState();
+    const wallSlot = this.projectStore.wallmountedPreviewSlot();
+
+    // 1. Ghost neighbor blocks for connected nodebox simulation
+    const dirs: (keyof NeighborConnectionState)[] = ['top', 'bottom', 'front', 'back', 'left', 'right'];
+    const dirOffsets: Record<keyof NeighborConnectionState, Vector3> = {
+      top: new Vector3(0, 1, 0),
+      bottom: new Vector3(0, -1, 0),
+      front: new Vector3(0, 0, -1),
+      back: new Vector3(0, 0, 1),
+      left: new Vector3(-1, 0, 0),
+      right: new Vector3(1, 0, 0)
+    };
+
+    if (nodeboxType === 'connected' && isSimMode) {
+      for (const dir of dirs) {
+        let ghost = this.ghostNeighborMeshes.get(dir);
+        if (!ghost) {
+          ghost = MeshBuilder.CreateBox(`ghost_neighbor_${dir}`, { size: 0.98 }, this.scene);
+          ghost.metadata = { neighborDir: dir };
+          ghost.position = dirOffsets[dir];
+          const mat = new StandardMaterial(`ghost_mat_${dir}`, this.scene);
+          mat.diffuseColor = new Color3(0.15, 0.7, 0.85);
+          mat.emissiveColor = new Color3(0.05, 0.2, 0.25);
+          mat.alpha = 0.25;
+          ghost.material = mat;
+          ghost.renderOutline = true;
+          ghost.outlineWidth = 0.02;
+          this.ghostNeighborMeshes.set(dir, ghost);
+        }
+
+        const isConnected = neighbors[dir];
+        ghost.setEnabled(true);
+        ghost.isPickable = true;
+        const mat = ghost.material as StandardMaterial;
+        if (isConnected) {
+          mat.diffuseColor = new Color3(0.1, 0.85, 0.5);
+          mat.emissiveColor = new Color3(0.05, 0.35, 0.15);
+          mat.alpha = 0.35;
+          ghost.outlineColor = new Color3(0.2, 1.0, 0.6);
+        } else {
+          mat.diffuseColor = new Color3(0.4, 0.45, 0.55);
+          mat.emissiveColor = new Color3(0.05, 0.05, 0.08);
+          mat.alpha = 0.08;
+          ghost.outlineColor = new Color3(0.4, 0.5, 0.6);
+        }
+      }
+    } else {
+      for (const ghost of this.ghostNeighborMeshes.values()) {
+        ghost.setEnabled(false);
+      }
+    }
+
+    // 2. Wallmounted reference mounting plane
+    if (nodeboxType === 'wallmounted' && isSimMode) {
+      if (!this.wallmountedPlaneMesh) {
+        this.wallmountedPlaneMesh = MeshBuilder.CreatePlane('wallmounted_plane', { size: 1.2 }, this.scene);
+        this.wallmountedPlaneMaterial = new StandardMaterial('wallmounted_plane_mat', this.scene);
+        this.wallmountedPlaneMaterial.diffuseColor = new Color3(0.5, 0.4, 0.3);
+        this.wallmountedPlaneMaterial.alpha = 0.45;
+        this.wallmountedPlaneMaterial.backFaceCulling = false;
+        this.wallmountedPlaneMesh.material = this.wallmountedPlaneMaterial;
+        this.wallmountedPlaneMesh.renderOutline = true;
+        this.wallmountedPlaneMesh.outlineColor = new Color3(0.7, 0.6, 0.45);
+        this.wallmountedPlaneMesh.outlineWidth = 0.02;
+        this.wallmountedPlaneMesh.isPickable = false;
+      }
+
+      this.wallmountedPlaneMesh.setEnabled(true);
+
+      if (wallSlot === 'wall_bottom') {
+        this.wallmountedPlaneMesh.position.set(0, -0.501, 0);
+        this.wallmountedPlaneMesh.rotation.set(Math.PI / 2, 0, 0);
+      } else if (wallSlot === 'wall_top') {
+        this.wallmountedPlaneMesh.position.set(0, 0.501, 0);
+        this.wallmountedPlaneMesh.rotation.set(-Math.PI / 2, 0, 0);
+      } else {
+        this.wallmountedPlaneMesh.position.set(-0.501, 0, 0);
+        this.wallmountedPlaneMesh.rotation.set(0, Math.PI / 2, 0);
+      }
+    } else {
+      if (this.wallmountedPlaneMesh) {
+        this.wallmountedPlaneMesh.setEnabled(false);
+      }
+    }
   }
 
   private applyBoxMaterial(mesh: Mesh, box: Box, isSelected: boolean): void {
@@ -1411,6 +1613,33 @@ export class BabylonSceneService {
     this.updateFloorMaterial();
   }
 
+  private resolveFloorTexture(floor: string): string | null {
+    if (floor === 'none' || floor === 'grid') return null;
+
+    // 1. Check known preset keywords (e.g. 'grass', 'stone', 'wood', etc.)
+    const preset = FLOOR_PRESET_TEXTURES[floor];
+    if (preset) {
+      const texDef = this.textureService.getTextureById(preset.textureId);
+      return texDef?.dataUrl ?? preset.file;
+    }
+
+    // 2. Check if it matches a texture ID in TextureService (custom or default e.g. 'default_grass.png')
+    const texDef = this.textureService.getTextureById(floor);
+    if (texDef) {
+      return texDef.dataUrl;
+    }
+
+    // 3. Fallback to direct url or file path
+    if (floor.startsWith('data:') || floor.startsWith('/')) {
+      return floor;
+    }
+    if (floor.endsWith('.png')) {
+      return `/textures/${floor}`;
+    }
+
+    return null;
+  }
+
   private updateFloorMaterial(): void {
     if (!this.floorMesh || !this.floorMaterial || !this.scene) return;
     const floor = this.sceneFloor();
@@ -1422,34 +1651,39 @@ export class BabylonSceneService {
 
     this.floorMesh.setEnabled(true);
 
-    if (floor === 'grass') {
-      let grassTex = this.textureCache.get('__floor_grass');
-      if (!grassTex) {
-        grassTex = new Texture('/textures/default_grass.png', this.scene, false, false, Texture.NEAREST_SAMPLINGMODE);
-        grassTex.uScale = 16;
-        grassTex.vScale = 16;
-        grassTex.wrapU = Texture.WRAP_ADDRESSMODE;
-        grassTex.wrapV = Texture.WRAP_ADDRESSMODE;
-        this.textureCache.set('__floor_grass', grassTex);
-      }
-      this.floorMaterial.diffuseTexture = grassTex;
-      this.floorMaterial.diffuseColor = new Color3(1, 1, 1);
-    } else if (floor === 'stone') {
-      let stoneTex = this.textureCache.get('__floor_stone');
-      if (!stoneTex) {
-        stoneTex = new Texture('/textures/default_stone.png', this.scene, false, false, Texture.NEAREST_SAMPLINGMODE);
-        stoneTex.uScale = 16;
-        stoneTex.vScale = 16;
-        stoneTex.wrapU = Texture.WRAP_ADDRESSMODE;
-        stoneTex.wrapV = Texture.WRAP_ADDRESSMODE;
-        this.textureCache.set('__floor_stone', stoneTex);
-      }
-      this.floorMaterial.diffuseTexture = stoneTex;
-      this.floorMaterial.diffuseColor = new Color3(1, 1, 1);
-    } else if (floor === 'grid') {
+    if (floor === 'grid') {
       this.floorMaterial.diffuseTexture = null;
       this.floorMaterial.diffuseColor = new Color3(0.08, 0.12, 0.2);
+      this.floorMaterial.useAlphaFromDiffuseTexture = false;
+      return;
     }
+
+    const textureSource = this.resolveFloorTexture(floor);
+    if (!textureSource) {
+      this.floorMaterial.diffuseTexture = null;
+      this.floorMaterial.diffuseColor = new Color3(0.15, 0.15, 0.15);
+      this.floorMaterial.useAlphaFromDiffuseTexture = false;
+      return;
+    }
+
+    const isGlass = floor === 'glass' || floor === 'default_glass.png';
+    const cacheKey = `__floor_${floor}`;
+    let floorTex = this.textureCache.get(cacheKey);
+    if (!floorTex) {
+      floorTex = new Texture(textureSource, this.scene, false, false, Texture.NEAREST_SAMPLINGMODE);
+      floorTex.uScale = 16;
+      floorTex.vScale = 16;
+      floorTex.wrapU = Texture.WRAP_ADDRESSMODE;
+      floorTex.wrapV = Texture.WRAP_ADDRESSMODE;
+      if (isGlass) {
+        floorTex.hasAlpha = true;
+      }
+      this.textureCache.set(cacheKey, floorTex);
+    }
+
+    this.floorMaterial.diffuseTexture = floorTex;
+    this.floorMaterial.diffuseColor = new Color3(1, 1, 1);
+    this.floorMaterial.useAlphaFromDiffuseTexture = isGlass;
   }
 
   // Scene Sky & Environment Presets
@@ -1704,6 +1938,15 @@ export class BabylonSceneService {
     this.hideFaceHighlight();
     this.faceHighlightMesh?.dispose();
     this.faceHighlightMesh = null;
+    for (const ghost of this.ghostNeighborMeshes.values()) {
+      ghost.material?.dispose();
+      ghost.dispose();
+    }
+    this.ghostNeighborMeshes.clear();
+    this.wallmountedPlaneMaterial?.dispose();
+    this.wallmountedPlaneMaterial = null;
+    this.wallmountedPlaneMesh?.dispose();
+    this.wallmountedPlaneMesh = null;
     this.floorMesh?.dispose();
     this.floorMesh = null;
     this.floorMaterial?.dispose();
