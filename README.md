@@ -36,15 +36,25 @@ A modern, accessible, offline-first 3D visual editor and Progressive Web App (PW
 ### 🎮 Interactive 3D Viewport (Babylon.js)
 - **1x1x1 Node Reference Cage**: Real-time visual boundaries (`[-0.5, 0.5]` range) with an optional 2-node boundary mode.
 - **16x16 Subdivided Floor Grid**: Coordinate axis indicators (`+X` East, `+Y` Up, `+Z` North / Back).
-- **Orbit, Pan & Preset Cameras**: Instant switching between Isometric, Top, Front, Back, Left, and Right views.
+- **Orbit, Pan, Ortho & Preset Cameras**: Instant switching between Perspective and Orthographic (`5`) projection, plus Isometric, Top, Front, Back, Left, and Right views.
 - **Render Modes**: Switch between Solid Color, Wireframe, and 6-Face Textured modes with normal relief lighting.
-- **Transform Gizmos**: Orthogonal 90° rotation gizmo, translation gizmo, and non-diagonal axis scale gizmo with 1/16th and 1/32nd grid snapping.
+- **Transform Gizmos**: Move (`W`), Rotate 90° (`E`), Scale (`R`), Face Resize (`T`), and 3D Raycast Paint (`P`) tools with 1/16th, 1/32nd, and 1/64th grid snapping.
+- **Connected, Wallmounted & Leveled Simulation**: Interactive 3D neighbor ghost-block toggles (`+X`, `-X`, `+Y`, `-Y`, `+Z`, `-Z`), wall/floor/ceiling attachment previews, and leveled height sliders (`1/16` to `16/16`).
 
-### 🎨 6-Face Texture Studio & Normal Maps
+### 🌅 Render Studio, Luanti Skybox & 3D Pixel Extrusion
+- **Cubic Luanti Skybox & Atmosphere**: Switch between **Studio**, **Day**, **Sunset**, and **Night** environments with a vertically-subdivided cubic skybox, interactive Sun Elevation (`4°–85°`), Sun Azimuth (`0°–360°`), Atmospheric Haze, 3D Blocky Sun & Moon, upper-hemisphere 3D Voxel Stars, and solid 24×24 drifting **3D Luanti Voxel Clouds**.
+- **3D Pixel Art Depth & Per-Style Sliders (`5%–100%`)**:
+  - **Pixel Bevel (Mosaic)**: Crisp per-pixel step borders.
+  - **Luminance Relief**: Sobel/Scharr surface normal relief.
+  - **3D Pixel Extrusion (Voxel)**: Greedy-meshed 3D voxel geometry extruded directly from each nodebox face based on pixel luminance, with calibrated `Subtle (20%)`, `Medium (45%)`, and `Deep (85%)` quick presets.
+- **High-Res Screenshot Studio**: Export `1080p`, `4K Ultra-HD`, or `512×512` transparent inventory icon PNGs, plus 360° Turntable presentation mode.
+
+### 🎨 6-Face Texture Studio, 2D Pixel Painter & 3D Painting
 - **Luanti 6-Face Mapping**: Maps to Luanti's cube tile order: `+Y` (top), `-Y` (bottom), `+X` (right), `-X` (left), `+Z` (back), `-Z` (front).
-- **Procedural Pixel Normal Generator**: Real-time Sobel/Scharr normal map generation from diffuse textures for 3D surface depth relief under directional lighting.
+- **2D Pixel Painter & 3D Raycast Painting (`P`)**: Create custom `16×16`, `32×32`, or `64×64` textures or paint directly on 3D nodebox faces in real time with Pencil, Eraser, Flood-Fill Bucket, Eyedropper, Line, and Pixel Noise tools, complete with undo/redo and PNG export.
+- **Animated Vertical Sprite Sheets**: Live preview and Lua export for `vertical_frames` animated textures.
 - **UV Projection & Face Rotation**: Align, flip (U/V), and rotate (0°, 90°, 180°, 270°) texture faces per individual box.
-- **Built-in & Custom Palettes**: Includes default Luanti textures (Wood Planks, Stone, Cobble, Brick, Dirt, Glass, Steel, Grass) and allows custom PNG/JPG image uploads cached locally.
+- **Built-in & Custom Palettes**: Includes default Luanti textures (Wood Planks, Stone, Cobble, Brick, Dirt, Glass, Steel, Grass, Mese) and allows custom PNG/JPG image uploads cached locally.
 
 ### 🗂️ Layers & Box Hierarchy
 - **Layer Management**: Add, clone, rename, hide/show, lock, and delete individual boxes.
@@ -79,18 +89,27 @@ A modern, accessible, offline-first 3D visual editor and Progressive Web App (PW
 
 ## ⌨️ Keyboard Shortcuts
 
+All keyboard shortcuts are customizable in the **Keyboard Shortcuts (`?`)** dialog.
+
 | Shortcut | Action |
 | :--- | :--- |
-| <kbd>G</kbd> | Move (Translate) tool |
-| <kbd>R</kbd> | Rotate tool (orthogonal 90° snaps) |
-| <kbd>S</kbd> | Scale tool |
-| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>Z</kbd> | Undo last modification |
-| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | Redo |
-| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>C</kbd> | Copy selected box |
-| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>V</kbd> | Paste copied box |
-| <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Delete selected box |
-| <kbd>Space</kbd> | Focus / Reset camera to active box |
-| <kbd>?</kbd> | Toggle Keyboard Shortcuts cheat-sheet dialog |
+| <kbd>Q</kbd> | Select Mode (Gizmo Off) |
+| <kbd>W</kbd> | Move (Translate) Tool |
+| <kbd>E</kbd> | Rotate Tool (orthogonal 90° snaps) |
+| <kbd>R</kbd> | Scale Tool |
+| <kbd>T</kbd> | Resize Face Bounds Tool |
+| <kbd>P</kbd> | 3D Texture Paint Tool |
+| <kbd>G</kbd> | Toggle Floor Grid |
+| <kbd>C</kbd> | Toggle 1×1×1 Node Reference Cage |
+| <kbd>5</kbd> | Toggle Orthographic / Perspective Camera |
+| <kbd>F</kbd> | Reset Camera View |
+| <kbd>N</kbd> | Add New NodeBox |
+| <kbd>D</kbd> | Duplicate Selected Box |
+| <kbd>H</kbd> | Hide / Show Selected Box |
+| <kbd>Delete</kbd> / <kbd>Backspace</kbd> | Delete Selected Box |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>Z</kbd> | Undo |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>Y</kbd> | Redo |
+| <kbd>?</kbd> | Toggle Keyboard Shortcuts Dialog |
 
 ---
 

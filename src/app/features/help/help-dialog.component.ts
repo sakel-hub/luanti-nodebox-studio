@@ -166,11 +166,11 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
                     <span>Camera & Shading Options</span>
                   </div>
                   <ul class="space-y-1.5 text-[11px] text-slate-300">
-                    <li><strong>Isometric / Ortho / Perspective:</strong> Toggle camera projection modes</li>
+                    <li><strong>Isometric / Ortho / Perspective (5):</strong> Toggle camera projection modes</li>
                     <li><strong>Quick Angles:</strong> Iso, Top, Front, Back, Left, Right views</li>
                     <li><strong>Shading:</strong> Textured, Solid diffuse, or Wireframe view</li>
-                    <li><strong>Turntable (360°):</strong> Automatic presentation rotation</li>
-                    <li><strong>Screenshot:</strong> Export crisp viewport PNG without background clutter</li>
+                    <li><strong>Render Studio:</strong> Cubic Luanti Skybox (Day, Sunset, Night) with 3D Sun, Moon, Stars &amp; Voxel Clouds, 3D Pixel Extrusion &amp; per-style depth sliders</li>
+                    <li><strong>Screenshots:</strong> Export 1080p, 4K Ultra-HD, or 512×512 transparent PNG icons</li>
                   </ul>
                 </div>
               </div>
@@ -187,13 +187,13 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
                     <strong class="text-slate-100">Position Tool (W):</strong> Drag 3D colored axis arrows (X, Y, Z) to move the active box in space.
                   </div>
                   <div class="p-2 bg-slate-900 rounded border border-slate-800/80">
-                    <strong class="text-slate-100">Dimensions Tool (E):</strong> Drag face handles to expand or shrink individual box bounds.
+                    <strong class="text-slate-100">Rotate Tool (E):</strong> Rotate 90° clockwise around the box center or the node origin (0,0,0).
                   </div>
                   <div class="p-2 bg-slate-900 rounded border border-slate-800/80">
                     <strong class="text-slate-100">Scale Tool (R):</strong> Uniformly resize the nodebox relative to its center.
                   </div>
                   <div class="p-2 bg-slate-900 rounded border border-slate-800/80">
-                    <strong class="text-slate-100">Rotate Tool:</strong> Rotate 90° clockwise around the box center or the node origin (0,0,0).
+                    <strong class="text-slate-100">Dimensions Tool (T):</strong> Drag face handles to expand or shrink individual box bounds.
                   </div>
                   <div class="p-2 bg-slate-900 rounded border border-slate-800/80 sm:col-span-2">
                     <strong class="text-fuchsia-300">3D Paint Mode (P):</strong> Paint pixels directly on 3D nodebox faces with live GPU updates. Built-in textures are automatically cloned to custom textures when painted.
