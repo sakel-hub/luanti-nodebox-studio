@@ -29,12 +29,208 @@ import { TextureService } from '../../core/services/texture.service';
   imports: [CommonModule, TooltipDirective],
   template: `
     <div class="relative w-full h-full bg-slate-950 overflow-hidden flex flex-col" style="contain: strict;">
-      <!-- 3D Canvas -->
-      <canvas #renderCanvas class="w-full h-full block outline-none cursor-grab active:cursor-grabbing"></canvas>
+      <!-- 3D Canvas with touch-none for gesture isolation -->
+      <canvas #renderCanvas class="w-full h-full block outline-none cursor-grab active:cursor-grabbing touch-none"></canvas>
 
-      <!-- Standard Viewport Overlay Controls (Hidden in Render Mode) -->
+      <!-- Click-outside dismiss overlay for mobile menus -->
+      @if (showMobileCameraMenu() || showMobileShadingMenu()) {
+        <div (click)="closeMobileMenus()" class="fixed inset-0 z-20"></div>
+      }
+
+      <!-- ========================================== -->
+      <!-- MOBILE VIEWPORT OVERLAY CONTROLS (< lg)    -->
+      <!-- ========================================== -->
       @if (!projectStore.isRenderMode()) {
-        <div class="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 bg-slate-900/85 backdrop-blur-md border border-slate-700/60 p-1.5 rounded-lg shadow-xl text-xs z-10">
+        <!-- Top Mobile Bar: Camera Preset (Left) & Shading/Helpers (Right) -->
+        <div class="flex lg:hidden absolute top-2.5 left-2.5 right-2.5 justify-between items-center pointer-events-none z-20">
+          <!-- Camera Presets Dropdown Pill -->
+          <div class="relative pointer-events-auto">
+            <button
+              (click)="toggleMobileCameraMenu()"
+              aria-label="Camera view presets"
+              class="h-9 px-3 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-lg active:scale-95 transition">
+              <span class="font-mono">📷 {{ activeCameraPreset() | uppercase }}</span>
+              <span class="text-[10px] text-slate-400">▾</span>
+            </button>
+
+            @if (showMobileCameraMenu()) {
+              <div class="absolute top-11 left-0 w-44 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl p-1.5 z-30 flex flex-col gap-1 text-xs animate-sheet-up">
+                <div class="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">Camera Angles</div>
+                @for (preset of [
+                  { id: 'iso', name: 'Isometric' },
+                  { id: 'top', name: 'Top (+Y)' },
+                  { id: 'front', name: 'Front (-Z)' },
+                  { id: 'back', name: 'Back (+Z)' },
+                  { id: 'left', name: 'Left (-X)' },
+                  { id: 'right', name: 'Right (+X)' }
+                ]; track preset.id) {
+                  <button
+                    (click)="setPreset($any(preset.id))"
+                    [class.bg-sky-600]="activeCameraPreset() === preset.id"
+                    [class.text-white]="activeCameraPreset() === preset.id"
+                    [class.text-slate-300]="activeCameraPreset() !== preset.id"
+                    class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 transition font-medium">
+                    {{ preset.name }}
+                  </button>
+                }
+                <div class="h-px bg-slate-800 my-0.5"></div>
+                <button
+                  (click)="toggleCameraMode()"
+                  class="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-slate-300 transition font-medium flex items-center justify-between">
+                  <span>Projection</span>
+                  <span class="font-mono text-sky-400 text-[11px] font-semibold">{{ sceneService.cameraMode() === 'orthographic' ? 'Ortho' : 'Persp' }}</span>
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Shading & Display Helpers Dropdown Pill -->
+          <div class="relative pointer-events-auto">
+            <button
+              (click)="toggleMobileShadingMenu()"
+              aria-label="Viewport display settings"
+              class="h-9 px-3 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/80 text-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-lg active:scale-95 transition">
+              <span>🎨 {{ sceneService.viewportMode() | titlecase }}</span>
+              <span class="text-[10px] text-slate-400">▾</span>
+            </button>
+
+            @if (showMobileShadingMenu()) {
+              <div class="absolute top-11 right-0 w-48 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl p-2 z-30 flex flex-col gap-1.5 text-xs animate-sheet-up">
+                <div class="text-[10px] font-semibold text-slate-400 px-1 uppercase tracking-wider">Shading Mode</div>
+                <div class="grid grid-cols-3 gap-1">
+                  <button
+                    (click)="setRenderMode('textured'); closeMobileMenus()"
+                    [class.bg-sky-600]="sceneService.viewportMode() === 'textured'"
+                    [class.text-white]="sceneService.viewportMode() === 'textured'"
+                    class="py-1.5 rounded bg-slate-800 text-slate-300 text-center font-medium">
+                    Tex
+                  </button>
+                  <button
+                    (click)="setRenderMode('colored'); closeMobileMenus()"
+                    [class.bg-sky-600]="sceneService.viewportMode() === 'colored'"
+                    [class.text-white]="sceneService.viewportMode() === 'colored'"
+                    class="py-1.5 rounded bg-slate-800 text-slate-300 text-center font-medium">
+                    Solid
+                  </button>
+                  <button
+                    (click)="setRenderMode('wireframe'); closeMobileMenus()"
+                    [class.bg-sky-600]="sceneService.viewportMode() === 'wireframe'"
+                    [class.text-white]="sceneService.viewportMode() === 'wireframe'"
+                    class="py-1.5 rounded bg-slate-800 text-slate-300 text-center font-medium">
+                    Wire
+                  </button>
+                </div>
+
+                <div class="h-px bg-slate-800 my-0.5"></div>
+                <div class="text-[10px] font-semibold text-slate-400 px-1 uppercase tracking-wider">Display Helpers</div>
+                <div class="flex items-center justify-between px-1">
+                  <span class="text-slate-300">Floor Grid</span>
+                  <button
+                    (click)="toggleGrid()"
+                    [class.text-sky-400]="sceneService.showGrid()"
+                    [class.text-slate-500]="!sceneService.showGrid()"
+                    class="font-semibold text-xs px-2 py-0.5 rounded bg-slate-800">
+                    {{ sceneService.showGrid() ? 'ON' : 'OFF' }}
+                  </button>
+                </div>
+                <div class="flex items-center justify-between px-1">
+                  <span class="text-slate-300">Node Cage</span>
+                  <button
+                    (click)="toggleCage()"
+                    [class.text-sky-400]="sceneService.showCage()"
+                    [class.text-slate-500]="!sceneService.showCage()"
+                    class="font-semibold text-xs px-2 py-0.5 rounded bg-slate-800">
+                    {{ sceneService.showCage() ? 'ON' : 'OFF' }}
+                  </button>
+                </div>
+                <div class="flex items-center justify-between px-1">
+                  <span class="text-slate-300">Height</span>
+                  <button
+                    (click)="toggleNodeHeight()"
+                    class="font-semibold text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                    {{ projectStore.project().nodeHeight === 2 ? '2 Nodes' : '1 Node' }}
+                  </button>
+                </div>
+
+                <div class="h-px bg-slate-800 my-0.5"></div>
+                <button
+                  (click)="resetCamera(); closeMobileMenus()"
+                  class="w-full text-center py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium transition">
+                  Reset View
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Right Vertical Thumb Tool Rail (Gizmo Modes) -->
+        <div class="flex lg:hidden absolute top-1/2 -translate-y-1/2 right-2.5 flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-1 rounded-2xl shadow-2xl z-20">
+          <button
+            (click)="setGizmo('position')"
+            [class.bg-emerald-600]="sceneService.gizmoMode() === 'position'"
+            [class.text-white]="sceneService.gizmoMode() === 'position'"
+            [class.text-slate-400]="sceneService.gizmoMode() !== 'position'"
+            aria-label="Move tool"
+            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            title="Move tool (G)">
+            ✥
+          </button>
+          <button
+            (click)="setGizmo('resize')"
+            [class.bg-emerald-600]="sceneService.gizmoMode() === 'resize'"
+            [class.text-white]="sceneService.gizmoMode() === 'resize'"
+            [class.text-slate-400]="sceneService.gizmoMode() !== 'resize'"
+            aria-label="Face resize tool"
+            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            title="Resize Faces">
+            ⬚
+          </button>
+          <button
+            (click)="setGizmo('scale')"
+            [class.bg-emerald-600]="sceneService.gizmoMode() === 'scale'"
+            [class.text-white]="sceneService.gizmoMode() === 'scale'"
+            [class.text-slate-400]="sceneService.gizmoMode() !== 'scale'"
+            aria-label="Scale tool"
+            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            title="Scale tool (S)">
+            ⤢
+          </button>
+          <button
+            (click)="setGizmo('rotation')"
+            [class.bg-emerald-600]="sceneService.gizmoMode() === 'rotation'"
+            [class.text-white]="sceneService.gizmoMode() === 'rotation'"
+            [class.text-slate-400]="sceneService.gizmoMode() !== 'rotation'"
+            aria-label="Rotate tool"
+            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            title="Rotate tool (R)">
+            ↻
+          </button>
+          <button
+            (click)="setGizmo('none')"
+            [class.bg-slate-700]="sceneService.gizmoMode() === 'none'"
+            [class.text-white]="sceneService.gizmoMode() === 'none'"
+            [class.text-slate-500]="sceneService.gizmoMode() !== 'none'"
+            aria-label="Select only"
+            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition active:scale-90"
+            title="Select only">
+            ✕
+          </button>
+          <div class="w-full h-px bg-slate-800 my-0.5"></div>
+          <button
+            (click)="resetCamera()"
+            aria-label="Focus view"
+            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-slate-400 hover:text-white transition active:scale-90"
+            title="Center Camera">
+            ⌖
+          </button>
+        </div>
+      }
+
+      <!-- ========================================== -->
+      <!-- DESKTOP VIEWPORT OVERLAY CONTROLS (>= lg)  -->
+      <!-- ========================================== -->
+      @if (!projectStore.isRenderMode()) {
+        <div class="hidden lg:flex absolute top-3 left-3 flex-wrap items-center gap-1.5 bg-slate-900/85 backdrop-blur-md border border-slate-700/60 p-1.5 rounded-lg shadow-xl text-xs z-10">
           <!-- Camera View Presets -->
           <div class="flex items-center space-x-1 border-r border-slate-700/80 pr-2 mr-1">
             <button
@@ -238,124 +434,14 @@ import { TextureService } from '../../core/services/texture.service';
               [value]="sceneService.sceneFloor()"
               (change)="onFloorChange($event)"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1.5 py-1 text-xs focus:outline-none cursor-pointer">
-              <option value="none">None (Void)</option>
-              <option value="grass">Grass</option>
+              <option value="checkered">Checkered</option>
               <option value="stone">Stone</option>
-              <option value="grid">Grid</option>
+              <option value="pedestal">Pedestal</option>
+              <option value="none">None</option>
             </select>
           </div>
 
-          <!-- Pixel Art Depth & Relief Popover Trigger -->
-          <div class="relative border-r border-slate-700/80 pr-2">
-            <button
-              (click)="showDepthPopover.set(!showDepthPopover())"
-              [class.bg-sky-600]="sceneService.pixelDepth().enabled"
-              [class.text-white]="sceneService.pixelDepth().enabled"
-              [class.bg-slate-800]="!sceneService.pixelDepth().enabled"
-              [class.text-slate-300]="!sceneService.pixelDepth().enabled"
-              class="px-2.5 py-1 rounded hover:bg-slate-700 transition flex items-center gap-1.5 border border-slate-700 font-medium">
-              <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-              </svg>
-              <span>3D Depth</span>
-              <span class="text-[9px] px-1 py-0.2 rounded font-mono uppercase bg-slate-950/60 text-sky-400">
-                {{ sceneService.pixelDepth().enabled ? sceneService.pixelDepth().intensity : 'off' }}
-              </span>
-            </button>
-
-            <!-- Depth Popover Dialog -->
-            @if (showDepthPopover()) {
-              <div class="absolute top-full mt-2 left-0 w-64 bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span class="font-semibold text-slate-200">Pixel Art Depth & Relief</span>
-                  <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().enabled"
-                      (change)="sceneService.setPixelDepth({ enabled: !sceneService.pixelDepth().enabled })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span class="text-[11px] text-slate-300">Enabled</span>
-                  </label>
-                </div>
-
-                <!-- Individual Style Checkboxes -->
-                <div class="space-y-1.5">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Depth Styles</div>
-                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().pixelBevel"
-                      (change)="sceneService.setPixelDepth({ pixelBevel: !sceneService.pixelDepth().pixelBevel })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>Pixel Bevel (Mosaic)</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().luminanceRelief"
-                      (change)="sceneService.setPixelDepth({ luminanceRelief: !sceneService.pixelDepth().luminanceRelief })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>Luminance Relief</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().parallax"
-                      (change)="sceneService.setPixelDepth({ parallax: !sceneService.pixelDepth().parallax })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>Parallax Occlusion (2.5D)</span>
-                  </label>
-                </div>
-
-                <!-- Intensity Selector -->
-                <div class="space-y-1.5">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Intensity</div>
-                  <div class="grid grid-cols-3 gap-1">
-                    @for (lvl of ['subtle', 'medium', 'deep']; track lvl) {
-                      <button
-                        (click)="sceneService.setPixelDepth({ intensity: $any(lvl) })"
-                        [class.bg-sky-600]="sceneService.pixelDepth().intensity === lvl"
-                        [class.text-white]="sceneService.pixelDepth().intensity === lvl"
-                        [class.bg-slate-800]="sceneService.pixelDepth().intensity !== lvl"
-                        [class.text-slate-400]="sceneService.pixelDepth().intensity !== lvl"
-                        class="py-1 rounded text-center capitalize font-medium transition hover:bg-slate-700">
-                        {{ lvl }}
-                      </button>
-                    }
-                  </div>
-                </div>
-
-                <!-- Presets -->
-                <div class="pt-1 border-t border-slate-800 flex items-center justify-between text-[10px]">
-                  <span class="text-slate-500">Presets:</span>
-                  <div class="flex gap-1">
-                    <button
-                      (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: true, luminanceRelief: false, parallax: false })"
-                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Mosaic</button>
-                    <button
-                      (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: false, luminanceRelief: true, parallax: false })"
-                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Relief</button>
-                    <button
-                      (click)="sceneService.setPixelDepth({ enabled: true, pixelBevel: true, luminanceRelief: true, parallax: true })"
-                      class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Full 3D</button>
-                  </div>
-                </div>
-              </div>
-            }
-          </div>
-
-          <!-- Projection Toggle -->
-          <button
-            (click)="toggleCameraMode()"
-            [class.bg-sky-600]="sceneService.cameraMode() === 'orthographic'"
-            [class.text-white]="sceneService.cameraMode() === 'orthographic'"
-            class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition font-mono">
-            {{ sceneService.cameraMode() === 'orthographic' ? 'Ortho (5)' : 'Persp (5)' }}
-          </button>
-
-          <!-- Turntable Auto-Rotate Toggle -->
+          <!-- Turntable Auto-Rotation Button -->
           <button
             (click)="toggleTurntable()"
             [class.bg-amber-600]="sceneService.isTurntableActive()"
@@ -391,7 +477,7 @@ import { TextureService } from '../../core/services/texture.service';
               (click)="captureScreenshot('icon', true)"
               title="Download 512x512 Transparent Icon (Ideal for inventory/textures)"
               class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition flex items-center gap-1">
-              <span>Icon (Transp)</span>
+              <span>Icon</span>
             </button>
           </div>
 
@@ -424,9 +510,9 @@ import { TextureService } from '../../core/services/texture.service';
         </div>
       }
 
-      <!-- Luanti Orientation / Axis Indicator Badge (Hidden in Render Mode) -->
+      <!-- Luanti Orientation / Axis Indicator Badge (Hidden on very narrow mobile screens) -->
       @if (!projectStore.isRenderMode()) {
-        <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 px-2.5 py-1.5 rounded text-[11px] text-slate-300 pointer-events-none flex items-center gap-3">
+        <div class="hidden sm:flex absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 px-2.5 py-1.5 rounded text-[11px] text-slate-300 pointer-events-none items-center gap-3">
           <span class="flex items-center gap-1">
             <span class="w-2 h-2 rounded-full bg-red-500"></span> +X East
           </span>
@@ -434,19 +520,19 @@ import { TextureService } from '../../core/services/texture.service';
             <span class="w-2 h-2 rounded-full bg-green-500"></span> +Y Up
           </span>
           <span class="flex items-center gap-1">
-            <span class="w-2 h-2 rounded-full bg-blue-500"></span> +Z North (Back)
+            <span class="w-2 h-2 rounded-full bg-blue-500"></span> +Z North
           </span>
         </div>
 
-        <!-- Quick Navigation Hint -->
-        <div class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 px-2.5 py-1.5 rounded text-[11px] text-slate-400 pointer-events-none">
+        <!-- Quick Navigation Hint (Hidden on mobile) -->
+        <div class="hidden md:block absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 px-2.5 py-1.5 rounded text-[11px] text-slate-400 pointer-events-none">
           Left Drag: Orbit | Right Drag: Pan | Wheel: Zoom | Click: Select Box
         </div>
       }
 
       <!-- Active Face Resize Status Badge (Hidden in Render Mode) -->
       @if (!projectStore.isRenderMode() && sceneService.gizmoMode() === 'resize' && sceneService.activeFace()) {
-        <div class="absolute bottom-12 left-1/2 -translate-x-1/2 bg-sky-950/90 text-sky-200 border border-sky-500/70 px-4 py-1.5 rounded-full text-xs font-medium shadow-2xl flex items-center gap-2 pointer-events-none backdrop-blur-md">
+        <div class="absolute bottom-14 lg:bottom-12 left-1/2 -translate-x-1/2 bg-sky-950/90 text-sky-200 border border-sky-500/70 px-4 py-1.5 rounded-full text-xs font-medium shadow-2xl flex items-center gap-2 pointer-events-none backdrop-blur-md z-10">
           <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
           <span>Resizing Face: <strong class="text-white capitalize">{{ sceneService.activeFace() }}</strong></span>
           <span class="text-sky-300 font-mono text-[11px] font-semibold">({{ sceneService.getFaceAxisName(sceneService.activeFace()!) }})</span>
@@ -464,6 +550,11 @@ export class ViewportComponent implements OnInit, OnDestroy {
   public themeService = inject(ThemeService);
   public textureService = inject(TextureService);
   public showDepthPopover = signal<boolean>(false);
+
+  // Mobile viewport interaction signals
+  public showMobileCameraMenu = signal<boolean>(false);
+  public showMobileShadingMenu = signal<boolean>(false);
+  public activeCameraPreset = signal<CameraPreset>('iso');
 
   constructor() {
     // Re-sync 3D meshes when boxes, textures, selection, render mode, or texture transforms change
@@ -485,8 +576,25 @@ export class ViewportComponent implements OnInit, OnDestroy {
     this.sceneService.destroy();
   }
 
+  toggleMobileCameraMenu(): void {
+    this.showMobileCameraMenu.update((v) => !v);
+    this.showMobileShadingMenu.set(false);
+  }
+
+  toggleMobileShadingMenu(): void {
+    this.showMobileShadingMenu.update((v) => !v);
+    this.showMobileCameraMenu.set(false);
+  }
+
+  closeMobileMenus(): void {
+    this.showMobileCameraMenu.set(false);
+    this.showMobileShadingMenu.set(false);
+  }
+
   setPreset(preset: CameraPreset): void {
+    this.activeCameraPreset.set(preset);
     this.sceneService.setCameraPreset(preset);
+    this.showMobileCameraMenu.set(false);
   }
 
   toggleCameraMode(): void {

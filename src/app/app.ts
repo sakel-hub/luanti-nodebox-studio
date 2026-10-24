@@ -1,4 +1,4 @@
-import { Component, HostListener, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from './features/header/header.component';
 import { LayerListComponent } from './features/layers/layer-list.component';
@@ -14,6 +14,7 @@ import { safeGetItem, safeSetItem } from './core/utils/storage.utils';
 
 export type RightTab = 'inspector' | 'textures';
 export type DragTarget = 'left' | 'right' | null;
+export type MobileTab = 'none' | 'layers' | 'inspector' | 'textures' | 'code';
 
 @Component({
   selector: 'app-root',
@@ -38,7 +39,19 @@ export class App {
   public activeRightTab = signal<RightTab>('inspector');
   public showPresetsModal = signal<boolean>(false);
 
-  // Resizable panel dimensions
+  // Mobile navigation and sheet state
+  public mobileSheetTab = signal<MobileTab>('none');
+  public mobileSheetTitle = computed(() => {
+    switch (this.mobileSheetTab()) {
+      case 'layers': return 'Boxes & Layers';
+      case 'inspector': return 'Coordinates & Dimensions';
+      case 'textures': return '6-Face Texture Studio';
+      case 'code': return 'Lua Code Generator & Importer';
+      default: return '';
+    }
+  });
+
+  // Resizable panel dimensions (desktop)
   public leftWidth = signal<number>(this.loadStoredSize('left', 280));
   public rightWidth = signal<number>(this.loadStoredSize('right', 320));
   public activeDrag = signal<DragTarget>(null);
@@ -52,6 +65,23 @@ export class App {
       }
     }
     return fallback;
+  }
+
+  public openMobileTab(tab: MobileTab): void {
+    if (this.mobileSheetTab() === tab) {
+      this.mobileSheetTab.set('none');
+      return;
+    }
+    if (tab === 'inspector') {
+      this.activeRightTab.set('inspector');
+    } else if (tab === 'textures') {
+      this.activeRightTab.set('textures');
+    }
+    this.mobileSheetTab.set(tab);
+  }
+
+  public closeMobileSheet(): void {
+    this.mobileSheetTab.set('none');
   }
 
   // --- Left Splitter Resize (Horizontal) ---
@@ -157,6 +187,10 @@ export class App {
   // Keyboard accessibility & 3D workflow shortcuts
   @HostListener('window:keydown', ['$event'])
   handleGlobalShortcuts(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.mobileSheetTab() !== 'none') {
+      this.closeMobileSheet();
+      return;
+    }
     this.keyboardShortcuts.handleKeyDown(event);
   }
 }
