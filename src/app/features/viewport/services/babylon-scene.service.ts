@@ -21,11 +21,8 @@ import {
   PointerEventTypes,
   Tools,
   VertexBuffer,
-  VertexData,
-  DynamicTexture
+  VertexData
 } from '@babylonjs/core';
-import { SkyMaterial } from '@babylonjs/materials/sky';
-import { GradientMaterial } from '@babylonjs/materials/gradient';
 import { Box, FaceDirection, AABB, NeighborConnectionState } from '../../../core/models/nodebox.model';
 import { computeNodeBoxUVBuffer } from '../../../core/utils/uv-projection.utils';
 import { ProjectStore } from '../../../core/state/project.store';
@@ -34,7 +31,8 @@ import { TexturePainterService } from '../../../core/services/texture-painter.se
 import { ThemeService } from '../../../core/services/theme.service';
 import {
   PixelDepthConfig,
-  DEFAULT_PIXEL_DEPTH_CONFIG
+  DEFAULT_PIXEL_DEPTH_CONFIG,
+  DEPTH_PRESET_PERCENTAGES
 } from '../../../core/utils/pixel-normal-generator.utils';
 import {
   buildExtrudedBoxGeometry,
@@ -102,8 +100,8 @@ export const SKY_PRESET_DEFAULTS: Record<SceneSky, SkyAtmosphereConfig> = {
   },
   minetest_day: {
     preset: 'minetest_day',
-    sunElevation: 55,
-    sunAzimuth: 215,
+    sunElevation: 45,
+    sunAzimuth: 145,
     turbidity: 2.2,
     rayleigh: 1.8,
     cloudsEnabled: true,
@@ -112,7 +110,7 @@ export const SKY_PRESET_DEFAULTS: Record<SceneSky, SkyAtmosphereConfig> = {
   minetest_sunset: {
     preset: 'minetest_sunset',
     sunElevation: 9,
-    sunAzimuth: 255,
+    sunAzimuth: 140,
     turbidity: 7.5,
     rayleigh: 2.8,
     cloudsEnabled: true,
@@ -120,8 +118,8 @@ export const SKY_PRESET_DEFAULTS: Record<SceneSky, SkyAtmosphereConfig> = {
   },
   minetest_night: {
     preset: 'minetest_night',
-    sunElevation: 48,
-    sunAzimuth: 220,
+    sunElevation: 18,
+    sunAzimuth: 140,
     turbidity: 2.0,
     rayleigh: 1.0,
     cloudsEnabled: true,
@@ -156,10 +154,11 @@ export class BabylonSceneService {
   private floorMesh: Mesh | null = null;
   private floorMaterial: StandardMaterial | null = null;
   private skyboxMesh: Mesh | null = null;
-  private skyMaterial: SkyMaterial | null = null;
-  private studioSkyMaterial: GradientMaterial | null = null;
-  private nightSkyMaterial: StandardMaterial | null = null;
-  private nightSkyTexture: DynamicTexture | null = null;
+  private backdropSkyMaterial: StandardMaterial | null = null;
+  private starfieldMesh: Mesh | null = null;
+  private moonMesh: Mesh | null = null;
+  private sunMesh: Mesh | null = null;
+  private celestialMaterial: StandardMaterial | null = null;
   private cloudMesh: Mesh | null = null;
   private cloudMaterial: StandardMaterial | null = null;
   private faceHighlightMesh: Mesh | null = null;
@@ -256,8 +255,38 @@ export class BabylonSceneService {
   }
 
   public setPixelDepth(config: Partial<PixelDepthConfig>): void {
-    this.pixelDepth.update(c => ({ ...c, ...config }));
-    this.refreshAllMaterials();
+    const prev = this.pixelDepth();
+    const next: PixelDepthConfig = { ...prev, ...config };
+
+    // If a quick intensity preset ('subtle' | 'medium' | 'deep') was selected without explicit slider values,
+    // synchronize all 3 per-style intensity sliders to the preset's percentage.
+    if (
+      config.intensity !== undefined &&
+      config.bevelIntensity === undefined &&
+      config.reliefIntensity === undefined &&
+      config.extrusionIntensity === undefined
+    ) {
+      const pct = DEPTH_PRESET_PERCENTAGES[config.intensity];
+      next.bevelIntensity = pct;
+      next.reliefIntensity = pct;
+      next.extrusionIntensity = pct;
+    }
+
+    this.pixelDepth.set(next);
+
+    const normalChanged =
+      prev.enabled !== next.enabled ||
+      prev.pixelBevel !== next.pixelBevel ||
+      prev.luminanceRelief !== next.luminanceRelief ||
+      prev.bevelIntensity !== next.bevelIntensity ||
+      prev.reliefIntensity !== next.reliefIntensity;
+
+    if (normalChanged) {
+      this.refreshAllMaterials();
+    } else if (this.scene) {
+      const project = this.projectStore.project();
+      this.updateBoxes(project.boxes, this.projectStore.selectedBoxId());
+    }
   }
 
   public refreshAllMaterials(): void {
@@ -1417,7 +1446,8 @@ export class BabylonSceneService {
       globalTextures.bottom || 'default_wood.png'
     ];
 
-    const sig = `${effectiveBox.minX}_${effectiveBox.maxX}_${effectiveBox.minY}_${effectiveBox.maxY}_${effectiveBox.minZ}_${effectiveBox.maxZ}_${faceTexIds.join('|')}_${depthConfig.luminanceRelief ? 1 : 0}_${depthConfig.intensity}_${this.textureService.textureUpdated()}`;
+    const extPct = depthConfig.extrusionIntensity ?? DEPTH_PRESET_PERCENTAGES[depthConfig.intensity];
+    const sig = `${effectiveBox.minX}_${effectiveBox.maxX}_${effectiveBox.minY}_${effectiveBox.maxY}_${effectiveBox.minZ}_${effectiveBox.maxZ}_${faceTexIds.join('|')}_${depthConfig.luminanceRelief ? 1 : 0}_${extPct}_${this.textureService.textureUpdated()}`;
 
     const existing = this.extrusionMeshes.get(box.id);
     if (existing && existing.metadata?.extrusionSig === sig) {
@@ -1637,8 +1667,10 @@ export class BabylonSceneService {
     const frontTex = globalTextures.front || 'default_wood.png';
 
     const depthConfig = this.pixelDepth();
+    const bPct = depthConfig.bevelIntensity ?? DEPTH_PRESET_PERCENTAGES[depthConfig.intensity];
+    const rPct = depthConfig.reliefIntensity ?? DEPTH_PRESET_PERCENTAGES[depthConfig.intensity];
     const depthKey = depthConfig.enabled
-      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}${depthConfig.extrudePixels ? 1 : 0}_${depthConfig.intensity}`
+      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}_${bPct}_${rPct}`
       : '_d_off';
     const multiMatKey = `multi_${backTex}_${frontTex}_${rightTex}_${leftTex}_${topTex}_${botTex}${depthKey}`;
     let multiMat = this.scene.getMaterialByName(multiMatKey) as MultiMaterial;
@@ -1670,8 +1702,10 @@ export class BabylonSceneService {
   private getOrCreateTextureMaterial(textureId: string): StandardMaterial {
     const depthConfig = this.pixelDepth();
     const hasNormalEffect = depthConfig.enabled && (depthConfig.pixelBevel || depthConfig.luminanceRelief);
+    const bPct = depthConfig.bevelIntensity ?? DEPTH_PRESET_PERCENTAGES[depthConfig.intensity];
+    const rPct = depthConfig.reliefIntensity ?? DEPTH_PRESET_PERCENTAGES[depthConfig.intensity];
     const depthKey = depthConfig.enabled
-      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}${depthConfig.extrudePixels ? 1 : 0}_${depthConfig.intensity}`
+      ? `_d_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}_${bPct}_${rPct}`
       : '_d_off';
     const matKey = `mat_tex_${textureId}${depthKey}`;
     let mat = this.materialCache.get(matKey);
@@ -2019,7 +2053,9 @@ export class BabylonSceneService {
     if (hasNormalEffect) {
       const preset = FLOOR_PRESET_TEXTURES[floor];
       const floorTexId = preset ? preset.textureId : floor;
-      const bumpKey = `__floor_bump_${floor}_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}_${depthConfig.intensity}`;
+      const bPct = depthConfig.bevelIntensity ?? DEPTH_PRESET_PERCENTAGES[depthConfig.intensity];
+      const rPct = depthConfig.reliefIntensity ?? DEPTH_PRESET_PERCENTAGES[depthConfig.intensity];
+      const bumpKey = `__floor_bump_${floor}_${depthConfig.pixelBevel ? 1 : 0}${depthConfig.luminanceRelief ? 1 : 0}_${bPct}_${rPct}`;
       let floorBump = this.textureCache.get(bumpKey);
 
       const applyFloorBump = (bTex: Texture) => {
@@ -2057,6 +2093,10 @@ export class BabylonSceneService {
     this.sceneSky.set(sky);
     const defaults = SKY_PRESET_DEFAULTS[sky] ?? SKY_PRESET_DEFAULTS.studio;
     this.skyAtmosphere.set({ ...defaults });
+    if (sky !== 'studio' && this.camera && this.camera.beta < 1.32) {
+      // Frame the horizon and upper sky behind the NodeBox when switching into an outdoor sky preset
+      this.camera.beta = 1.38;
+    }
     this.applySkySettings(sky);
   }
 
@@ -2074,183 +2114,479 @@ export class BabylonSceneService {
   private ensureSkyboxCreated(): void {
     if (!this.scene) return;
     if (!this.skyboxMesh) {
-      this.skyboxMesh = MeshBuilder.CreateSphere('SceneSkyBox', { diameter: 120, segments: 32 }, this.scene);
+      this.skyboxMesh = this.buildSubdividedCubicSkybox(120, 12);
       this.skyboxMesh.infiniteDistance = true;
       this.skyboxMesh.isPickable = false;
       this.skyboxMesh.applyFog = false;
       this.skyboxMesh.renderingGroupId = 0;
     }
 
-    if (!this.skyMaterial) {
-      this.skyMaterial = new SkyMaterial('SceneSkyMaterial', this.scene);
-      this.skyMaterial.backFaceCulling = false;
-      this.skyMaterial.dithering = true;
-      this.skyMaterial.useSunPosition = true;
+    if (!this.backdropSkyMaterial) {
+      this.backdropSkyMaterial = new StandardMaterial('SceneBackdropSkyMaterial', this.scene);
+      this.backdropSkyMaterial.backFaceCulling = false;
+      this.backdropSkyMaterial.disableLighting = true;
+      this.backdropSkyMaterial.diffuseColor = new Color3(0, 0, 0);
+      this.backdropSkyMaterial.specularColor = new Color3(0, 0, 0);
+      // Multiplies against per-vertex vColor in default.fragment.js when disableLighting = true
+      this.backdropSkyMaterial.emissiveColor = new Color3(1, 1, 1);
+      this.skyboxMesh.material = this.backdropSkyMaterial;
     }
 
-    if (!this.studioSkyMaterial) {
-      this.studioSkyMaterial = new GradientMaterial('SceneStudioSkyMaterial', this.scene);
-      this.studioSkyMaterial.backFaceCulling = false;
-      this.studioSkyMaterial.disableLighting = true;
-      this.studioSkyMaterial.scale = 0.025;
-      this.studioSkyMaterial.offset = 0;
-      this.studioSkyMaterial.smoothness = 1.25;
-    }
-
-    if (!this.nightSkyMaterial) {
-      this.nightSkyMaterial = new StandardMaterial('SceneNightSkyMaterial', this.scene);
-      this.nightSkyMaterial.backFaceCulling = false;
-      this.nightSkyMaterial.disableLighting = true;
-      this.nightSkyMaterial.diffuseColor = new Color3(0, 0, 0);
-      this.nightSkyMaterial.specularColor = new Color3(0, 0, 0);
-      this.nightSkyTexture = this.buildNightSkyDynamicTexture();
-      if (this.nightSkyTexture) {
-        // StandardMaterial adds vEmissiveColor + emissiveTexture in the fragment shader,
-        // so emissiveColor must be (0, 0, 0) to prevent washing out the starfield to white.
-        this.nightSkyMaterial.emissiveColor = new Color3(0, 0, 0);
-        this.nightSkyMaterial.emissiveTexture = this.nightSkyTexture;
-      } else {
-        this.nightSkyMaterial.emissiveColor = new Color3(0.04, 0.07, 0.14);
-      }
-    }
+    this.ensureCelestialMeshesCreated();
   }
 
-  private buildNightSkyDynamicTexture(): DynamicTexture | null {
-    if (!this.scene) return null;
-    try {
-      const width = 1024;
-      const height = 512;
-      const tex = new DynamicTexture('SceneNightSkyTex', { width, height }, this.scene, false, Texture.NEAREST_SAMPLINGMODE);
-      tex.wrapU = Texture.WRAP_ADDRESSMODE;
-      tex.wrapV = Texture.CLAMP_ADDRESSMODE;
-      const ctx = tex.getContext();
-      if (!ctx || typeof ctx.createLinearGradient !== 'function') {
-        return tex;
+  /**
+   * Builds a cubic skybox with vertically subdivided walls so zenith, horizon, and nadir
+   * vertex colors interpolate smoothly around the horizon without darkening.
+   */
+  private buildSubdividedCubicSkybox(size: number, verticalSteps: number): Mesh {
+    const half = size * 0.5;
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const indices: number[] = [];
+
+    const addQuad = (
+      p0: [number, number, number],
+      p1: [number, number, number],
+      p2: [number, number, number],
+      p3: [number, number, number]
+    ) => {
+      const base = positions.length / 3;
+      positions.push(...p0, ...p1, ...p2, ...p3);
+      for (let i = 0; i < 4; i++) {
+        normals.push(0, 1, 0);
       }
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
 
-      // On a sphere, y = 0 is Zenith (+Y), y = height * 0.5 is Horizon (Y = 0), y = height is Nadir (-Y)
-      const grad = ctx.createLinearGradient(0, 0, 0, height);
-      grad.addColorStop(0.0, '#02040a');  // Deep space zenith
-      grad.addColorStop(0.32, '#060c1d'); // Upper night sky
-      grad.addColorStop(0.49, '#0d1730'); // Horizon glow (matches nightHorizon fog)
-      grad.addColorStop(0.55, '#080e1f'); // Below horizon
-      grad.addColorStop(1.0, '#03060f');  // Nadir
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
+    // 4 vertical walls subdivided into verticalSteps strips along Y
+    for (let s = 0; s < verticalSteps; s++) {
+      const y0 = -half + (s / verticalSteps) * size;
+      const y1 = -half + ((s + 1) / verticalSteps) * size;
 
-      // Deterministic PRNG for crisp Luanti pixel-art starfield across the upper sky hemisphere
-      let seed = 133742;
-      const nextRand = () => {
-        seed = (seed * 1664525 + 1013904223) >>> 0;
-        return seed / 4294967296;
-      };
-
-      const starColors = ['#ffffff', '#e0f2fe', '#bae6fd', '#fef3c7', '#c7d2fe'];
-      const horizonY = Math.floor(height * 0.48);
-      for (let i = 0; i < 420; i++) {
-        const sx = Math.floor(nextRand() * width);
-        // Concentrate stars between zenith (y = 16) and just above horizon (y = horizonY)
-        const sy = 12 + Math.floor(nextRand() * (horizonY - 14));
-        const size = nextRand() > 0.78 ? 3 : nextRand() > 0.35 ? 2 : 1;
-        const horizonFade = sy > horizonY - 35 ? (horizonY - sy) / 35 : 1.0;
-        const alpha = Math.max(0.15, (0.45 + nextRand() * 0.55) * horizonFade).toFixed(2);
-        const baseHex = starColors[i % starColors.length];
-        ctx.fillStyle = baseHex;
-        ctx.globalAlpha = Number(alpha);
-        ctx.fillRect(sx, sy, size, size);
-      }
-      ctx.globalAlpha = 1.0;
-
-      // Crisp blocky Luanti Moon with layered pixel-art halo in the upper sky hemisphere
-      const moonX = 640;
-      const moonY = 148;
-      ctx.fillStyle = 'rgba(147, 197, 253, 0.10)';
-      ctx.fillRect(moonX - 14, moonY - 14, 52, 52);
-      ctx.fillStyle = 'rgba(186, 230, 253, 0.22)';
-      ctx.fillRect(moonX - 7, moonY - 7, 38, 38);
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillRect(moonX, moonY, 24, 24);
-      // Subtle pixel-art lunar craters
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(moonX + 4, moonY + 5, 6, 6);
-      ctx.fillRect(moonX + 13, moonY + 13, 6, 5);
-      ctx.fillRect(moonX + 6, moonY + 15, 4, 3);
-
-      tex.update();
-      return tex;
-    } catch {
-      return null;
+      // Front (+Z), Back (-Z), Right (+X), Left (-X)
+      addQuad([-half, y0, half], [half, y0, half], [half, y1, half], [-half, y1, half]);
+      addQuad([half, y0, -half], [-half, y0, -half], [-half, y1, -half], [half, y1, -half]);
+      addQuad([half, y0, half], [half, y0, -half], [half, y1, -half], [half, y1, half]);
+      addQuad([-half, y0, -half], [-half, y0, half], [-half, y1, half], [-half, y1, -half]);
     }
+
+    // Top (+Y) and Bottom (-Y) caps
+    addQuad([-half, half, half], [half, half, half], [half, half, -half], [-half, half, -half]);
+    addQuad([-half, -half, -half], [half, -half, -half], [half, -half, half], [-half, -half, half]);
+
+    const mesh = new Mesh('SceneSkyBox', this.scene!);
+    const vData = new VertexData();
+    vData.positions = positions;
+    vData.normals = normals;
+    vData.indices = indices;
+    vData.applyToMesh(mesh, true);
+    return mesh;
+  }
+
+  private updateCubicSkyboxColors(
+    zenith: Color3,
+    horizon: Color3,
+    nadir: Color3,
+    hazeSpread = 0.25
+  ): void {
+    if (!this.skyboxMesh) return;
+    const positions = this.skyboxMesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions) return;
+
+    const half = 60;
+    const vertCount = positions.length / 3;
+    const colors = new Array<number>(vertCount * 4);
+    const power = Math.max(0.45, 1.15 - hazeSpread * 0.5);
+
+    for (let i = 0; i < vertCount; i++) {
+      const y = positions[i * 3 + 1];
+      // Shift horizon center slightly upward (y = +4) so the horizon glow frames the NodeBox
+      const normY = (y - 4) / half;
+      let c: Color3;
+      if (normY >= 0) {
+        const t = Math.min(1, Math.pow(normY, power));
+        c = Color3.Lerp(horizon, zenith, t);
+      } else {
+        const t = Math.min(1, Math.pow(-normY, 0.85));
+        c = Color3.Lerp(horizon, nadir, t);
+      }
+      colors[i * 4] = c.r;
+      colors[i * 4 + 1] = c.g;
+      colors[i * 4 + 2] = c.b;
+      colors[i * 4 + 3] = 1.0;
+    }
+    this.skyboxMesh.setVerticesData(VertexBuffer.ColorKind, colors, true);
+  }
+
+  private ensureCelestialMeshesCreated(): void {
+    if (!this.scene || (this.starfieldMesh && this.moonMesh && this.sunMesh)) return;
+
+    this.celestialMaterial = new StandardMaterial('SceneCelestialMat', this.scene);
+    this.celestialMaterial.backFaceCulling = false;
+    this.celestialMaterial.disableLighting = true;
+    this.celestialMaterial.diffuseColor = new Color3(0, 0, 0);
+    this.celestialMaterial.specularColor = new Color3(0, 0, 0);
+    this.celestialMaterial.emissiveColor = new Color3(1, 1, 1);
+
+    // 1. Build 3D Voxel Starfield Mesh strictly in the upper sky dome (+Y > 0)
+    const starPositions: number[] = [];
+    const starNormals: number[] = [];
+    const starColors: number[] = [];
+    const starIndices: number[] = [];
+
+    let seed = 133742;
+    const nextRand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+
+    const palette: Array<[number, number, number]> = [
+      [1.0, 1.0, 1.0],
+      [0.88, 0.95, 1.0],
+      [0.74, 0.9, 1.0],
+      [1.0, 0.95, 0.78],
+      [0.8, 0.84, 1.0]
+    ];
+
+    const starRadius = 54;
+    for (let i = 0; i < 320; i++) {
+      // Elevation strictly above the horizon: +1.5 deg to +86 deg (Y > 0)
+      const elevDeg = 1.5 + nextRand() * 84.5;
+      const azimDeg = nextRand() * 360;
+      const elevRad = (elevDeg * Math.PI) / 180;
+      const azimRad = (azimDeg * Math.PI) / 180;
+
+      const dx = Math.cos(elevRad) * Math.cos(azimRad);
+      const dy = Math.sin(elevRad);
+      const dz = Math.cos(elevRad) * Math.sin(azimRad);
+
+      // Orthonormal tangent basis (u = horizontal, v = vertical) perpendicular to d
+      const ux = -Math.sin(azimRad);
+      const uy = 0;
+      const uz = Math.cos(azimRad);
+
+      const vx = -dy * uz;
+      const vy = dz * ux - dx * uz;
+      const vz = dy * ux;
+
+      const cx = dx * starRadius;
+      const cy = dy * starRadius;
+      const cz = dz * starRadius;
+      const halfSize = nextRand() > 0.78 ? 0.28 : nextRand() > 0.35 ? 0.2 : 0.14;
+      const brightness = 0.45 + nextRand() * 0.55;
+      const [pr, pg, pb] = palette[i % palette.length];
+      const r = pr * brightness;
+      const g = pg * brightness;
+      const b = pb * brightness;
+
+      const base = starPositions.length / 3;
+      const corners: Array<[number, number]> = [
+        [-halfSize, -halfSize],
+        [halfSize, -halfSize],
+        [halfSize, halfSize],
+        [-halfSize, halfSize]
+      ];
+      for (const [su, sv] of corners) {
+        starPositions.push(
+          cx + ux * su + vx * sv,
+          cy + uy * su + vy * sv,
+          cz + uz * starRadius * 0 + uz * su + vz * sv
+        );
+        starNormals.push(-dx, -dy, -dz);
+        starColors.push(r, g, b, 1.0);
+      }
+      starIndices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+
+    const starfieldMesh = new Mesh('SceneVoxelStars', this.scene);
+    const starVData = new VertexData();
+    starVData.positions = starPositions;
+    starVData.normals = starNormals;
+    starVData.colors = starColors;
+    starVData.indices = starIndices;
+    starVData.applyToMesh(starfieldMesh);
+    starfieldMesh.material = this.celestialMaterial;
+    starfieldMesh.infiniteDistance = true;
+    starfieldMesh.isPickable = false;
+    starfieldMesh.applyFog = false;
+    starfieldMesh.renderingGroupId = 0;
+    this.starfieldMesh = starfieldMesh;
+
+    // 2. Build 3D Blocky Luanti Moon Mesh (layered pixel-art square quads)
+    const moonPositions: number[] = [];
+    const moonNormals: number[] = [];
+    const moonColors: number[] = [];
+    const moonIndices: number[] = [];
+
+    const addLayerQuad = (
+      posArr: number[],
+      normArr: number[],
+      colArr: number[],
+      idxArr: number[],
+      x0: number,
+      y0: number,
+      x1: number,
+      y1: number,
+      z: number,
+      r: number,
+      g: number,
+      b: number
+    ) => {
+      const base = posArr.length / 3;
+      posArr.push(
+        x0, y0, z,
+        x1, y0, z,
+        x1, y1, z,
+        x0, y1, z
+      );
+      for (let i = 0; i < 4; i++) {
+        normArr.push(0, 0, -1);
+        colArr.push(r, g, b, 1.0);
+      }
+      idxArr.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
+
+    // Outer glow, inner halo, crisp ivory lunar body, and 3 pixel-art craters
+    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -3.8, -3.8, 3.8, 3.8, 0.25, 0.12, 0.2, 0.36);
+    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -2.8, -2.8, 2.8, 2.8, 0.12, 0.22, 0.34, 0.54);
+    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -2.0, -2.0, 2.0, 2.0, 0.0, 0.97, 0.98, 1.0);
+    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -1.3, 0.2, -0.2, 1.3, -0.08, 0.78, 0.84, 0.92);
+    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, 0.2, -1.3, 1.3, -0.3, -0.08, 0.78, 0.84, 0.92);
+    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -1.1, -1.2, -0.3, -0.5, -0.08, 0.82, 0.87, 0.94);
+
+    const moonMesh = new Mesh('SceneVoxelMoon', this.scene);
+    const moonVData = new VertexData();
+    moonVData.positions = moonPositions;
+    moonVData.normals = moonNormals;
+    moonVData.colors = moonColors;
+    moonVData.indices = moonIndices;
+    moonVData.applyToMesh(moonMesh);
+    moonMesh.material = this.celestialMaterial;
+    moonMesh.infiniteDistance = true;
+    moonMesh.isPickable = false;
+    moonMesh.applyFog = false;
+    moonMesh.renderingGroupId = 0;
+    this.moonMesh = moonMesh;
+
+    // 3. Build 3D Blocky Luanti Sun Mesh (layered golden solar corona + bright core square)
+    const sunPositions: number[] = [];
+    const sunNormals: number[] = [];
+    const sunColors: number[] = [];
+    const sunIndices: number[] = [];
+
+    addLayerQuad(sunPositions, sunNormals, sunColors, sunIndices, -5.0, -5.0, 5.0, 5.0, 0.25, 0.95, 0.68, 0.35);
+    addLayerQuad(sunPositions, sunNormals, sunColors, sunIndices, -3.5, -3.5, 3.5, 3.5, 0.12, 1.0, 0.85, 0.52);
+    addLayerQuad(sunPositions, sunNormals, sunColors, sunIndices, -2.3, -2.3, 2.3, 2.3, 0.0, 1.0, 0.98, 0.86);
+
+    const sunMesh = new Mesh('SceneVoxelSun', this.scene);
+    const sunVData = new VertexData();
+    sunVData.positions = sunPositions;
+    sunVData.normals = sunNormals;
+    sunVData.colors = sunColors;
+    sunVData.indices = sunIndices;
+    sunVData.applyToMesh(sunMesh, true);
+    sunMesh.material = this.celestialMaterial;
+    sunMesh.infiniteDistance = true;
+    sunMesh.isPickable = false;
+    sunMesh.applyFog = false;
+    sunMesh.renderingGroupId = 0;
+    this.sunMesh = sunMesh;
   }
 
   private ensureCloudLayerCreated(): void {
     if (!this.scene || this.cloudMesh) return;
 
     this.cloudMaterial = new StandardMaterial('SceneCloudMat', this.scene);
-    this.cloudMaterial.alpha = 0.84;
-    this.cloudMaterial.specularColor = new Color3(0, 0, 0);
-    this.cloudMaterial.backFaceCulling = false;
+    this.cloudMaterial.disableLighting = true;
+    this.cloudMaterial.diffuseColor = Color3.Black();
+    this.cloudMaterial.specularColor = Color3.Black();
+    this.cloudMaterial.emissiveColor = new Color3(0.97, 0.98, 1.0);
+    this.cloudMaterial.alpha = 0.95;
+    this.cloudMaterial.needDepthPrePass = true;
+    this.cloudMaterial.forceDepthWrite = true;
+    this.cloudMaterial.backFaceCulling = true;
 
-    // Build a single combined mesh of blocky 3D Luanti cloud slabs overhead
-    const cloudClusters: Array<[number, number, number, number]> = [
-      // [centerX, centerZ, widthX, depthZ]
-      [-18, -14, 9, 6],
-      [-6, -18, 12, 7],
-      [10, -12, 10, 6],
-      [22, -16, 8, 5],
-      [-22, -2, 11, 6],
-      [-8, 2, 8, 5],
-      [6, -1, 11, 7],
-      [20, 4, 9, 6],
-      [-15, 14, 12, 6],
-      [0, 16, 10, 7],
-      [15, 15, 11, 6],
-      [-28, 10, 8, 5],
-      [28, -4, 9, 6]
-    ];
+    // Build a seamless 2D Luanti cloud voxel grid (24x24 cells, 3.5x3.5 units each)
+    // where adjacent filled cells share no internal walls, creating solid, cohesive cloud formations.
+    const gridW = 24;
+    const gridD = 24;
+    const cellSize = 3.5;
+    const halfSpanX = (gridW * cellSize) * 0.5;
+    const halfSpanZ = (gridD * cellSize) * 0.5;
+    const minY = 11.0;
+    const maxY = 12.1;
+
+    const filled = new Uint8Array(gridW * gridD);
+    const fillRect = (gx0: number, gz0: number, w: number, d: number) => {
+      for (let dz = 0; dz < d; dz++) {
+        for (let dx = 0; dx < w; dx++) {
+          const x = gx0 + dx;
+          const z = gz0 + dz;
+          if (x >= 0 && x < gridW && z >= 0 && z < gridD) {
+            filled[z * gridW + x] = 1;
+          }
+        }
+      }
+    };
+
+    // Organic multi-cell Luanti cloud formations (overlapping rects merge into stepped L/T/cumulus shapes)
+    fillRect(1, 2, 4, 2);
+    fillRect(2, 1, 2, 4);
+
+    fillRect(8, 1, 5, 2);
+    fillRect(9, 2, 4, 2);
+
+    fillRect(16, 2, 4, 3);
+    fillRect(15, 3, 3, 2);
+
+    fillRect(2, 8, 5, 2);
+    fillRect(3, 7, 3, 4);
+
+    fillRect(9, 9, 4, 3);
+    fillRect(11, 8, 4, 3);
+
+    fillRect(18, 8, 4, 2);
+    fillRect(19, 7, 3, 4);
+
+    fillRect(1, 15, 4, 3);
+    fillRect(3, 16, 4, 2);
+
+    fillRect(9, 15, 5, 2);
+    fillRect(10, 14, 3, 4);
+
+    fillRect(17, 15, 5, 3);
+    fillRect(18, 14, 3, 4);
+
+    fillRect(4, 20, 5, 2);
+    fillRect(13, 20, 4, 3);
+
+    const isFilled = (gx: number, gz: number): boolean => {
+      if (gx < 0 || gx >= gridW || gz < 0 || gz >= gridD) return false;
+      return filled[gz * gridW + gx] === 1;
+    };
 
     const positions: number[] = [];
     const normals: number[] = [];
+    const colors: number[] = [];
     const indices: number[] = [];
-    const minY = 10.5;
-    const maxY = 11.4;
 
-    const pushQuad = (
+    const pushColoredQuad = (
       p0: [number, number, number],
       p1: [number, number, number],
       p2: [number, number, number],
       p3: [number, number, number],
       nx: number,
       ny: number,
-      nz: number
+      nz: number,
+      c0: [number, number, number],
+      c1: [number, number, number],
+      c2: [number, number, number],
+      c3: [number, number, number]
     ) => {
       const base = positions.length / 3;
       positions.push(...p0, ...p1, ...p2, ...p3);
       for (let i = 0; i < 4; i++) {
         normals.push(nx, ny, nz);
       }
+      colors.push(
+        c0[0], c0[1], c0[2], 1.0,
+        c1[0], c1[1], c1[2], 1.0,
+        c2[0], c2[1], c2[2], 1.0,
+        c3[0], c3[1], c3[2], 1.0
+      );
       indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
     };
 
-    for (const [cx, cz, wx, wz] of cloudClusters) {
-      const x0 = cx - wx * 0.5;
-      const x1 = cx + wx * 0.5;
-      const z0 = cz - wz * 0.5;
-      const z1 = cz + wz * 0.5;
+    const topCol: [number, number, number] = [1.0, 1.0, 1.0];
+    const botCol: [number, number, number] = [0.86, 0.89, 0.95];
+    const sideTopCol: [number, number, number] = [0.99, 0.99, 1.0];
+    const sideBotCol: [number, number, number] = [0.90, 0.92, 0.96];
 
-      // Bottom (-Y), Top (+Y), and 4 side walls of the blocky cloud slab
-      pushQuad([x0, minY, z1], [x1, minY, z1], [x1, minY, z0], [x0, minY, z0], 0, -1, 0);
-      pushQuad([x0, maxY, z0], [x1, maxY, z0], [x1, maxY, z1], [x0, maxY, z1], 0, 1, 0);
-      pushQuad([x0, minY, z0], [x1, minY, z0], [x1, maxY, z0], [x0, maxY, z0], 0, 0, -1);
-      pushQuad([x1, minY, z1], [x0, minY, z1], [x0, maxY, z1], [x1, maxY, z1], 0, 0, 1);
-      pushQuad([x0, minY, z1], [x0, minY, z0], [x0, maxY, z0], [x0, maxY, z1], -1, 0, 0);
-      pushQuad([x1, minY, z0], [x1, minY, z1], [x1, maxY, z1], [x1, maxY, z0], 1, 0, 0);
+    for (let gz = 0; gz < gridD; gz++) {
+      for (let gx = 0; gx < gridW; gx++) {
+        if (!isFilled(gx, gz)) continue;
+
+        const x0 = -halfSpanX + gx * cellSize;
+        const x1 = x0 + cellSize;
+        const z0 = -halfSpanZ + gz * cellSize;
+        const z1 = z0 + cellSize;
+
+        // Top (+Y) outward quad
+        pushColoredQuad(
+          [x1, maxY, z1],
+          [x0, maxY, z1],
+          [x0, maxY, z0],
+          [x1, maxY, z0],
+          0, 1, 0,
+          topCol, topCol, topCol, topCol
+        );
+
+        // Bottom (-Y) outward quad (strictly occludes the top and back walls when viewed from below)
+        pushColoredQuad(
+          [x1, minY, z0],
+          [x0, minY, z0],
+          [x0, minY, z1],
+          [x1, minY, z1],
+          0, -1, 0,
+          botCol, botCol, botCol, botCol
+        );
+
+        // Exposed Back (+Z) side wall
+        if (!isFilled(gx, gz + 1)) {
+          pushColoredQuad(
+            [x0, maxY, z1],
+            [x1, maxY, z1],
+            [x1, minY, z1],
+            [x0, minY, z1],
+            0, 0, 1,
+            sideTopCol, sideTopCol, sideBotCol, sideBotCol
+          );
+        }
+
+        // Exposed Front (-Z) side wall
+        if (!isFilled(gx, gz - 1)) {
+          pushColoredQuad(
+            [x1, maxY, z0],
+            [x0, maxY, z0],
+            [x0, minY, z0],
+            [x1, minY, z0],
+            0, 0, -1,
+            sideTopCol, sideTopCol, sideBotCol, sideBotCol
+          );
+        }
+
+        // Exposed Right (+X) side wall
+        if (!isFilled(gx + 1, gz)) {
+          pushColoredQuad(
+            [x1, maxY, z1],
+            [x1, maxY, z0],
+            [x1, minY, z0],
+            [x1, minY, z1],
+            1, 0, 0,
+            sideTopCol, sideTopCol, sideBotCol, sideBotCol
+          );
+        }
+
+        // Exposed Left (-X) side wall
+        if (!isFilled(gx - 1, gz)) {
+          pushColoredQuad(
+            [x0, maxY, z0],
+            [x0, maxY, z1],
+            [x0, minY, z1],
+            [x0, minY, z0],
+            -1, 0, 0,
+            sideTopCol, sideTopCol, sideBotCol, sideBotCol
+          );
+        }
+      }
     }
 
     const cloudMesh = new Mesh('SceneVoxelClouds', this.scene);
     const vData = new VertexData();
     vData.positions = positions;
     vData.normals = normals;
+    vData.colors = colors;
     vData.indices = indices;
     vData.applyToMesh(cloudMesh);
 
@@ -2287,12 +2623,14 @@ export class BabylonSceneService {
         const horizon = isDark ? new Color3(0.09, 0.13, 0.22) : new Color3(0.96, 0.97, 0.99);
 
         this.scene.clearColor = new Color4(horizon.r, horizon.g, horizon.b, 1.0);
-        if (this.studioSkyMaterial && this.skyboxMesh) {
-          this.studioSkyMaterial.topColor = zenith;
-          this.studioSkyMaterial.bottomColor = horizon;
-          this.skyboxMesh.material = this.studioSkyMaterial;
+        if (this.backdropSkyMaterial && this.skyboxMesh) {
+          this.updateCubicSkyboxColors(zenith, horizon, zenith, 0.2);
+          this.skyboxMesh.material = this.backdropSkyMaterial;
           this.skyboxMesh.setEnabled(true);
         }
+        this.starfieldMesh?.setEnabled(false);
+        this.moonMesh?.setEnabled(false);
+        this.sunMesh?.setEnabled(false);
 
         if (this.hemiLight) {
           this.hemiLight.intensity = isDark ? 0.45 : 0.55;
@@ -2307,8 +2645,7 @@ export class BabylonSceneService {
         }
 
         if (this.cloudMesh && this.cloudMaterial) {
-          this.cloudMaterial.diffuseColor = new Color3(0.92, 0.95, 1.0);
-          this.cloudMaterial.emissiveColor = new Color3(0.35, 0.38, 0.45);
+          this.cloudMaterial.emissiveColor = new Color3(0.95, 0.97, 1.0);
           this.cloudMesh.setEnabled(cfg.cloudsEnabled);
         }
 
@@ -2323,25 +2660,44 @@ export class BabylonSceneService {
       case 'minetest_sunset': {
         // Blend between golden sunset (low sun elevation) and crisp daylight (high sun elevation)
         const sunsetFactor = Math.max(0, Math.min(1, (26 - cfg.sunElevation) / 18));
+        const hazeSpread = Math.max(0.12, Math.min(0.85, cfg.turbidity / 12));
+
+        const skyZenith = Color3.Lerp(
+          new Color3(0.32, 0.58, 0.95), // Vibrant Luanti azure zenith
+          new Color3(0.45, 0.28, 0.52), // Warm twilight-violet sunset zenith
+          sunsetFactor
+        );
         const horizonColor = Color3.Lerp(
-          new Color3(0.64, 0.81, 0.99), // Crisp Luanti day horizon
-          new Color3(0.92, 0.52, 0.34), // Warm golden-coral sunset horizon
+          new Color3(0.62, 0.81, 1.0),  // Crisp light-blue Luanti day horizon (#8cb8ff..#9eceff)
+          new Color3(0.94, 0.51, 0.35), // Warm golden-reddish sunset horizon (#f08259)
+          sunsetFactor
+        );
+        const skyNadir = Color3.Lerp(
+          new Color3(0.48, 0.71, 0.97), // Bright sky blue below horizon
+          new Color3(0.78, 0.38, 0.27), // Warm reddish glow below horizon
           sunsetFactor
         );
 
         this.scene.clearColor = new Color4(horizonColor.r, horizonColor.g, horizonColor.b, 1.0);
 
-        if (this.skyMaterial && this.skyboxMesh) {
-          this.skyMaterial.luminance = 1.0 - sunsetFactor * 0.1;
-          this.skyMaterial.turbidity = cfg.turbidity;
-          this.skyMaterial.rayleigh = cfg.rayleigh;
-          this.skyMaterial.mieCoefficient = 0.005 + sunsetFactor * 0.004;
-          this.skyMaterial.mieDirectionalG = 0.8 + sunsetFactor * 0.05;
-          this.skyMaterial.cloudiness = cfg.cloudsEnabled ? 0.16 : 0.04;
-          this.skyMaterial.useSunPosition = true;
-          this.skyMaterial.sunPosition = new Vector3(sunDir.x * 100, sunDir.y * 100, sunDir.z * 100);
-          this.skyboxMesh.material = this.skyMaterial;
+        if (this.backdropSkyMaterial && this.skyboxMesh) {
+          this.updateCubicSkyboxColors(skyZenith, horizonColor, skyNadir, hazeSpread);
+          this.skyboxMesh.material = this.backdropSkyMaterial;
           this.skyboxMesh.setEnabled(true);
+        }
+        this.starfieldMesh?.setEnabled(false);
+        this.moonMesh?.setEnabled(false);
+
+        if (this.sunMesh) {
+          const sunDist = 48;
+          this.sunMesh.position = new Vector3(
+            sunDir.x * sunDist,
+            sunDir.y * sunDist,
+            sunDir.z * sunDist
+          );
+          this.sunMesh.rotation.x = -Math.asin(Math.max(-1, Math.min(1, sunDir.y)));
+          this.sunMesh.rotation.y = Math.atan2(sunDir.x, sunDir.z);
+          this.sunMesh.setEnabled(true);
         }
 
         if (this.hemiLight) {
@@ -2370,14 +2726,9 @@ export class BabylonSceneService {
         }
 
         if (this.cloudMesh && this.cloudMaterial) {
-          this.cloudMaterial.diffuseColor = Color3.Lerp(
-            new Color3(0.98, 0.99, 1.0),
-            new Color3(1.0, 0.65, 0.46),
-            sunsetFactor
-          );
           this.cloudMaterial.emissiveColor = Color3.Lerp(
-            new Color3(0.46, 0.5, 0.56),
-            new Color3(0.45, 0.22, 0.16),
+            new Color3(0.97, 0.98, 1.0),
+            new Color3(1.0, 0.68, 0.48),
             sunsetFactor
           );
           this.cloudMesh.setEnabled(cfg.cloudsEnabled);
@@ -2391,15 +2742,31 @@ export class BabylonSceneService {
       }
 
       case 'minetest_night': {
+        const nightZenith = new Color3(0.015, 0.025, 0.065);
         const nightHorizon = new Color3(0.05, 0.09, 0.18);
         this.scene.clearColor = new Color4(nightHorizon.r, nightHorizon.g, nightHorizon.b, 1.0);
 
-        if (this.nightSkyTexture) {
-          this.nightSkyTexture.uOffset = ((cfg.sunAzimuth - 220) / 360) % 1;
-        }
-        if (this.nightSkyMaterial && this.skyboxMesh) {
-          this.skyboxMesh.material = this.nightSkyMaterial;
+        if (this.backdropSkyMaterial && this.skyboxMesh) {
+          this.updateCubicSkyboxColors(nightZenith, nightHorizon, nightZenith, 0.25);
+          this.skyboxMesh.material = this.backdropSkyMaterial;
           this.skyboxMesh.setEnabled(true);
+        }
+
+        this.sunMesh?.setEnabled(false);
+        if (this.starfieldMesh) {
+          this.starfieldMesh.rotation.y = ((cfg.sunAzimuth - 140) * Math.PI) / 180;
+          this.starfieldMesh.setEnabled(true);
+        }
+        if (this.moonMesh) {
+          const moonDist = 48;
+          this.moonMesh.position = new Vector3(
+            sunDir.x * moonDist,
+            sunDir.y * moonDist,
+            sunDir.z * moonDist
+          );
+          this.moonMesh.rotation.x = -Math.asin(Math.max(-1, Math.min(1, sunDir.y)));
+          this.moonMesh.rotation.y = Math.atan2(sunDir.x, sunDir.z);
+          this.moonMesh.setEnabled(true);
         }
 
         if (this.hemiLight) {
@@ -2415,8 +2782,7 @@ export class BabylonSceneService {
         }
 
         if (this.cloudMesh && this.cloudMaterial) {
-          this.cloudMaterial.diffuseColor = new Color3(0.16, 0.22, 0.36);
-          this.cloudMaterial.emissiveColor = new Color3(0.05, 0.08, 0.15);
+          this.cloudMaterial.emissiveColor = new Color3(0.18, 0.25, 0.42);
           this.cloudMesh.setEnabled(cfg.cloudsEnabled);
         }
 
@@ -2474,6 +2840,9 @@ export class BabylonSceneService {
     const wasGrid = this.gridMesh?.isEnabled() ?? false;
     const wasFloor = this.floorMesh?.isEnabled() ?? false;
     const wasSkybox = this.skyboxMesh?.isEnabled() ?? false;
+    const wasStars = this.starfieldMesh?.isEnabled() ?? false;
+    const wasMoon = this.moonMesh?.isEnabled() ?? false;
+    const wasSun = this.sunMesh?.isEnabled() ?? false;
     const wasClouds = this.cloudMesh?.isEnabled() ?? false;
     const wasFog = this.scene.fogEnabled;
 
@@ -2483,6 +2852,9 @@ export class BabylonSceneService {
       this.gridMesh?.setEnabled(false);
       this.floorMesh?.setEnabled(false);
       this.skyboxMesh?.setEnabled(false);
+      this.starfieldMesh?.setEnabled(false);
+      this.moonMesh?.setEnabled(false);
+      this.sunMesh?.setEnabled(false);
       this.cloudMesh?.setEnabled(false);
       this.scene.fogEnabled = false;
     }
@@ -2504,6 +2876,9 @@ export class BabylonSceneService {
             this.gridMesh?.setEnabled(wasGrid);
             this.floorMesh?.setEnabled(wasFloor);
             this.skyboxMesh?.setEnabled(wasSkybox);
+            this.starfieldMesh?.setEnabled(wasStars);
+            this.moonMesh?.setEnabled(wasMoon);
+            this.sunMesh?.setEnabled(wasSun);
             this.cloudMesh?.setEnabled(wasClouds);
             this.scene!.fogEnabled = wasFog;
           }
@@ -2640,16 +3015,18 @@ export class BabylonSceneService {
     this.cloudMesh = null;
     this.cloudMaterial?.dispose();
     this.cloudMaterial = null;
+    this.starfieldMesh?.dispose();
+    this.starfieldMesh = null;
+    this.moonMesh?.dispose();
+    this.moonMesh = null;
+    this.sunMesh?.dispose();
+    this.sunMesh = null;
+    this.celestialMaterial?.dispose();
+    this.celestialMaterial = null;
     this.skyboxMesh?.dispose();
     this.skyboxMesh = null;
-    this.skyMaterial?.dispose();
-    this.skyMaterial = null;
-    this.studioSkyMaterial?.dispose();
-    this.studioSkyMaterial = null;
-    this.nightSkyMaterial?.dispose();
-    this.nightSkyMaterial = null;
-    this.nightSkyTexture?.dispose();
-    this.nightSkyTexture = null;
+    this.backdropSkyMaterial?.dispose();
+    this.backdropSkyMaterial = null;
     this.hemiLight = null;
     this.dirLight = null;
     for (const extMesh of this.extrusionMeshes.values()) {

@@ -686,7 +686,7 @@ import {
               <!-- Click-outside backdrop -->
               <div class="fixed inset-0 z-40" (click)="showDepthPopover.set(false)"></div>
 
-              <div class="absolute top-full mt-2 left-0 w-64 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
+              <div class="absolute top-full mt-2 left-0 w-72 bg-slate-900 border border-slate-700/90 rounded-xl p-3 shadow-2xl z-50 text-xs space-y-3 backdrop-blur-md">
                 <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                   <span class="font-semibold text-slate-200">Pixel Art Depth & Relief</span>
                   <label class="flex items-center gap-1.5 cursor-pointer">
@@ -699,38 +699,95 @@ import {
                   </label>
                 </div>
 
-                <!-- Individual Style Checkboxes -->
-                <div class="space-y-1.5">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Depth Styles</div>
-                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().pixelBevel"
-                      (change)="sceneService.setPixelDepth({ pixelBevel: !sceneService.pixelDepth().pixelBevel })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>Pixel Bevel (Mosaic)</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().luminanceRelief"
-                      (change)="sceneService.setPixelDepth({ luminanceRelief: !sceneService.pixelDepth().luminanceRelief })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>Luminance Relief</span>
-                  </label>
-                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      [checked]="sceneService.pixelDepth().extrudePixels"
-                      (change)="sceneService.setPixelDepth({ extrudePixels: !sceneService.pixelDepth().extrudePixels })"
-                      class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
-                    <span>3D Pixel Extrusion (Voxel)</span>
-                  </label>
+                <!-- Individual Style Checkboxes + Per-Style Intensity Sliders -->
+                <div class="space-y-2.5">
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Depth Styles & Intensity</div>
+
+                  <!-- 1. Pixel Bevel (Mosaic) -->
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                      <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                        <input
+                          type="checkbox"
+                          [checked]="sceneService.pixelDepth().pixelBevel"
+                          (change)="sceneService.setPixelDepth({ pixelBevel: !sceneService.pixelDepth().pixelBevel })"
+                          class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                        <span>Pixel Bevel (Mosaic)</span>
+                      </label>
+                      @if (sceneService.pixelDepth().pixelBevel) {
+                        <span class="font-mono text-[11px] text-sky-400">{{ sceneService.pixelDepth().bevelIntensity ?? 20 }}%</span>
+                      }
+                    </div>
+                    @if (sceneService.pixelDepth().pixelBevel) {
+                      <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        step="1"
+                        [value]="sceneService.pixelDepth().bevelIntensity ?? 20"
+                        (input)="onDepthStyleIntensityInput('bevelIntensity', $event)"
+                        class="w-full accent-sky-500 cursor-pointer" />
+                    }
+                  </div>
+
+                  <!-- 2. Luminance Relief -->
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                      <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                        <input
+                          type="checkbox"
+                          [checked]="sceneService.pixelDepth().luminanceRelief"
+                          (change)="sceneService.setPixelDepth({ luminanceRelief: !sceneService.pixelDepth().luminanceRelief })"
+                          class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                        <span>Luminance Relief</span>
+                      </label>
+                      @if (sceneService.pixelDepth().luminanceRelief) {
+                        <span class="font-mono text-[11px] text-sky-400">{{ sceneService.pixelDepth().reliefIntensity ?? 20 }}%</span>
+                      }
+                    </div>
+                    @if (sceneService.pixelDepth().luminanceRelief) {
+                      <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        step="1"
+                        [value]="sceneService.pixelDepth().reliefIntensity ?? 20"
+                        (input)="onDepthStyleIntensityInput('reliefIntensity', $event)"
+                        class="w-full accent-sky-500 cursor-pointer" />
+                    }
+                  </div>
+
+                  <!-- 3. 3D Pixel Extrusion (Voxel) -->
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                      <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                        <input
+                          type="checkbox"
+                          [checked]="sceneService.pixelDepth().extrudePixels"
+                          (change)="sceneService.setPixelDepth({ extrudePixels: !sceneService.pixelDepth().extrudePixels })"
+                          class="rounded bg-slate-800 border-slate-700 text-sky-600 focus:ring-0 cursor-pointer" />
+                        <span>3D Pixel Extrusion (Voxel)</span>
+                      </label>
+                      @if (sceneService.pixelDepth().extrudePixels) {
+                        <span class="font-mono text-[11px] text-sky-400">{{ sceneService.pixelDepth().extrusionIntensity ?? 20 }}%</span>
+                      }
+                    </div>
+                    @if (sceneService.pixelDepth().extrudePixels) {
+                      <input
+                        type="range"
+                        min="5"
+                        max="100"
+                        step="1"
+                        [value]="sceneService.pixelDepth().extrusionIntensity ?? 20"
+                        (input)="onDepthStyleIntensityInput('extrusionIntensity', $event)"
+                        class="w-full accent-sky-500 cursor-pointer" />
+                    }
+                  </div>
                 </div>
 
-                <!-- Intensity Selector -->
-                <div class="space-y-1.5">
-                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Intensity</div>
+                <!-- Quick Intensity Presets -->
+                <div class="space-y-1.5 pt-1 border-t border-slate-800">
+                  <div class="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Quick Intensity</div>
                   <div class="grid grid-cols-3 gap-1">
                     @for (lvl of ['subtle', 'medium', 'deep']; track lvl) {
                       <button
@@ -1325,6 +1382,16 @@ export class ViewportComponent implements OnInit, OnDestroy {
     const val = parseFloat((event.target as HTMLInputElement).value);
     if (!isNaN(val)) {
       this.sceneService.setSkyAtmosphere({ turbidity: val });
+    }
+  }
+
+  onDepthStyleIntensityInput(
+    key: 'bevelIntensity' | 'reliefIntensity' | 'extrusionIntensity',
+    event: Event
+  ): void {
+    const val = parseInt((event.target as HTMLInputElement).value, 10);
+    if (!isNaN(val)) {
+      this.sceneService.setPixelDepth({ [key]: val });
     }
   }
 

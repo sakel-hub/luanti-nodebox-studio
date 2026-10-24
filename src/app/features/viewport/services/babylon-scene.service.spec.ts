@@ -552,7 +552,7 @@ describe('BabylonSceneService', () => {
     expect(snowMesh.position.y).toBeCloseTo((-0.5 + -0.25) / 2);
   });
 
-  it('creates 3D skybox, atmospheric materials, 3D voxel clouds, and horizon fog across sky presets', async () => {
+  it('creates 3D cubic skybox, 3D sun/moon/stars, 3D voxel clouds, and horizon fog across sky presets', async () => {
     const { NullEngine, Scene, HemisphericLight, DirectionalLight, Vector3 } = await import('@babylonjs/core');
     const engine = new NullEngine();
     const scene = new Scene(engine);
@@ -569,16 +569,29 @@ describe('BabylonSceneService', () => {
     expect(service.skyAtmosphere().horizonFog).toBe(true);
 
     const skyboxMesh = (service as any).skyboxMesh;
-    const skyMaterial = (service as any).skyMaterial;
+    const backdropSkyMaterial = (service as any).backdropSkyMaterial;
+    const sunMesh = (service as any).sunMesh;
     const cloudMesh = (service as any).cloudMesh;
+    const cloudMaterial = (service as any).cloudMaterial;
     expect(skyboxMesh).toBeDefined();
     expect(skyboxMesh.infiniteDistance).toBe(true);
     expect(skyboxMesh.isPickable).toBe(false);
-    expect(skyboxMesh.material).toBe(skyMaterial);
+    expect(skyboxMesh.material).toBe(backdropSkyMaterial);
+    expect(sunMesh).toBeDefined();
+    expect(sunMesh.isEnabled()).toBe(true);
+    expect(sunMesh.position.y).toBeGreaterThan(0); // Sun is strictly above the horizon (+Y)
     expect(cloudMesh).toBeDefined();
     expect(cloudMesh.isEnabled()).toBe(true);
+    expect(cloudMesh.getVerticesData('color')).toBeDefined();
+    expect(cloudMaterial.needDepthPrePass).toBe(true);
+    expect(cloudMaterial.forceDepthWrite).toBe(true);
+    expect(cloudMaterial.backFaceCulling).toBe(true);
     expect(scene.fogEnabled).toBe(true);
     expect(scene.fogMode).toBe(Scene.FOGMODE_EXP2);
+
+    // Verify Day sky clearColor is bright light-blue (B > R and B > 0.9)
+    expect(scene.clearColor.b).toBeGreaterThan(0.9);
+    expect(scene.clearColor.b).toBeGreaterThan(scene.clearColor.r);
 
     // 2. Customize sun elevation, azimuth, turbidity, and toggle clouds/fog
     service.setSkyAtmosphere({
@@ -590,36 +603,55 @@ describe('BabylonSceneService', () => {
     });
     expect(service.skyAtmosphere().sunElevation).toBe(22);
     expect(service.skyAtmosphere().sunAzimuth).toBe(135);
-    expect(skyMaterial.turbidity).toBe(6.5);
+    expect(service.skyAtmosphere().turbidity).toBe(6.5);
     expect(cloudMesh.isEnabled()).toBe(false);
     expect(scene.fogEnabled).toBe(false);
 
-    // 3. Switch to Sunset -> restores sunset defaults (clouds & fog enabled, SkyMaterial active)
+    // 3. Switch to Sunset -> restores sunset defaults (warm reddish-orange clearColor, 3D sun active)
     service.setSceneSky('minetest_sunset');
     expect(service.skyAtmosphere().sunElevation).toBe(9);
-    expect(skyboxMesh.material).toBe(skyMaterial);
+    expect(skyboxMesh.material).toBe(backdropSkyMaterial);
+    expect(sunMesh.isEnabled()).toBe(true);
+    expect(sunMesh.position.y).toBeGreaterThan(0);
+    expect(scene.clearColor.r).toBeGreaterThan(0.85);
+    expect(scene.clearColor.r).toBeGreaterThan(scene.clearColor.b);
     expect(cloudMesh.isEnabled()).toBe(true);
     expect(scene.fogEnabled).toBe(true);
 
-    // 4. Switch to Midnight -> starry night material active
+    // 4. Switch to Midnight -> cubic backdrop material + 3D starfield & 3D moon above horizon, sun hidden
     service.setSceneSky('minetest_night');
-    const nightSkyMaterial = (service as any).nightSkyMaterial;
-    expect(skyboxMesh.material).toBe(nightSkyMaterial);
+    const starfieldMesh = (service as any).starfieldMesh;
+    const moonMesh = (service as any).moonMesh;
+    expect(skyboxMesh.material).toBe(backdropSkyMaterial);
+    expect(sunMesh.isEnabled()).toBe(false);
+    expect(starfieldMesh.isEnabled()).toBe(true);
+    expect(moonMesh.isEnabled()).toBe(true);
+    expect(moonMesh.position.y).toBeGreaterThan(0); // Moon is strictly above the horizon (+Y)
     expect(cloudMesh.isEnabled()).toBe(true);
 
-    // 5. Switch to Studio -> GradientMaterial active, clouds & fog off by default
+    // Verify all star centers/vertices are in the upper sky dome
+    const starPositions = starfieldMesh.getVerticesData('position');
+    expect(starPositions).toBeDefined();
+    for (let i = 1; i < starPositions!.length; i += 3) {
+      expect(starPositions![i]).toBeGreaterThan(0);
+    }
+
+    // 5. Switch to Studio -> cubic backdrop material active, sun/stars/moon/clouds/fog off
     service.setSceneSky('studio');
-    const studioSkyMaterial = (service as any).studioSkyMaterial;
-    expect(skyboxMesh.material).toBe(studioSkyMaterial);
+    expect(skyboxMesh.material).toBe(backdropSkyMaterial);
+    expect(sunMesh.isEnabled()).toBe(false);
+    expect(starfieldMesh.isEnabled()).toBe(false);
+    expect(moonMesh.isEnabled()).toBe(false);
     expect(cloudMesh.isEnabled()).toBe(false);
     expect(scene.fogEnabled).toBe(false);
 
-    // 6. Clean up all skybox and cloud resources on destroy()
+    // 6. Clean up all skybox, celestial, and cloud resources on destroy()
     service.destroy();
     expect((service as any).skyboxMesh).toBeNull();
-    expect((service as any).skyMaterial).toBeNull();
-    expect((service as any).studioSkyMaterial).toBeNull();
-    expect((service as any).nightSkyMaterial).toBeNull();
+    expect((service as any).backdropSkyMaterial).toBeNull();
+    expect((service as any).sunMesh).toBeNull();
+    expect((service as any).starfieldMesh).toBeNull();
+    expect((service as any).moonMesh).toBeNull();
     expect((service as any).cloudMesh).toBeNull();
   });
 });
