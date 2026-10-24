@@ -11,7 +11,8 @@
   <a href="#-features">Features</a> &bull;
   <a href="#-keyboard-shortcuts">Shortcuts</a> &bull;
   <a href="#-getting-started">Getting Started</a> &bull;
-  <a href="#-luanti-coordinates-reference">Coordinates Reference</a>
+  <a href="#-luanti-coordinates-reference">Coordinates Reference</a> &bull;
+  <a href="#-contributing--translations">Contributing & Translations</a>
 </p>
 
 <p align="center">
@@ -139,6 +140,17 @@ Optimized static files will be generated in `dist/luanti-nodebox/browser`.
 
 A standard full Luanti node cube occupies the coordinate range `[-0.5, 0.5]` in all three axes:
 $$-0.5 = -\frac{8}{16} \qquad \text{and} \qquad +0.5 = +\frac{8}{16}$$
+
+---
+
+## 🤝 Contributing & Translations
+
+Contributions of all kinds are warmly welcomed! We are especially grateful for community help with **translations** into additional languages.
+
+Luanti NodeBox Studio currently supports English, Slovak, German, French, Spanish, and Russian. Adding a new language or improving existing translations is simple and type-safe.
+
+- **Developer Guide**: Check out [CONTRIBUTING.md](CONTRIBUTING.md) for full step-by-step instructions on adding language files (`src/app/core/i18n/locales/`), running parity checks, and submitting Pull Requests.
+- **No Coding Required**: Have translation suggestions or want to add a language? Feel free to open a [Translation Issue](https://github.com/sakel-hub/luanti-nodebox-studio/issues/new?template=translation.yml) and our maintainers will integrate it!
 
 ---
 

@@ -1,0 +1,69 @@
+name: 🌍 Translation Submission / Correction
+description: Propose a new language or suggest improvements to existing translations.
+title: "[Translation]: "
+labels: ["i18n", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping translate Luanti NodeBox Studio!
+        Please fill out this form with the translated strings or corrections.
+        Reference template: [`src/app/core/i18n/locales/en.ts`](https://github.com/sakel-hub/luanti-nodebox-studio/blob/main/src/app/core/i18n/locales/en.ts).
+
+  - type: dropdown
+    id: contribution-type
+    attributes:
+      label: Contribution Type
+      description: Are you proposing a new language or correcting an existing one?
+      options:
+        - "Add a brand new language"
+        - "Fix / update existing language translations"
+    validations:
+      required: true
+
+  - type: input
+    id: language
+    attributes:
+      label: Language Name
+      description: e.g., Italian / Italiano, Japanese / 日本語, Polish / Polski
+      placeholder: e.g. Italian / Italiano
+    validations:
+      required: true
+
+  - type: input
+    id: iso-code
+    attributes:
+      label: ISO 639-1 Code & Flag
+      description: e.g., it 🇮🇹, ja 🇯🇵, pl 🇵🇱
+      placeholder: e.g. it 🇮🇹
+    validations:
+      required: true
+
+  - type: textarea
+    id: translations
+    attributes:
+      label: Translations / Corrections
+      description: |
+        Paste your translated strings or corrections here.
+        You can paste the entire dictionary structure or just the sections you are translating/correcting.
+        Please keep placeholders like `{count}` or `{mode}` intact.
+      placeholder: |
+        common:
+          ok: 'OK'
+          cancel: 'Annulla'
+          close: 'Chiudi'
+          save: 'Salva'
+          delete: 'Elimina'
+          ...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I confirm that placeholder variables like `{count}` have been preserved.
+          required: true
+        - label: I agree to license these translation contributions under the project's MIT license.
+          required: true

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractSnappedAABB,
+  extractAnchoredFaceAABB,
   scaleSymmetricAABB,
   getFaceDirectionFromDragAxis,
   getFaceAxisDescription,
@@ -69,16 +70,33 @@ describe('box-resize.utils', () => {
     expect(aabb.maxZ).toBe(0);      // 0
   });
 
-  it('enforces minimum thickness of 1/res when box collapses past 0 width', () => {
+  it('enforces 1 grid unit minimum thickness by default (allowZeroThickness = false)', () => {
     const aabb = extractSnappedAABB(
       { x: 0, y: 0, z: 0 },
       { x: 0, y: 0, z: 0 },
       16
     );
 
-    expect(aabb.maxX - aabb.minX).toBeCloseTo(1 / 16);
-    expect(aabb.maxY - aabb.minY).toBeCloseTo(1 / 16);
-    expect(aabb.maxZ - aabb.minZ).toBeCloseTo(1 / 16);
+    expect(aabb.maxX - aabb.minX).toBe(0.0625); // 1/16
+    expect(aabb.maxY - aabb.minY).toBe(0.0625);
+    expect(aabb.maxZ - aabb.minZ).toBe(0.0625);
+    expect(aabb.minX).toBe(0);
+    expect(aabb.maxX).toBe(0.0625);
+  });
+
+  it('allows 0 thickness (2D planes) when allowZeroThickness is true', () => {
+    const aabb = extractSnappedAABB(
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0 },
+      16,
+      true
+    );
+
+    expect(aabb.maxX - aabb.minX).toBe(0);
+    expect(aabb.maxY - aabb.minY).toBe(0);
+    expect(aabb.maxZ - aabb.minZ).toBe(0);
+    expect(aabb.minX).toBe(0);
+    expect(aabb.maxX).toBe(0);
   });
 
   describe('scaleSymmetricAABB (Scale Center zero-drift math)', () => {
@@ -131,22 +149,42 @@ describe('box-resize.utils', () => {
       }
     });
 
-    it('enforces minimum thickness of 1 grid unit when shrinking excessively', () => {
+    it('clamps 3D box at 1 grid unit minimum by default when shrinking down past 0', () => {
       const slab: AABB = {
         minX: -0.5,
         maxX: 0.5,
         minY: -0.5,
-        maxY: -0.375, // height = 2/16 = 0.125
+        maxY: -0.3125, // height = 3/16 = 0.1875
         minZ: -0.5,
         maxZ: 0.5
       };
 
-      // Attempt to shrink by -10 grid units
-      const clamped = scaleSymmetricAABB(slab, 'y', -0.625, 16);
-      const height = clamped.maxY - clamped.minY;
-      expect(height).toBeGreaterThanOrEqual(1 / 16);
-      expect(clamped.minY).toBe(-0.5);
-      expect(clamped.maxY).toBe(-0.375);
+      // Shrink by 1 unit per side (-0.0625) -> clamps to 1 grid unit (0.0625)
+      const clamped = scaleSymmetricAABB(slab, 'y', -0.0625, 16);
+      expect(clamped.maxY - clamped.minY).toBe(0.0625);
+
+      // Attempt to shrink excessively past 0
+      const clampedExcess = scaleSymmetricAABB(slab, 'y', -0.625, 16);
+      expect(clampedExcess.maxY - clampedExcess.minY).toBe(0.0625);
+    });
+
+    it('allows collapsing to 0 thickness (2D plane) when allowZeroThickness is true', () => {
+      const slab: AABB = {
+        minX: -0.5,
+        maxX: 0.5,
+        minY: -0.5,
+        maxY: -0.375, // height = 2/16 = 0.125, center = -0.4375
+        minZ: -0.5,
+        maxZ: 0.5
+      };
+
+      const zeroHeight = scaleSymmetricAABB(slab, 'y', -0.0625, 16, true);
+      expect(zeroHeight.maxY - zeroHeight.minY).toBe(0);
+      expect((zeroHeight.minY + zeroHeight.maxY) / 2).toBeCloseTo(-0.4375);
+
+      const clamped = scaleSymmetricAABB(slab, 'y', -0.625, 16, true);
+      expect(clamped.maxY - clamped.minY).toBe(0);
+      expect((clamped.minY + clamped.maxY) / 2).toBeCloseTo(-0.4375);
     });
 
     it('scales symmetrically in X and Z axes with zero drift', () => {
@@ -191,5 +229,182 @@ describe('box-resize.utils', () => {
       expect(getFaceAxisDescription('front')).toBe('-Z (South)');
     });
   });
+
+  describe('extractAnchoredFaceAABB', () => {
+    const initialBox: AABB = {
+      minX: -0.5,
+      maxX: 0.5,
+      minY: -0.5,
+      maxY: 0.5,
+      minZ: -0.5,
+      maxZ: 0.5
+    };
+
+    it('resizes right face (+X) while anchoring all other 5 faces strictly to initialBox', () => {
+      // Mesh scaled to width 1.25, center moved to 0.125
+      const resized = extractAnchoredFaceAABB(
+        initialBox,
+        'right',
+        { x: 0.125, y: 0, z: 0 },
+        { x: 1.25, y: 1, z: 1 },
+        16
+      );
+
+      expect(resized.maxX).toBe(0.75); // 0.125 + 0.625 = 0.75
+      // Untouched faces are 100% strictly anchored
+      expect(resized.minX).toBe(-0.5);
+      expect(resized.minY).toBe(-0.5);
+      expect(resized.maxY).toBe(0.5);
+      expect(resized.minZ).toBe(-0.5);
+      expect(resized.maxZ).toBe(0.5);
+    });
+
+    it('clamps 3D box at 1 grid unit minimum to prevent collapsing into 0 thickness trap', () => {
+      // Drag right face inward all the way to -0.5 on a 3D box
+      const resized = extractAnchoredFaceAABB(
+        initialBox,
+        'right',
+        { x: -0.5, y: 0, z: 0 },
+        { x: 0.001, y: 1, z: 1 },
+        16
+      );
+
+      expect(resized.minX).toBe(-0.5);
+      expect(resized.maxX).toBe(-0.4375); // clamped to 1 grid unit (-0.5 + 1/16)
+      expect(resized.maxX - resized.minX).toBe(0.0625);
+    });
+
+    it('collapses right face down to minX to produce 0-thickness 2D plane when allowZeroThickness is true', () => {
+      const resized = extractAnchoredFaceAABB(
+        initialBox,
+        'right',
+        { x: -0.5, y: 0, z: 0 },
+        { x: 0.001, y: 1, z: 1 },
+        16,
+        true
+      );
+
+      expect(resized.minX).toBe(-0.5);
+      expect(resized.maxX).toBe(-0.5);
+      expect(resized.maxX - resized.minX).toBe(0);
+    });
+
+    it('expands existing 2D plane when dragged outward and stays at 0 when dragged inward', () => {
+      const planeBox: AABB = {
+        minX: -0.5,
+        maxX: 0.5,
+        minY: -0.5,
+        maxY: -0.5, // 0 thickness 2D plane
+        minZ: -0.5,
+        maxZ: 0.5
+      };
+
+      // Drag top face outward/upward to -0.375 (+2 grid units)
+      const expanded = extractAnchoredFaceAABB(
+        planeBox,
+        'top',
+        { x: 0, y: -0.4375, z: 0 },
+        { x: 1, y: 0.125, z: 1 },
+        16
+      );
+      expect(expanded.minY).toBe(-0.5);
+      expect(expanded.maxY).toBe(-0.375); // expands into 3D!
+
+      // Drag top face inward/downward past 0
+      const inward = extractAnchoredFaceAABB(
+        planeBox,
+        'top',
+        { x: 0, y: -0.6, z: 0 },
+        { x: 1, y: 0.001, z: 1 },
+        16
+      );
+      expect(inward.minY).toBe(-0.5);
+      expect(inward.maxY).toBe(-0.5); // stays clamped at 0 thickness
+    });
+
+    it('clamps right face at 1 grid unit even if dragged past opposite face', () => {
+      // Drag right face past left face to -0.7
+      const resized = extractAnchoredFaceAABB(
+        initialBox,
+        'right',
+        { x: -0.7, y: 0, z: 0 },
+        { x: 0.001, y: 1, z: 1 },
+        16
+      );
+
+      expect(resized.minX).toBe(-0.5);
+      expect(resized.maxX).toBe(-0.4375);
+    });
+
+    it('resizes left face (-X) while anchoring maxX and Y/Z faces', () => {
+      const resized = extractAnchoredFaceAABB(
+        initialBox,
+        'left',
+        { x: 0.125, y: 0, z: 0 },
+        { x: 0.75, y: 1, z: 1 },
+        16
+      );
+
+      expect(resized.minX).toBe(-0.25);
+      expect(resized.maxX).toBe(0.5);
+      expect(resized.minY).toBe(-0.5);
+      expect(resized.maxY).toBe(0.5);
+    });
+
+    it('resizes top face (+Y) and allows collapsing to 0-thickness floor plate when allowZeroThickness is true', () => {
+      const flat = extractAnchoredFaceAABB(
+        initialBox,
+        'top',
+        { x: 0, y: -0.5, z: 0 },
+        { x: 1, y: 0.001, z: 1 },
+        16,
+        true
+      );
+
+      expect(flat.minY).toBe(-0.5);
+      expect(flat.maxY).toBe(-0.5);
+      expect(flat.maxY - flat.minY).toBe(0);
+    });
+
+    it('resizes bottom face (-Y) and allows collapsing to 0-thickness ceiling plate when allowZeroThickness is true', () => {
+      const flat = extractAnchoredFaceAABB(
+        initialBox,
+        'bottom',
+        { x: 0, y: 0.5, z: 0 },
+        { x: 1, y: 0.001, z: 1 },
+        16,
+        true
+      );
+
+      expect(flat.minY).toBe(0.5);
+      expect(flat.maxY).toBe(0.5);
+      expect(flat.maxY - flat.minY).toBe(0);
+    });
+
+    it('resizes back face (+Z) and front face (-Z) and allows 0-thickness wall plates when allowZeroThickness is true', () => {
+      const backFlat = extractAnchoredFaceAABB(
+        initialBox,
+        'back',
+        { x: 0, y: 0, z: -0.5 },
+        { x: 1, y: 1, z: 0.001 },
+        16,
+        true
+      );
+      expect(backFlat.minZ).toBe(-0.5);
+      expect(backFlat.maxZ).toBe(-0.5);
+
+      const frontFlat = extractAnchoredFaceAABB(
+        initialBox,
+        'front',
+        { x: 0, y: 0, z: 0.5 },
+        { x: 1, y: 1, z: 0.001 },
+        16,
+        true
+      );
+      expect(frontFlat.minZ).toBe(0.5);
+      expect(frontFlat.maxZ).toBe(0.5);
+    });
+  });
 });
+
 

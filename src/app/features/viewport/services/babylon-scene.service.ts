@@ -34,6 +34,7 @@ import {
 } from '../../../core/utils/pixel-normal-generator.utils';
 import {
   extractSnappedAABB,
+  extractAnchoredFaceAABB,
   scaleSymmetricAABB,
   getFaceDirectionFromDragAxis,
   getFaceAxisDescription
@@ -88,8 +89,7 @@ export class BabylonSceneService {
   private dragInitialBox: Box | null = null;
   private dragInitialPos: Vector3 = new Vector3();
   private dragInitialScale: Vector3 = new Vector3();
-  private scaleDragAxis: 'x' | 'y' | 'z' | null = null;
-  private scaleAccumulatedDistance = 0;
+  private activeDragFace: FaceDirection | null = null;
   private orthoZoom = 1.2;
 
   public activeFace = signal<FaceDirection | null>(null);
@@ -189,6 +189,8 @@ export class BabylonSceneService {
       this.camera.lowerRadiusLimit = 0.5;
       this.camera.upperRadiusLimit = 10.0;
       this.camera.wheelPrecision = 40;
+      this.camera.minZ = 0.05;
+      this.camera.maxZ = 100.0;
       this.camera.attachControl(canvas, true);
 
       // Setup Lights
@@ -410,19 +412,20 @@ export class BabylonSceneService {
     mat.backFaceCulling = false;
     mat.disableLighting = true; // Unlit luminous glow
     mesh.material = mat;
+    mesh.renderingGroupId = 1;
     mesh.isPickable = false;
     mesh.setEnabled(false);
     this.faceHighlightMesh = mesh;
   }
 
-  public updateFaceHighlight(face: FaceDirection): void {
+  public updateFaceHighlight(face: FaceDirection, aabbOverride?: AABB): void {
     if (!this.faceHighlightMesh || !this.scene) return;
     const selectedId = this.projectStore.selectedBoxId();
     if (!selectedId) {
       this.faceHighlightMesh.setEnabled(false);
       return;
     }
-    const box = this.projectStore.project().boxes.find(b => b.id === selectedId);
+    const box = aabbOverride ?? this.projectStore.project().boxes.find(b => b.id === selectedId);
     if (!box) {
       this.faceHighlightMesh.setEnabled(false);
       return;
@@ -572,75 +575,39 @@ export class BabylonSceneService {
       posGizmo.zGizmo.dragBehavior.onDragEndObservable.add(handlePosDragEnd);
     }
 
-    // 2. Scale Gizmo (3 clean axes, uniform sensitivity, centered zero-drift)
+    // 2. Scale Gizmo (Native Babylon scaling with clean grid snap on release)
     const scaleGizmo = this.gizmoManager.gizmos.scaleGizmo;
     if (scaleGizmo) {
       scaleGizmo.scaleRatio = 1.1;
+      scaleGizmo.sensitivity = 4.0; // Responsive 1:1 feel for nodebox editing
       if (scaleGizmo.uniformScaleGizmo) {
         scaleGizmo.uniformScaleGizmo.isEnabled = false;
       }
 
-      scaleGizmo.xGizmo.sensitivity = 1;
-      scaleGizmo.yGizmo.sensitivity = 1;
-      scaleGizmo.zGizmo.sensitivity = 1;
-
-      const handleScaleDragStart = (axis: 'x' | 'y' | 'z') => {
+      scaleGizmo.onDragStartObservable.add(() => {
         const selectedId = this.projectStore.selectedBoxId();
         const box = selectedId ? this.projectStore.project().boxes.find(b => b.id === selectedId) : null;
-        const mesh = selectedId ? this.boxMeshes.get(selectedId) : null;
-        if (box && mesh) {
+        if (box) {
           this.dragInitialBox = { ...box };
-          this.dragInitialScale.copyFrom(mesh.scaling);
-          this.scaleDragAxis = axis;
-          this.scaleAccumulatedDistance = 0;
         }
-      };
+      });
 
-      const handleScaleDragEnd = () => {
-        this.onScaleGizmoDragEnd();
-      };
-
-      scaleGizmo.xGizmo.dragBehavior.onDragStartObservable.add(() => handleScaleDragStart('x'));
-      scaleGizmo.yGizmo.dragBehavior.onDragStartObservable.add(() => handleScaleDragStart('y'));
-      scaleGizmo.zGizmo.dragBehavior.onDragStartObservable.add(() => handleScaleDragStart('z'));
-
-      const SCALE_DRAG_SENSITIVITY = 0.3;
-
-      const updateScaleDragUV = (axis: 'x' | 'y' | 'z') => {
+      scaleGizmo.onDragObservable.add(() => {
         const selectedId = this.projectStore.selectedBoxId();
-        if (selectedId && this.dragInitialBox && this.scaleDragAxis) {
+        if (selectedId) {
           const m = this.boxMeshes.get(selectedId);
           if (m) {
             const res = this.projectStore.project().snapResolution;
-            const aabb = scaleSymmetricAABB(this.dragInitialBox, axis, this.scaleAccumulatedDistance, res);
+            const aabb = extractSnappedAABB(m.position, m.scaling, res);
             const uvs = computeNodeBoxUVBuffer(aabb);
             m.setVerticesData(VertexBuffer.UVKind, uvs, true);
           }
         }
-      };
-
-      scaleGizmo.xGizmo.dragBehavior.onDragObservable.add((event) => {
-        if (this.scaleDragAxis === 'x') {
-          this.scaleAccumulatedDistance += event.dragDistance * SCALE_DRAG_SENSITIVITY;
-          updateScaleDragUV('x');
-        }
-      });
-      scaleGizmo.yGizmo.dragBehavior.onDragObservable.add((event) => {
-        if (this.scaleDragAxis === 'y') {
-          this.scaleAccumulatedDistance += event.dragDistance * SCALE_DRAG_SENSITIVITY;
-          updateScaleDragUV('y');
-        }
-      });
-      scaleGizmo.zGizmo.dragBehavior.onDragObservable.add((event) => {
-        if (this.scaleDragAxis === 'z') {
-          this.scaleAccumulatedDistance += event.dragDistance * SCALE_DRAG_SENSITIVITY;
-          updateScaleDragUV('z');
-        }
       });
 
-      scaleGizmo.xGizmo.dragBehavior.onDragEndObservable.add(handleScaleDragEnd);
-      scaleGizmo.yGizmo.dragBehavior.onDragEndObservable.add(handleScaleDragEnd);
-      scaleGizmo.zGizmo.dragBehavior.onDragEndObservable.add(handleScaleDragEnd);
+      scaleGizmo.onDragEndObservable.add(() => {
+        this.onScaleGizmoDragEnd();
+      });
     }
 
     // 3. Rotation Gizmo (strictly snapped to 90 degree increments!)
@@ -660,6 +627,8 @@ export class BabylonSceneService {
     const bboxGizmo = this.gizmoManager.gizmos.boundingBoxGizmo as BoundingBoxGizmo | null;
     if (bboxGizmo) {
       bboxGizmo.scaleBoxSize = 0.16;
+      bboxGizmo.scaleDragSpeed = 1.0; // Responsive 1:1 speed (Babylon default is 0.2)
+      bboxGizmo.scalingSnapDistance = 0; // Avoid Babylon internal hard clamp to 1 unit
       bboxGizmo.fixedDragMeshScreenSize = true;
       bboxGizmo.fixedDragMeshScreenSizeDistanceFactor = 12;
       bboxGizmo.setColor(new Color3(0.2, 0.75, 1.0));
@@ -670,8 +639,17 @@ export class BabylonSceneService {
 
       this.tagBoundingBoxScaleBoxes(bboxGizmo);
 
+      bboxGizmo.onDragStartObservable.add((event) => {
+        const selectedId = this.projectStore.selectedBoxId();
+        const box = selectedId ? this.projectStore.project().boxes.find(b => b.id === selectedId) : null;
+        if (box) {
+          this.dragInitialBox = { ...box };
+          this.activeDragFace = getFaceDirectionFromDragAxis(event.dragAxis);
+        }
+      });
+
       bboxGizmo.onScaleBoxDragObservable.add((event) => {
-        const face = getFaceDirectionFromDragAxis(event.dragAxis);
+        const face = getFaceDirectionFromDragAxis(event.dragAxis) ?? this.activeDragFace;
         this.zone.run(() => this.activeFace.set(face));
         if (face) {
           this.updateFaceHighlight(face);
@@ -684,9 +662,14 @@ export class BabylonSceneService {
           const m = this.boxMeshes.get(selectedId);
           if (m) {
             const res = this.projectStore.project().snapResolution;
-            const aabb = extractSnappedAABB(m.position, m.scaling, res);
+            const aabb = face && this.dragInitialBox
+              ? extractAnchoredFaceAABB(this.dragInitialBox, face, m.position, m.scaling, res)
+              : extractSnappedAABB(m.position, m.scaling, res);
             const uvs = computeNodeBoxUVBuffer(aabb);
             m.setVerticesData(VertexBuffer.UVKind, uvs, true);
+            if (face) {
+              this.updateFaceHighlight(face, aabb);
+            }
           }
         }
       });
@@ -767,6 +750,7 @@ export class BabylonSceneService {
         this.gizmoManager.gizmos.positionGizmo.snapDistance = 1 / res;
       }
       if (this.gizmoManager.gizmos.scaleGizmo) {
+        this.gizmoManager.gizmos.scaleGizmo.sensitivity = 4.0;
         this.gizmoManager.gizmos.scaleGizmo.snapDistance = 0; // Disable multiplicative snap lock
       }
       if (this.gizmoManager.gizmos.rotationGizmo) {
@@ -776,7 +760,8 @@ export class BabylonSceneService {
       if (this.gizmoManager.gizmos.boundingBoxGizmo) {
         const bbox = this.gizmoManager.gizmos.boundingBoxGizmo as BoundingBoxGizmo;
         bbox.setEnabledRotationAxis('');
-        bbox.scalingSnapDistance = 1 / res;
+        bbox.scaleDragSpeed = 1.0;
+        bbox.scalingSnapDistance = 0; // Avoid Babylon internal hard clamp to 1 unit
         bbox.updateBoundingBox();
         this.tagBoundingBoxScaleBoxes(bbox);
       }
@@ -819,49 +804,78 @@ export class BabylonSceneService {
 
   private onScaleGizmoDragEnd(): void {
     const selectedId = this.projectStore.selectedBoxId();
-    if (!selectedId || !this.dragInitialBox || !this.scaleDragAxis) {
+    if (!selectedId) {
       this.dragInitialBox = null;
-      this.scaleDragAxis = null;
-      this.scaleAccumulatedDistance = 0;
+      return;
+    }
+
+    const mesh = this.boxMeshes.get(selectedId);
+    if (!mesh) {
+      this.dragInitialBox = null;
       return;
     }
 
     const res = this.projectStore.project().snapResolution;
-    const updatedAABB = scaleSymmetricAABB(
-      this.dragInitialBox,
-      this.scaleDragAxis,
-      this.scaleAccumulatedDistance,
-      res
-    );
+    const snap = (v: number) => {
+      const rounded = Math.round(v * res) / res;
+      return Object.is(rounded, -0) ? 0 : rounded;
+    };
 
-    this.zone.run(() => {
-      this.projectStore.updateBox(selectedId, {
-        minX: updatedAABB.minX,
-        maxX: updatedAABB.maxX,
-        minY: updatedAABB.minY,
-        maxY: updatedAABB.maxY,
-        minZ: updatedAABB.minZ,
-        maxZ: updatedAABB.maxZ
-      });
-    });
+    const initial = this.dragInitialBox;
+    const aabb = extractSnappedAABB(mesh.position, mesh.scaling, res, false);
 
-    this.dragInitialBox = null;
-    this.scaleDragAxis = null;
-    this.scaleAccumulatedDistance = 0;
-  }
+    if (initial) {
+      // Handle X axis: if initially a 2D plane, preserve it unless dragged up to expand
+      if (initial.maxX === initial.minX) {
+        if (mesh.scaling.x > 0.0015) {
+          const base = initial.minX;
+          if (base + 1 / res <= 0.5) {
+            aabb.minX = base;
+            aabb.maxX = snap(base + 1 / res);
+          } else {
+            aabb.minX = snap(base - 1 / res);
+            aabb.maxX = base;
+          }
+        } else {
+          aabb.minX = initial.minX;
+          aabb.maxX = initial.maxX;
+        }
+      }
 
-  private onBoundingBoxDragEnd(): void {
-    this.hideFaceHighlight();
-    this.zone.run(() => this.activeFace.set(null));
+      // Handle Y axis: if initially a 2D plane, preserve it unless dragged up to expand
+      if (initial.maxY === initial.minY) {
+        if (mesh.scaling.y > 0.0015) {
+          const base = initial.minY;
+          if (base + 1 / res <= 0.5) {
+            aabb.minY = base;
+            aabb.maxY = snap(base + 1 / res);
+          } else {
+            aabb.minY = snap(base - 1 / res);
+            aabb.maxY = base;
+          }
+        } else {
+          aabb.minY = initial.minY;
+          aabb.maxY = initial.maxY;
+        }
+      }
 
-    const selectedId = this.projectStore.selectedBoxId();
-    if (!selectedId) return;
-
-    const mesh = this.boxMeshes.get(selectedId);
-    if (!mesh) return;
-
-    const res = this.projectStore.project().snapResolution;
-    const aabb = extractSnappedAABB(mesh.position, mesh.scaling, res);
+      // Handle Z axis: if initially a 2D plane, preserve it unless dragged up to expand
+      if (initial.maxZ === initial.minZ) {
+        if (mesh.scaling.z > 0.0015) {
+          const base = initial.minZ;
+          if (base + 1 / res <= 0.5) {
+            aabb.minZ = base;
+            aabb.maxZ = snap(base + 1 / res);
+          } else {
+            aabb.minZ = snap(base - 1 / res);
+            aabb.maxZ = base;
+          }
+        } else {
+          aabb.minZ = initial.minZ;
+          aabb.maxZ = initial.maxZ;
+        }
+      }
+    }
 
     this.zone.run(() => {
       this.projectStore.updateBox(selectedId, {
@@ -875,6 +889,45 @@ export class BabylonSceneService {
     });
 
     this.dragInitialBox = null;
+  }
+
+  private onBoundingBoxDragEnd(): void {
+    this.hideFaceHighlight();
+    this.zone.run(() => this.activeFace.set(null));
+
+    const selectedId = this.projectStore.selectedBoxId();
+    if (!selectedId) {
+      this.dragInitialBox = null;
+      this.activeDragFace = null;
+      return;
+    }
+
+    const mesh = this.boxMeshes.get(selectedId);
+    if (!mesh) {
+      this.dragInitialBox = null;
+      this.activeDragFace = null;
+      return;
+    }
+
+    const res = this.projectStore.project().snapResolution;
+    const face = this.activeDragFace;
+    const aabb = face && this.dragInitialBox
+      ? extractAnchoredFaceAABB(this.dragInitialBox, face, mesh.position, mesh.scaling, res, false)
+      : extractSnappedAABB(mesh.position, mesh.scaling, res, false);
+
+    this.zone.run(() => {
+      this.projectStore.updateBox(selectedId, {
+        minX: aabb.minX,
+        maxX: aabb.maxX,
+        minY: aabb.minY,
+        maxY: aabb.maxY,
+        minZ: aabb.minZ,
+        maxZ: aabb.maxZ
+      });
+    });
+
+    this.dragInitialBox = null;
+    this.activeDragFace = null;
   }
 
   private onRotationGizmoDragEnd(axis: 'x' | 'y' | 'z'): void {
@@ -1111,7 +1164,7 @@ export class BabylonSceneService {
       mat.specularColor = depthConfig.enabled ? new Color3(0.35, 0.35, 0.35) : new Color3(0.05, 0.05, 0.05);
       mat.specularPower = depthConfig.enabled ? 24 : 64;
       mat.invertNormalMapY = false;
-      mat.backFaceCulling = texDef?.backfaceCulling ?? false;
+      mat.backFaceCulling = texDef?.backfaceCulling ?? true;
 
       if (texDef) {
         let tex = this.textureCache.get(texDef.id);
@@ -1131,7 +1184,7 @@ export class BabylonSceneService {
         }
         mat.diffuseTexture = tex;
         mat.useAlphaFromDiffuseTexture = true;
-        mat.transparencyMode = Material.MATERIAL_ALPHATESTANDBLEND;
+        mat.transparencyMode = Material.MATERIAL_ALPHATEST;
         mat.alphaCutOff = 0.5;
 
         // Setup Luanti animated vertical texture sheet
@@ -1163,6 +1216,7 @@ export class BabylonSceneService {
           mat.opacityTexture = tex;
           mat.alpha = 0.8;
           mat.transparencyMode = Material.MATERIAL_ALPHABLEND;
+          mat.needDepthPrePass = true;
         }
 
         if (depthConfig.enabled) {

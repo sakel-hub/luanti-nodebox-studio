@@ -150,6 +150,9 @@ describe('BabylonSceneService', () => {
       expect(multiMat.subMaterials.length).toBe(6);
       for (const subMat of multiMat.subMaterials) {
         expect(subMat).toBeDefined();
+        expect(subMat.transparencyMode).toBe(1); // Material.MATERIAL_ALPHATEST
+        expect(subMat.alphaCutOff).toBe(0.5);
+        expect(subMat.backFaceCulling).toBe(true);
       }
 
       // Verify node-projected UV buffer is attached
@@ -231,4 +234,167 @@ describe('BabylonSceneService', () => {
     service.setCameraPreset('front');
     expect((service as any).camera.target.y).toBeCloseTo(0.5);
   });
+
+  it('correctly creates 2D plane meshes with 0.001 minimum rendering thickness', async () => {
+    const { NullEngine, Scene } = await import('@babylonjs/core');
+    const engine = new NullEngine();
+    (service as any).engine = engine;
+    (service as any).scene = new Scene(engine);
+
+    // Box b_plane is a 2D floor plate (carpet): minY === maxY === 0.0
+    const planeBoxes = [
+      { id: 'b_plane', name: 'Carpet Plate', minX: -0.5, minY: 0.0, minZ: -0.5, maxX: 0.5, maxY: 0.0, maxZ: 0.5, visible: true, locked: false, color: '#f59e0b' }
+    ];
+
+    service.updateBoxes(planeBoxes as any, 'b_plane');
+    const mesh = (service as any).boxMeshes.get('b_plane');
+    expect(mesh).toBeDefined();
+
+    // In Babylon, height is clamped to 0.001 to prevent singular matrices
+    expect(mesh.scaling.x).toBe(1.0);
+    expect(mesh.scaling.y).toBe(0.001);
+    expect(mesh.scaling.z).toBe(1.0);
+    expect(mesh.position.y).toBe(0.0);
+  });
+
+  it('saves exact snapped coordinates, clamps 3D boxes to 1 grid unit minimum, and expands 2D planes on upward drag', async () => {
+    const { NullEngine, Scene, MeshBuilder } = await import('@babylonjs/core');
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    (service as any).engine = engine;
+    (service as any).scene = scene;
+
+    const projectStore = (service as any).projectStore as ProjectStore;
+    const testBox = { id: 'b_test', name: 'Test Box', minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5, visible: true, locked: false, color: '#38bdf8' };
+    projectStore.loadProject({
+      name: 'Test',
+      format: 'regular',
+      snapResolution: 16,
+      nodeHeight: 1,
+      boxes: [testBox],
+      textures: []
+    });
+    projectStore.setSelectedBoxId('b_test');
+
+    const mesh = MeshBuilder.CreateBox('box_b_test', { size: 1 }, scene);
+    (service as any).boxMeshes.set('b_test', mesh);
+
+    // 1. Simulate ScaleGizmo scaling a 3D box down past 0 along Y -> clamps to 1 grid unit (1/16 = 0.0625)
+    (service as any).dragInitialBox = { ...testBox };
+    mesh.scaling.set(1.0, 0.0, 1.0);
+    mesh.position.set(0.0, 0.0, 0.0);
+
+    (service as any).onScaleGizmoDragEnd();
+
+    const clampedBox = projectStore.project().boxes.find(b => b.id === 'b_test')!;
+    expect(clampedBox.maxY - clampedBox.minY).toBe(0.0625); // clamped to 1 grid unit, never stuck at 0!
+
+    // 2. Set box to exact 2D plane via store (as done by Box Inspector input fields)
+    projectStore.updateBox('b_test', { minY: 0, maxY: 0 });
+    const planeBox = projectStore.project().boxes.find(b => b.id === 'b_test')!;
+    expect(planeBox.maxY - planeBox.minY).toBe(0);
+
+    // 3. User scales X on this 2D plane (red handle): Y should remain a 2D plane!
+    (service as any).dragInitialBox = { ...planeBox };
+    mesh.scaling.set(1.0, 0.001, 1.0); // Y scaling remained at 0.001
+    mesh.position.set(0.0, 0.0, 0.0);
+
+    (service as any).onScaleGizmoDragEnd();
+    const scaledPlane = projectStore.project().boxes.find(b => b.id === 'b_test')!;
+    expect(scaledPlane.maxY - scaledPlane.minY).toBe(0); // Y remains 2D plane!
+
+    // 4. User drags Y handle UP on this 2D plane: expands back to 3D!
+    (service as any).dragInitialBox = { ...scaledPlane };
+    mesh.scaling.set(1.0, 0.003, 1.0); // Y scaling increased by dragging green handle up
+    mesh.position.set(0.0, 0.0, 0.0);
+
+    (service as any).onScaleGizmoDragEnd();
+    const expandedBox = projectStore.project().boxes.find(b => b.id === 'b_test')!;
+    expect(expandedBox.minX).toBe(-0.5);
+    expect(expandedBox.maxX).toBe(0.5);
+    expect(expandedBox.maxY - expandedBox.minY).toBe(0.0625); // expanded into 3D!
+
+    // 5. Simulate BoundingBoxGizmo dragging right face to 0.25 while anchored
+    (service as any).dragInitialBox = { ...expandedBox };
+    (service as any).activeDragFace = 'right';
+    mesh.scaling.set(0.75, 0.0625, 1.0);
+    mesh.position.set(-0.125, 0.03125, 0.0);
+
+    (service as any).onBoundingBoxDragEnd();
+
+    const resizedBox = projectStore.project().boxes.find(b => b.id === 'b_test')!;
+    expect(resizedBox.minX).toBe(-0.5); // strictly anchored!
+    expect(resizedBox.maxX).toBe(0.25);
+  });
+
+  it('configures scaleGizmo and bboxGizmo for snappy responsiveness and unclamped scaling', async () => {
+    const { NullEngine, Scene, MeshBuilder } = await import('@babylonjs/core');
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    (service as any).engine = engine;
+    (service as any).scene = scene;
+
+    const projectStore = (service as any).projectStore as ProjectStore;
+    const testBox = { id: 'b_snappy', name: 'Snappy Box', minX: -0.5, minY: -0.5, minZ: -0.5, maxX: 0.5, maxY: 0.5, maxZ: 0.5, visible: true, locked: false, color: '#38bdf8' };
+    projectStore.loadProject({
+      name: 'Test',
+      format: 'regular',
+      snapResolution: 16,
+      nodeHeight: 1,
+      boxes: [testBox],
+      textures: []
+    });
+    projectStore.setSelectedBoxId('b_snappy');
+
+    const mesh = MeshBuilder.CreateBox('box_b_snappy', { size: 1 }, scene);
+    (service as any).boxMeshes.set('b_snappy', mesh);
+
+    (service as any).setupGizmoManager();
+    service.setGizmoMode('scale');
+    service.updateGizmoState();
+
+    const scaleGizmo = (service as any).gizmoManager?.gizmos?.scaleGizmo;
+    expect(scaleGizmo).toBeDefined();
+    expect(scaleGizmo.sensitivity).toBe(4.0);
+    expect(scaleGizmo.snapDistance).toBe(0);
+
+    service.setGizmoMode('resize');
+    service.updateGizmoState();
+
+    const bboxGizmo = (service as any).gizmoManager?.gizmos?.boundingBoxGizmo;
+    expect(bboxGizmo).toBeDefined();
+    expect(bboxGizmo.scaleDragSpeed).toBe(1.0);
+    expect(bboxGizmo.scalingSnapDistance).toBe(0);
+  });
+
+  it('correctly configures depth testing, backface culling, depth prepass, and camera frustum', async () => {
+    const { NullEngine, Scene, Material, ArcRotateCamera, Vector3 } = await import('@babylonjs/core');
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    (service as any).engine = engine;
+    (service as any).scene = scene;
+    (service as any).camera = new ArcRotateCamera('Camera', 0, 0, 2.5, Vector3.Zero(), scene);
+    (service as any).camera.minZ = 0.05;
+    (service as any).camera.maxZ = 100.0;
+
+    // Verify camera depth bounds
+    expect((service as any).camera.minZ).toBe(0.05);
+    expect((service as any).camera.maxZ).toBe(100.0);
+
+    // Standard material
+    const woodMat = (service as any).getOrCreateTextureMaterial('default_wood.png');
+    expect(woodMat.transparencyMode).toBe(Material.MATERIAL_ALPHATEST);
+    expect(woodMat.alphaCutOff).toBe(0.5);
+    expect(woodMat.backFaceCulling).toBe(true);
+
+    // Glass material (semi-transparent)
+    const glassMat = (service as any).getOrCreateTextureMaterial('default_glass.png');
+    expect(glassMat.transparencyMode).toBe(Material.MATERIAL_ALPHABLEND);
+    expect(glassMat.needDepthPrePass).toBe(true);
+
+    // Face highlight mesh
+    (service as any).buildFaceHighlightMesh();
+    expect((service as any).faceHighlightMesh.renderingGroupId).toBe(1);
+  });
 });
+
