@@ -206,16 +206,16 @@ describe('LuaParserService & LuaGeneratorService', () => {
     expect(lua).toContain('-5/16');
   });
 
-  it('parses and generates tiles with ^[transformFX (like Everness luminous mushroom)', () => {
+  it('parses and generates tiles with ^[transformFX modifier', () => {
     const luaCode = `
-      Everness:register_node('everness:luminous_mushroom_4', {
+      CustomMod:register_node('custom_mod:crystal_lantern', {
           tiles = {
-              'everness_luminous_mushroom_top.png',
-              'everness_luminous_mushroom_bottom.png',
-              'everness_luminous_mushroom_side_x.png',
-              'everness_luminous_mushroom_side_x.png^[transformFX',
-              'everness_luminous_mushroom_side_z.png^[transformFX',
-              'everness_luminous_mushroom_side_z.png',
+              'custom_crystal_top.png',
+              'custom_crystal_bottom.png',
+              'custom_crystal_side_x.png',
+              'custom_crystal_side_x.png^[transformFX',
+              'custom_crystal_side_z.png^[transformFX',
+              'custom_crystal_side_z.png',
           },
           node_box = {
               type = 'fixed',
@@ -229,13 +229,13 @@ describe('LuaParserService & LuaGeneratorService', () => {
     const result = parser.parse(luaCode);
     expect(result.tiles).toBeDefined();
     expect(result.tiles?.length).toBe(6);
-    expect(result.tiles?.[3]).toBe('everness_luminous_mushroom_side_x.png^[transformFX');
-    expect(result.tiles?.[4]).toBe('everness_luminous_mushroom_side_z.png^[transformFX');
+    expect(result.tiles?.[3]).toBe('custom_crystal_side_x.png^[transformFX');
+    expect(result.tiles?.[4]).toBe('custom_crystal_side_z.png^[transformFX');
 
     const project: NodeboxProject = {
-      id: 'mush',
-      name: 'Mushroom',
-      nodeName: 'everness:luminous_mushroom_4',
+      id: 'crystal',
+      name: 'Crystal Lantern',
+      nodeName: 'custom_mod:crystal_lantern',
       format: 'fractions_16',
       exportTemplate: 'register_node',
       snapResolution: 16,
@@ -252,23 +252,23 @@ describe('LuaParserService & LuaGeneratorService', () => {
     };
 
     const exported = generator.generate(project);
-    expect(exported).toContain('"everness_luminous_mushroom_side_x.png^[transformFX", -- left');
-    expect(exported).toContain('"everness_luminous_mushroom_side_z.png^[transformFX", -- back');
+    expect(exported).toContain('"custom_crystal_side_x.png^[transformFX", -- left');
+    expect(exported).toContain('"custom_crystal_side_z.png^[transformFX", -- back');
   });
 
-  it('correctly imports full luminous_mushroom_4 definition with 14 boxes, comment names, and ignores selection_box and tiles', () => {
-    const fullEvernessLua = `
-Everness:register_node('everness:luminous_mushroom_4', {
-    description = S('Luminous Mushroom'),
-    short_description = S('Luminous Mushroom'),
+  it('correctly imports complex multi-box definition with 14 boxes, comment names, and ignores selection_box and tiles', () => {
+    const complexLua = `
+CustomMod:register_node('custom_mod:complex_plant', {
+    description = S('Complex Plant'),
+    short_description = S('Complex Plant'),
     drawtype = 'nodebox',
     tiles = {
-        'everness_luminous_mushroom_top.png',
-        'everness_luminous_mushroom_bottom.png',
-        'everness_luminous_mushroom_side_x.png',
-        'everness_luminous_mushroom_side_x.png^[transformFX',
-        'everness_luminous_mushroom_side_z.png^[transformFX',
-        'everness_luminous_mushroom_side_z.png',
+        'custom_plant_top.png',
+        'custom_plant_bottom.png',
+        'custom_plant_side_x.png',
+        'custom_plant_side_x.png^[transformFX',
+        'custom_plant_side_z.png^[transformFX',
+        'custom_plant_side_z.png',
     },
     use_texture_alpha = 'clip',
     selection_box = {
@@ -278,47 +278,47 @@ Everness:register_node('everness:luminous_mushroom_4', {
     node_box = {
         type = 'fixed',
         fixed = {
-            { -0.3125, -0.5000, -0.3125, -0.2500, 0.000, -0.2500 }, -- mushroom 1 stem
-            { -0.5000, 0.000, -0.5000, -0.06250, 0.06250, -0.06250 }, -- mushroom 1 top A
-            { -0.4375, 0.06250, -0.4375, -0.1250, 0.1250, -0.1250 }, -- mushroom 1 top B
-            { 0.3125, -0.3125, -0.2500, 0.5000, -0.2500, -0.06250 }, -- mushroom 2 top
-            { 0.3750, -0.5000, -0.1875, 0.4375, -0.3125, -0.1250 }, -- mushroom 2 stem
-            { 0.06250, -0.3750, -0.5000, 0.2500, -0.3125, -0.3125 }, -- mushroom 3 top
-            { 0.1250, -0.5000, -0.4375, 0.1875, -0.3750, -0.3750 }, -- mushroom 3 stem
-            { 0.06250, -0.1875, 0.06250, 0.5000, -0.1250, 0.5000 }, -- mushroom 4 top A
-            { 0.1250, -0.1250, 0.1250, 0.4375, -0.06250, 0.4375 }, -- mushroom 4 top B
-            { 0.2500, -0.5000, 0.2500, 0.3125, -0.1875, 0.3125 }, -- mushroom 4 stem
-            { -0.2500, -0.3125, 0.000, 0.000, -0.2500, 0.2500 }, -- mushroom 5 top
-            { -0.1875, -0.5000, 0.06250, -0.06250, -0.2500, 0.1875 }, -- mushroom 5 stem
-            { -0.5000, -0.2500, 0.3125, -0.3125, -0.1875, 0.5000 }, -- mushroom 6 top
-            { -0.4375, -0.5000, 0.3750, -0.3750, -0.2500, 0.4375 }, -- mushroom 6 stem
+            { -0.3125, -0.5000, -0.3125, -0.2500, 0.000, -0.2500 }, -- stem 1
+            { -0.5000, 0.000, -0.5000, -0.06250, 0.06250, -0.06250 }, -- branch 1 A
+            { -0.4375, 0.06250, -0.4375, -0.1250, 0.1250, -0.1250 }, -- branch 1 B
+            { 0.3125, -0.3125, -0.2500, 0.5000, -0.2500, -0.06250 }, -- branch 2 top
+            { 0.3750, -0.5000, -0.1875, 0.4375, -0.3125, -0.1250 }, -- branch 2 stem
+            { 0.06250, -0.3750, -0.5000, 0.2500, -0.3125, -0.3125 }, -- branch 3 top
+            { 0.1250, -0.5000, -0.4375, 0.1875, -0.3750, -0.3750 }, -- branch 3 stem
+            { 0.06250, -0.1875, 0.06250, 0.5000, -0.1250, 0.5000 }, -- branch 4 top A
+            { 0.1250, -0.1250, 0.1250, 0.4375, -0.06250, 0.4375 }, -- branch 4 top B
+            { 0.2500, -0.5000, 0.2500, 0.3125, -0.1875, 0.3125 }, -- branch 4 stem
+            { -0.2500, -0.3125, 0.000, 0.000, -0.2500, 0.2500 }, -- branch 5 top
+            { -0.1875, -0.5000, 0.06250, -0.06250, -0.2500, 0.1875 }, -- branch 5 stem
+            { -0.5000, -0.2500, 0.3125, -0.3125, -0.1875, 0.5000 }, -- branch 6 top
+            { -0.4375, -0.5000, 0.3750, -0.3750, -0.2500, 0.4375 }, -- branch 6 stem
         }
     }
 })
     `;
 
-    const result = parser.parse(fullEvernessLua);
-    expect(result.nodeName).toBe('everness:luminous_mushroom_4');
+    const result = parser.parse(complexLua);
+    expect(result.nodeName).toBe('custom_mod:complex_plant');
     expect(result.tiles?.length).toBe(6);
 
     // Exactly 14 boxes must be extracted (no 0,0,0 and no selection_box)
     expect(result.boxes.length).toBe(14);
 
     // Verify box names come from author's inline comments
-    expect(result.boxes[0].name).toBe('mushroom 1 stem');
-    expect(result.boxes[1].name).toBe('mushroom 1 top A');
-    expect(result.boxes[2].name).toBe('mushroom 1 top B');
-    expect(result.boxes[3].name).toBe('mushroom 2 top');
-    expect(result.boxes[4].name).toBe('mushroom 2 stem');
-    expect(result.boxes[5].name).toBe('mushroom 3 top');
-    expect(result.boxes[6].name).toBe('mushroom 3 stem');
-    expect(result.boxes[7].name).toBe('mushroom 4 top A');
-    expect(result.boxes[8].name).toBe('mushroom 4 top B');
-    expect(result.boxes[9].name).toBe('mushroom 4 stem');
-    expect(result.boxes[10].name).toBe('mushroom 5 top');
-    expect(result.boxes[11].name).toBe('mushroom 5 stem');
-    expect(result.boxes[12].name).toBe('mushroom 6 top');
-    expect(result.boxes[13].name).toBe('mushroom 6 stem');
+    expect(result.boxes[0].name).toBe('stem 1');
+    expect(result.boxes[1].name).toBe('branch 1 A');
+    expect(result.boxes[2].name).toBe('branch 1 B');
+    expect(result.boxes[3].name).toBe('branch 2 top');
+    expect(result.boxes[4].name).toBe('branch 2 stem');
+    expect(result.boxes[5].name).toBe('branch 3 top');
+    expect(result.boxes[6].name).toBe('branch 3 stem');
+    expect(result.boxes[7].name).toBe('branch 4 top A');
+    expect(result.boxes[8].name).toBe('branch 4 top B');
+    expect(result.boxes[9].name).toBe('branch 4 stem');
+    expect(result.boxes[10].name).toBe('branch 5 top');
+    expect(result.boxes[11].name).toBe('branch 5 stem');
+    expect(result.boxes[12].name).toBe('branch 6 top');
+    expect(result.boxes[13].name).toBe('branch 6 stem');
 
     // Verify coordinates of the first box
     expect(result.boxes[0].minX).toBe(-0.3125);
@@ -337,18 +337,18 @@ Everness:register_node('everness:luminous_mushroom_4', {
     expect(hasZeroBox).toBe(false);
   });
 
-  it('parses pale_watcher:ritual_pyre_burning with animated flame sheet tile and backface culling', () => {
+  it('parses animated vertical frame sheet tiles with backface culling and animation config', () => {
     const pyreLua = `
-core.register_node("pale_watcher:ritual_pyre_burning", {
-    description = "Ritual Pyre (Burning)",
+core.register_node("custom_mod:brazier_fire", {
+    description = "Brazier Fire",
     tiles = {
-        "pale_watcher_ritual_pyre_top.png",
-        "pale_watcher_ritual_pyre_top.png",
-        "pale_watcher_ritual_pyre_side.png",
-        "pale_watcher_ritual_pyre_side.png",
-        "pale_watcher_ritual_pyre_side.png",
+        "custom_brazier_top.png",
+        "custom_brazier_top.png",
+        "custom_brazier_side.png",
+        "custom_brazier_side.png",
+        "custom_brazier_side.png",
         {
-            name = "pale_watcher_ritual_pyre_flame.png",
+            name = "custom_brazier_flame_animated.png",
             animation = {
                 type = "vertical_frames",
                 aspect_w = 16,
@@ -372,15 +372,15 @@ core.register_node("pale_watcher:ritual_pyre_burning", {
     `;
 
     const result = parser.parse(pyreLua);
-    expect(result.nodeName).toBe('pale_watcher:ritual_pyre_burning');
+    expect(result.nodeName).toBe('custom_mod:brazier_fire');
     expect(result.tiles?.length).toBe(6);
-    expect(result.tiles?.[5]).toBe('pale_watcher_ritual_pyre_flame.png');
+    expect(result.tiles?.[5]).toBe('custom_brazier_flame_animated.png');
 
     // Verify parsedTiles rich metadata
     expect(result.parsedTiles).toBeDefined();
     expect(result.parsedTiles?.length).toBe(6);
     const animatedTile = result.parsedTiles?.[5];
-    expect(animatedTile?.name).toBe('pale_watcher_ritual_pyre_flame.png');
+    expect(animatedTile?.name).toBe('custom_brazier_flame_animated.png');
     expect(animatedTile?.animation).toBeDefined();
     expect(animatedTile?.animation?.type).toBe('vertical_frames');
     expect(animatedTile?.animation?.aspect_w).toBe(16);
