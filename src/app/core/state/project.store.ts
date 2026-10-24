@@ -1,13 +1,17 @@
 import { rotateAABB90, rotateFaceTextures90 } from "../utils/rotation.utils";
 import { Injectable, computed, effect, signal } from '@angular/core';
 import {
+  AABB,
   BOX_PALETTE,
   Box,
   ExportTemplate,
   FaceDirection,
   FractionFormat,
   LUANTI_FACE_DIRECTIONS,
+  NeighborConnectionState,
   NodeboxProject,
+  NodeboxSlot,
+  NodeboxType,
   PresetTemplate
 } from '../models/nodebox.model';
 import { gridStepToFloat } from '../utils/fraction.utils';
@@ -20,6 +24,7 @@ const DEFAULT_PROJECT: NodeboxProject = {
   name: 'Wooden Slab',
   nodeName: 'stairs:slab_wood',
   nodeHeight: 1,
+  nodeboxType: 'fixed',
   format: 'fractions_16',
   exportTemplate: 'register_node',
   snapResolution: 16,
@@ -36,6 +41,7 @@ const DEFAULT_PROJECT: NodeboxProject = {
     {
       id: 'box_slab_base',
       name: 'Base Slab',
+      slot: 'fixed',
       minX: -0.5,
       minY: -0.5,
       minZ: -0.5,
@@ -56,12 +62,35 @@ export class ProjectStore {
   public readonly project = signal<NodeboxProject>(this.loadInitialProject());
   public readonly selectedBoxId = signal<string | null>(this.project().boxes[0]?.id ?? null);
 
+  // Active slot for slot-based nodeboxes (connected / wallmounted)
+  public readonly activeSlot = signal<NodeboxSlot>('fixed');
+
+  // Simulation mode for connected nodeboxes (renders compound preview with neighbor toggles)
+  public readonly simulationMode = signal<boolean>(false);
+
+  // 6-way neighbor connection state for simulation mode
+  public readonly neighborState = signal<NeighborConnectionState>({
+    top: false,
+    bottom: false,
+    front: true,
+    back: true,
+    left: false,
+    right: false
+  });
+
+  // Leveled nodebox interactive test height (1..16)
+  public readonly leveledPreviewHeight = signal<number>(8);
+
+  // Wallmounted nodebox active preview attachment plane
+  public readonly wallmountedPreviewSlot = signal<'wall_bottom' | 'wall_top' | 'wall_side'>('wall_side');
+
   // Undo / Redo history stacks
   private undoStack: NodeboxProject[] = [];
   private redoStack: NodeboxProject[] = [];
   public readonly canUndo = signal<boolean>(false);
   public readonly canRedo = signal<boolean>(false);
   public readonly isRenderMode = signal<boolean>(false);
+
 
   // Active box computed
   public readonly selectedBox = computed<Box | null>(() => {
@@ -94,6 +123,8 @@ export class ProjectStore {
       name: parsed.name || DEFAULT_PROJECT.name,
       nodeName: parsed.nodeName || DEFAULT_PROJECT.nodeName,
       nodeHeight: parsed.nodeHeight ?? 1,
+      nodeboxType: parsed.nodeboxType || DEFAULT_PROJECT.nodeboxType || 'fixed',
+      connectsTo: Array.isArray(parsed.connectsTo) ? parsed.connectsTo : undefined,
       format: parsed.format || DEFAULT_PROJECT.format,
       exportTemplate: parsed.exportTemplate || DEFAULT_PROJECT.exportTemplate,
       snapResolution: parsed.snapResolution || DEFAULT_PROJECT.snapResolution,
@@ -104,6 +135,7 @@ export class ProjectStore {
       boxes: Array.isArray(parsed.boxes) && parsed.boxes.length > 0 ? parsed.boxes.map((b: any, idx: number) => ({
         id: b.id || `box_${Date.now()}_${idx}`,
         name: b.name || `Box ${idx + 1}`,
+        slot: b.slot || 'fixed',
         minX: typeof b.minX === 'number' ? b.minX : -0.5,
         minY: typeof b.minY === 'number' ? b.minY : -0.5,
         minZ: typeof b.minZ === 'number' ? b.minZ : -0.5,
@@ -171,6 +203,7 @@ export class ProjectStore {
     const newBox: Box = {
       id: `box_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       name: partial?.name ?? `Box ${count}`,
+      slot: partial?.slot ?? this.activeSlot() ?? 'fixed',
       minX: partial?.minX ?? -0.25,
       minY: partial?.minY ?? 0.0,
       minZ: partial?.minZ ?? -0.25,
@@ -226,7 +259,8 @@ export class ProjectStore {
     const duplicated: Box = {
       ...structuredClone(target),
       id: `box_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: `${target.name} (Copy)`
+      name: `${target.name} (Copy)`,
+      slot: target.slot || 'fixed'
     };
 
     this.project.update(p => ({
@@ -237,6 +271,7 @@ export class ProjectStore {
 
     this.selectedBoxId.set(duplicated.id);
   }
+
 
   public reorderBoxes(fromIndex: number, toIndex: number): void {
     if (fromIndex === toIndex) return;
@@ -333,6 +368,117 @@ export class ProjectStore {
     if (this.project().nodeHeight === nodeHeight) return;
     this.recordState();
     this.project.update(p => ({ ...p, nodeHeight, updatedAt: Date.now() }));
+  }
+
+  public setNodeboxType(type: NodeboxType): void {
+    if (this.project().nodeboxType === type) return;
+    this.recordState();
+    this.project.update(p => ({ ...p, nodeboxType: type, updatedAt: Date.now() }));
+    if (type === 'connected') {
+      this.activeSlot.set('fixed');
+    } else if (type === 'wallmounted') {
+      this.activeSlot.set('wall_bottom');
+    } else {
+      this.activeSlot.set('fixed');
+    }
+  }
+
+  public setConnectsTo(connectsTo: string[] | undefined): void {
+    this.recordState();
+    this.project.update(p => ({ ...p, connectsTo, updatedAt: Date.now() }));
+  }
+
+  public setActiveSlot(slot: NodeboxSlot): void {
+    this.activeSlot.set(slot);
+  }
+
+  public setBoxSlot(id: string, slot: NodeboxSlot): void {
+    this.updateBox(id, { slot });
+  }
+
+  public setSimulationMode(enabled: boolean): void {
+    this.simulationMode.set(enabled);
+  }
+
+  public toggleNeighbor(direction: keyof NeighborConnectionState): void {
+    this.neighborState.update(s => ({
+      ...s,
+      [direction]: !s[direction]
+    }));
+  }
+
+  public setNeighbor(direction: keyof NeighborConnectionState, enabled: boolean): void {
+    this.neighborState.update(s => ({
+      ...s,
+      [direction]: enabled
+    }));
+  }
+
+  public setLeveledPreviewHeight(height: number): void {
+    const clamped = Math.max(1, Math.min(16, Math.round(height)));
+    this.leveledPreviewHeight.set(clamped);
+  }
+
+  public setWallmountedPreviewSlot(slot: 'wall_bottom' | 'wall_top' | 'wall_side'): void {
+    this.wallmountedPreviewSlot.set(slot);
+  }
+
+  public replicateSlotToSides(sourceSlot: 'connect_front' | 'connect_back' | 'connect_left' | 'connect_right'): void {
+    const currentBoxes = this.project().boxes;
+    const sourceBoxes = currentBoxes.filter(b => b.slot === sourceSlot);
+    if (sourceBoxes.length === 0) return;
+
+    this.recordState();
+    const res = this.project().snapResolution;
+    const origin = { x: 0, y: 0, z: 0 };
+
+    const slotAngles: Record<'connect_front' | 'connect_left' | 'connect_back' | 'connect_right', number> = {
+      connect_back: 0,
+      connect_right: 1, // +90 deg CW
+      connect_front: 2, // +180 deg
+      connect_left: 3   // +270 deg CW
+    };
+
+    const targetSlots: Array<'connect_front' | 'connect_left' | 'connect_back' | 'connect_right'> = [
+      'connect_front', 'connect_left', 'connect_back', 'connect_right'
+    ];
+
+    // Remove existing boxes in other 3 target slots
+    const updatedBoxes = currentBoxes.filter(b => b.slot === sourceSlot || !targetSlots.includes(b.slot as any));
+
+    const sourceQuarter = slotAngles[sourceSlot];
+
+    for (const targetSlot of targetSlots) {
+      if (targetSlot === sourceSlot) continue;
+      const targetQuarter = slotAngles[targetSlot];
+      const rotationsNeeded = (targetQuarter - sourceQuarter + 4) % 4;
+
+      for (const src of sourceBoxes) {
+        let currentAABB: AABB = { minX: src.minX, minY: src.minY, minZ: src.minZ, maxX: src.maxX, maxY: src.maxY, maxZ: src.maxZ };
+        let currentTextures = src.textures ? { ...src.textures } : undefined;
+
+        for (let r = 0; r < rotationsNeeded; r++) {
+          currentAABB = rotateAABB90(currentAABB, 'y', 1, origin, res);
+          currentTextures = rotateFaceTextures90(currentTextures, 'y', 1);
+        }
+
+        const slotLabel = targetSlot.replace('connect_', '');
+        updatedBoxes.push({
+          ...src,
+          id: `box_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          name: `${src.name.replace(/\s*\([^)]*\)$/, '')} (${slotLabel})`,
+          slot: targetSlot,
+          ...currentAABB,
+          textures: currentTextures
+        });
+      }
+    }
+
+    this.project.update(p => ({
+      ...p,
+      boxes: updatedBoxes,
+      updatedAt: Date.now()
+    }));
   }
 
   public setProjectName(name: string): void {
@@ -458,10 +604,21 @@ export class ProjectStore {
     });
   }
 
-  public importBoxes(boxes: Box[], replace: boolean, nodeName?: string, tiles?: string[]): void {
+  public importBoxes(
+    boxes: Box[],
+    replace: boolean,
+    nodeName?: string,
+    tiles?: string[],
+    nodeboxType?: NodeboxType,
+    connectsTo?: string[]
+  ): void {
     this.recordState();
     this.project.update(p => {
-      const mergedBoxes = replace ? boxes : [...p.boxes, ...boxes];
+      const normalizedBoxes = boxes.map(b => ({
+        ...b,
+        slot: b.slot || 'fixed'
+      }));
+      const mergedBoxes = replace ? normalizedBoxes : [...p.boxes, ...normalizedBoxes];
       const updatedGlobalTextures = { ...p.globalTextures };
 
       if (tiles && tiles.length > 0) {
@@ -477,11 +634,19 @@ export class ProjectStore {
         ...p,
         boxes: mergedBoxes,
         nodeHeight,
+        nodeboxType: nodeboxType || p.nodeboxType || 'fixed',
+        connectsTo: connectsTo !== undefined ? connectsTo : p.connectsTo,
         nodeName: nodeName || p.nodeName,
         globalTextures: updatedGlobalTextures,
         updatedAt: Date.now()
       };
     });
+
+    if (nodeboxType === 'connected') {
+      this.activeSlot.set('fixed');
+    } else if (nodeboxType === 'wallmounted') {
+      this.activeSlot.set('wall_bottom');
+    }
 
     if (boxes.length > 0) {
       this.selectedBoxId.set(boxes[0].id);
@@ -492,25 +657,38 @@ export class ProjectStore {
     this.recordState();
     const newBoxes: Box[] = preset.boxes.map((b, idx) => ({
       ...b,
+      slot: b.slot || 'fixed',
       id: `box_preset_${Date.now()}_${idx}`
     }));
 
     const nodeHeight = preset.nodeHeight ?? 1;
+    const nodeboxType = preset.nodeboxType ?? 'fixed';
 
     this.project.update(p => ({
       ...p,
       name: preset.name,
       nodeName: preset.nodeName ?? p.nodeName,
       nodeHeight,
+      nodeboxType,
+      connectsTo: preset.connectsTo ? [...preset.connectsTo] : undefined,
       globalTextures: preset.globalTextures ? { ...preset.globalTextures } : p.globalTextures,
       boxes: newBoxes,
       updatedAt: Date.now()
     }));
 
+    if (nodeboxType === 'connected') {
+      this.activeSlot.set('fixed');
+    } else if (nodeboxType === 'wallmounted') {
+      this.activeSlot.set('wall_bottom');
+    } else {
+      this.activeSlot.set('fixed');
+    }
+
     if (newBoxes.length > 0) {
       this.selectedBoxId.set(newBoxes[0].id);
     }
   }
+
 
   public loadProject(project: NodeboxProject): void {
     this.recordState();

@@ -154,5 +154,79 @@ describe('ProjectStore', () => {
     expect(store.project().name).toBe('Wooden Door (2 Nodes)');
     expect(store.boxes().length).toBe(3);
   });
+
+  it('switches nodebox types and updates active slots', () => {
+    expect(store.project().nodeboxType).toBe('fixed');
+    expect(store.activeSlot()).toBe('fixed');
+
+    store.setNodeboxType('connected');
+    expect(store.project().nodeboxType).toBe('connected');
+    expect(store.activeSlot()).toBe('fixed');
+
+    store.setNodeboxType('wallmounted');
+    expect(store.project().nodeboxType).toBe('wallmounted');
+    expect(store.activeSlot()).toBe('wall_bottom');
+
+    store.setActiveSlot('wall_side');
+    expect(store.activeSlot()).toBe('wall_side');
+
+    store.setLeveledPreviewHeight(12);
+    expect(store.leveledPreviewHeight()).toBe(12);
+
+    store.toggleNeighbor('front');
+    expect(store.neighborState().front).toBe(false);
+    store.toggleNeighbor('front');
+    expect(store.neighborState().front).toBe(true);
+  });
+
+  it('loads connected fence preset with slots intact', () => {
+    const fencePreset = LUANTI_PRESETS.find(p => p.name === 'Wooden Fence (Connected)')!;
+    expect(fencePreset).toBeDefined();
+    expect(fencePreset.nodeboxType).toBe('connected');
+
+    store.loadPreset(fencePreset);
+    expect(store.project().nodeboxType).toBe('connected');
+    const fixedBoxes = store.boxes().filter(b => b.slot === 'fixed');
+    const frontBoxes = store.boxes().filter(b => b.slot === 'connect_front');
+    expect(fixedBoxes.length).toBe(1);
+    expect(frontBoxes.length).toBe(2);
+  });
+
+  it('replicates boxes from connect_front to all 4 horizontal sides', () => {
+    store.setNodeboxType('connected');
+    // Clear boxes and add 1 box in connect_front
+    store.importBoxes([
+      {
+        id: 'rail_f',
+        name: 'Rail',
+        slot: 'connect_front',
+        minX: -0.0625,
+        minY: 0.1875,
+        minZ: -0.5,
+        maxX: 0.0625,
+        maxY: 0.3125,
+        maxZ: -0.125,
+        visible: true,
+        locked: false,
+        color: '#f59e0b'
+      }
+    ], true);
+
+    expect(store.boxes().length).toBe(1);
+    store.replicateSlotToSides('connect_front');
+
+    // Should now have 1 box for each of the 4 horizontal slots: front, left, back, right
+    expect(store.boxes().length).toBe(4);
+    const slots = store.boxes().map(b => b.slot);
+    expect(slots).toContain('connect_front');
+    expect(slots).toContain('connect_left');
+    expect(slots).toContain('connect_back');
+    expect(slots).toContain('connect_right');
+
+    const backBox = store.boxes().find(b => b.slot === 'connect_back')!;
+    expect(backBox.minZ).toBeCloseTo(0.125);
+    expect(backBox.maxZ).toBeCloseTo(0.5);
+  });
 });
+
 
