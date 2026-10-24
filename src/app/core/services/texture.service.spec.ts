@@ -13,9 +13,10 @@ describe('TextureService', () => {
 
   it('should initialize with default library textures', () => {
     const textures = service.textures();
-    expect(textures.length).toBe(8);
+    expect(textures.length).toBe(9);
 
     const ids = textures.map(t => t.id);
+    expect(ids).toContain('default_grass.png');
     expect(ids).toContain('default_wood.png');
     expect(ids).toContain('default_stone.png');
     expect(ids).toContain('default_cobble.png');

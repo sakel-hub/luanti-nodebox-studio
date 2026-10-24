@@ -12,6 +12,14 @@ export interface DefaultTextureItem {
 
 export const DEFAULT_TEXTURES: DefaultTextureItem[] = [
   {
+    id: 'default_grass.png',
+    name: 'Grass',
+    author: 'celeron55, BlockMen',
+    license: 'CC BY-SA 3.0',
+    dataUrl:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAArlBMVEU4YhY5Yxc5ZBY6ZBg6ZRc7Yxc7ZBY7Zhg7Zxc8ZRc8aBg9Zhg9aRk9ahg+aBg+aRc+axk+cBo/ahg/cBhAaxlAbBhAbhhAbhpAcRlAcxtBbRlBbxlBcBhBcRtBdBxBdRtCcBpCcRlCcxtCdBpCdhxDdBxDdRtDeBxEdR1EdhxEdxtEeBpFdx1FeBxGeB5GeR1HeR9IeiBIex9IfB5JeR9Jeh5JfCBKex9KfB5KfSE8mWaKAAAA2klEQVQYGQXBgUKCMBQF0IdNkRcSEYzkVmM6RiOnhbTR//9Y59AtiszVTJtXraomZRrCJcQyh7FaY0NMXe7uE/RiM2inBMidDhl6bKn9hBmNprIgXoMTBTPq0Wu6pvwdfOmWKoEObU/JDxfTm5zjNMiXr5iQk9KaJ4l8r7Jn2W1pBbrB3sCsdsR5JMVxEckBp1o2aVp6yj58TJgb9EBZ/3qySoALEjG0rurnQFLsGhzF2Q/VOEiA4EwFKZXtzPGackfZ7M+cA5wWl/j4sBJKu+c63pP3uWmk+fsHOJAawOkrkdAAAAAASUVORK5CYII='
+  },
+  {
     id: 'default_wood.png',
     name: 'Wood Planks',
     author: 'BlockMen',
