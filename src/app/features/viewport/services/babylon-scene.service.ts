@@ -39,12 +39,27 @@ import {
   FaceTextureInput
 } from '../../../core/utils/pixel-extrusion-mesh.utils';
 import {
+  SceneSky,
+  SkyAtmosphereConfig,
+  SKY_PRESET_DEFAULTS,
+  buildStarfieldVertexData,
+  buildSubdividedCubicSkyboxData,
+  buildVoxelCloudGridVertexData,
+  buildVoxelMoonVertexData,
+  buildVoxelSunVertexData,
+  computeCubicSkyboxVertexColors,
+  computeSunVector
+} from '../../../core/utils/sky-environment-mesh.utils';
+import {
   extractSnappedAABB,
   extractAnchoredFaceAABB,
   scaleSymmetricAABB,
   getFaceDirectionFromDragAxis,
   getFaceAxisDescription
 } from '../../../core/utils/box-resize.utils';
+
+export type { SceneSky, SkyAtmosphereConfig };
+export { SKY_PRESET_DEFAULTS };
 
 export type CameraPreset = 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 export type CameraMode = 'perspective' | 'orthographic';
@@ -75,57 +90,7 @@ export type SceneFloor =
   | 'steel'
   | 'mese'
   | (string & {});
-export type SceneSky = 'studio' | 'minetest_day' | 'minetest_sunset' | 'minetest_night';
 export type ScreenshotResolution = 'viewport' | '1080p' | '4k' | 'icon';
-
-export interface SkyAtmosphereConfig {
-  preset: SceneSky;
-  sunElevation: number;   // 2..88 degrees above horizon
-  sunAzimuth: number;     // 0..360 degrees around Y axis
-  turbidity: number;      // 1..15 atmospheric haze / Mie glow
-  rayleigh: number;       // 0.5..4.0 sky blue scattering
-  cloudsEnabled: boolean; // Toggle 3D blocky Luanti clouds
-  horizonFog: boolean;    // Toggle exponential horizon fog fade
-}
-
-export const SKY_PRESET_DEFAULTS: Record<SceneSky, SkyAtmosphereConfig> = {
-  studio: {
-    preset: 'studio',
-    sunElevation: 58,
-    sunAzimuth: 215,
-    turbidity: 2.0,
-    rayleigh: 1.8,
-    cloudsEnabled: false,
-    horizonFog: false
-  },
-  minetest_day: {
-    preset: 'minetest_day',
-    sunElevation: 45,
-    sunAzimuth: 145,
-    turbidity: 2.2,
-    rayleigh: 1.8,
-    cloudsEnabled: true,
-    horizonFog: true
-  },
-  minetest_sunset: {
-    preset: 'minetest_sunset',
-    sunElevation: 9,
-    sunAzimuth: 140,
-    turbidity: 7.5,
-    rayleigh: 2.8,
-    cloudsEnabled: true,
-    horizonFog: true
-  },
-  minetest_night: {
-    preset: 'minetest_night',
-    sunElevation: 18,
-    sunAzimuth: 140,
-    turbidity: 2.0,
-    rayleigh: 1.0,
-    cloudsEnabled: true,
-    horizonFog: true
-  }
-};
 
 @Injectable({
   providedIn: 'root'
@@ -281,20 +246,28 @@ export class BabylonSceneService {
       prev.bevelIntensity !== next.bevelIntensity ||
       prev.reliefIntensity !== next.reliefIntensity;
 
-    if (normalChanged) {
+    const extrusionGeometryChanged =
+      prev.enabled !== next.enabled ||
+      prev.extrudePixels !== next.extrudePixels ||
+      prev.luminanceRelief !== next.luminanceRelief ||
+      prev.extrusionIntensity !== next.extrusionIntensity;
+
+    if (normalChanged && extrusionGeometryChanged) {
       this.refreshAllMaterials();
+    } else if (normalChanged) {
+      this.refreshMaterialsOnly();
     } else if (this.scene) {
       const project = this.projectStore.project();
       this.updateBoxes(project.boxes, this.projectStore.selectedBoxId());
     }
   }
 
-  public refreshAllMaterials(): void {
+  /**
+   * Refreshes normal-mapped materials without disposing or rebuilding 3D extrusion meshes
+   * (e.g. when dragging Pixel Bevel or Luminance Relief intensity sliders).
+   */
+  private refreshMaterialsOnly(): void {
     if (!this.scene) return;
-    for (const extMesh of this.extrusionMeshes.values()) {
-      extMesh.dispose();
-    }
-    this.extrusionMeshes.clear();
     for (const mat of this.materialCache.values()) {
       mat.dispose();
     }
@@ -310,6 +283,15 @@ export class BabylonSceneService {
     const selectedId = this.projectStore.selectedBoxId();
     this.updateBoxes(project.boxes, selectedId);
     this.updateFloorMaterial();
+  }
+
+  public refreshAllMaterials(): void {
+    if (!this.scene) return;
+    for (const extMesh of this.extrusionMeshes.values()) {
+      extMesh.dispose();
+    }
+    this.extrusionMeshes.clear();
+    this.refreshMaterialsOnly();
   }
 
   /**
@@ -371,11 +353,11 @@ export class BabylonSceneService {
       // Apply initial environment sky / lighting
       this.applySkySettings(this.sceneSky());
 
-      // Live animation ticker for Luanti animated vertical texture sheets & subtle cloud drift
+      // Live animation ticker for Luanti animated vertical texture sheets & smooth continuous cloud drift
       this.scene.onBeforeRenderObservable.add(() => {
         this.updateAnimatedTextures();
         if (this.cloudMesh && this.cloudMesh.isEnabled()) {
-          this.cloudMesh.position.x = ((performance.now() * 0.00025) % 24) - 12;
+          this.cloudMesh.position.x = Math.sin(performance.now() * 0.00004) * 10;
         }
       });
 
@@ -2135,51 +2117,14 @@ export class BabylonSceneService {
     this.ensureCelestialMeshesCreated();
   }
 
-  /**
-   * Builds a cubic skybox with vertically subdivided walls so zenith, horizon, and nadir
-   * vertex colors interpolate smoothly around the horizon without darkening.
-   */
   private buildSubdividedCubicSkybox(size: number, verticalSteps: number): Mesh {
-    const half = size * 0.5;
-    const positions: number[] = [];
-    const normals: number[] = [];
-    const indices: number[] = [];
-
-    const addQuad = (
-      p0: [number, number, number],
-      p1: [number, number, number],
-      p2: [number, number, number],
-      p3: [number, number, number]
-    ) => {
-      const base = positions.length / 3;
-      positions.push(...p0, ...p1, ...p2, ...p3);
-      for (let i = 0; i < 4; i++) {
-        normals.push(0, 1, 0);
-      }
-      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    };
-
-    // 4 vertical walls subdivided into verticalSteps strips along Y
-    for (let s = 0; s < verticalSteps; s++) {
-      const y0 = -half + (s / verticalSteps) * size;
-      const y1 = -half + ((s + 1) / verticalSteps) * size;
-
-      // Front (+Z), Back (-Z), Right (+X), Left (-X)
-      addQuad([-half, y0, half], [half, y0, half], [half, y1, half], [-half, y1, half]);
-      addQuad([half, y0, -half], [-half, y0, -half], [-half, y1, -half], [half, y1, -half]);
-      addQuad([half, y0, half], [half, y0, -half], [half, y1, -half], [half, y1, half]);
-      addQuad([-half, y0, -half], [-half, y0, half], [-half, y1, half], [-half, y1, -half]);
-    }
-
-    // Top (+Y) and Bottom (-Y) caps
-    addQuad([-half, half, half], [half, half, half], [half, half, -half], [-half, half, -half]);
-    addQuad([-half, -half, -half], [half, -half, -half], [half, -half, half], [-half, -half, half]);
-
+    const data = buildSubdividedCubicSkyboxData(size, verticalSteps);
     const mesh = new Mesh('SceneSkyBox', this.scene!);
     const vData = new VertexData();
-    vData.positions = positions;
-    vData.normals = normals;
-    vData.indices = indices;
+    vData.positions = data.positions;
+    vData.normals = data.normals;
+    vData.colors = data.colors;
+    vData.indices = data.indices;
     vData.applyToMesh(mesh, true);
     return mesh;
   }
@@ -2193,29 +2138,7 @@ export class BabylonSceneService {
     if (!this.skyboxMesh) return;
     const positions = this.skyboxMesh.getVerticesData(VertexBuffer.PositionKind);
     if (!positions) return;
-
-    const half = 60;
-    const vertCount = positions.length / 3;
-    const colors = new Array<number>(vertCount * 4);
-    const power = Math.max(0.45, 1.15 - hazeSpread * 0.5);
-
-    for (let i = 0; i < vertCount; i++) {
-      const y = positions[i * 3 + 1];
-      // Shift horizon center slightly upward (y = +4) so the horizon glow frames the NodeBox
-      const normY = (y - 4) / half;
-      let c: Color3;
-      if (normY >= 0) {
-        const t = Math.min(1, Math.pow(normY, power));
-        c = Color3.Lerp(horizon, zenith, t);
-      } else {
-        const t = Math.min(1, Math.pow(-normY, 0.85));
-        c = Color3.Lerp(horizon, nadir, t);
-      }
-      colors[i * 4] = c.r;
-      colors[i * 4 + 1] = c.g;
-      colors[i * 4 + 2] = c.b;
-      colors[i * 4 + 3] = 1.0;
-    }
+    const colors = computeCubicSkyboxVertexColors(positions, zenith, horizon, nadir, hazeSpread);
     this.skyboxMesh.setVerticesData(VertexBuffer.ColorKind, colors, true);
   }
 
@@ -2230,81 +2153,13 @@ export class BabylonSceneService {
     this.celestialMaterial.emissiveColor = new Color3(1, 1, 1);
 
     // 1. Build 3D Voxel Starfield Mesh strictly in the upper sky dome (+Y > 0)
-    const starPositions: number[] = [];
-    const starNormals: number[] = [];
-    const starColors: number[] = [];
-    const starIndices: number[] = [];
-
-    let seed = 133742;
-    const nextRand = () => {
-      seed = (seed * 1664525 + 1013904223) >>> 0;
-      return seed / 4294967296;
-    };
-
-    const palette: Array<[number, number, number]> = [
-      [1.0, 1.0, 1.0],
-      [0.88, 0.95, 1.0],
-      [0.74, 0.9, 1.0],
-      [1.0, 0.95, 0.78],
-      [0.8, 0.84, 1.0]
-    ];
-
-    const starRadius = 54;
-    for (let i = 0; i < 320; i++) {
-      // Elevation strictly above the horizon: +1.5 deg to +86 deg (Y > 0)
-      const elevDeg = 1.5 + nextRand() * 84.5;
-      const azimDeg = nextRand() * 360;
-      const elevRad = (elevDeg * Math.PI) / 180;
-      const azimRad = (azimDeg * Math.PI) / 180;
-
-      const dx = Math.cos(elevRad) * Math.cos(azimRad);
-      const dy = Math.sin(elevRad);
-      const dz = Math.cos(elevRad) * Math.sin(azimRad);
-
-      // Orthonormal tangent basis (u = horizontal, v = vertical) perpendicular to d
-      const ux = -Math.sin(azimRad);
-      const uy = 0;
-      const uz = Math.cos(azimRad);
-
-      const vx = -dy * uz;
-      const vy = dz * ux - dx * uz;
-      const vz = dy * ux;
-
-      const cx = dx * starRadius;
-      const cy = dy * starRadius;
-      const cz = dz * starRadius;
-      const halfSize = nextRand() > 0.78 ? 0.28 : nextRand() > 0.35 ? 0.2 : 0.14;
-      const brightness = 0.45 + nextRand() * 0.55;
-      const [pr, pg, pb] = palette[i % palette.length];
-      const r = pr * brightness;
-      const g = pg * brightness;
-      const b = pb * brightness;
-
-      const base = starPositions.length / 3;
-      const corners: Array<[number, number]> = [
-        [-halfSize, -halfSize],
-        [halfSize, -halfSize],
-        [halfSize, halfSize],
-        [-halfSize, halfSize]
-      ];
-      for (const [su, sv] of corners) {
-        starPositions.push(
-          cx + ux * su + vx * sv,
-          cy + uy * su + vy * sv,
-          cz + uz * starRadius * 0 + uz * su + vz * sv
-        );
-        starNormals.push(-dx, -dy, -dz);
-        starColors.push(r, g, b, 1.0);
-      }
-      starIndices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    }
-
+    const starData = buildStarfieldVertexData(320, 54);
     const starfieldMesh = new Mesh('SceneVoxelStars', this.scene);
     const starVData = new VertexData();
-    starVData.positions = starPositions;
-    starVData.normals = starNormals;
-    starVData.colors = starColors;
-    starVData.indices = starIndices;
+    starVData.positions = starData.positions;
+    starVData.normals = starData.normals;
+    starVData.colors = starData.colors;
+    starVData.indices = starData.indices;
     starVData.applyToMesh(starfieldMesh);
     starfieldMesh.material = this.celestialMaterial;
     starfieldMesh.infiniteDistance = true;
@@ -2314,53 +2169,13 @@ export class BabylonSceneService {
     this.starfieldMesh = starfieldMesh;
 
     // 2. Build 3D Blocky Luanti Moon Mesh (layered pixel-art square quads)
-    const moonPositions: number[] = [];
-    const moonNormals: number[] = [];
-    const moonColors: number[] = [];
-    const moonIndices: number[] = [];
-
-    const addLayerQuad = (
-      posArr: number[],
-      normArr: number[],
-      colArr: number[],
-      idxArr: number[],
-      x0: number,
-      y0: number,
-      x1: number,
-      y1: number,
-      z: number,
-      r: number,
-      g: number,
-      b: number
-    ) => {
-      const base = posArr.length / 3;
-      posArr.push(
-        x0, y0, z,
-        x1, y0, z,
-        x1, y1, z,
-        x0, y1, z
-      );
-      for (let i = 0; i < 4; i++) {
-        normArr.push(0, 0, -1);
-        colArr.push(r, g, b, 1.0);
-      }
-      idxArr.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    };
-
-    // Outer glow, inner halo, crisp ivory lunar body, and 3 pixel-art craters
-    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -3.8, -3.8, 3.8, 3.8, 0.25, 0.12, 0.2, 0.36);
-    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -2.8, -2.8, 2.8, 2.8, 0.12, 0.22, 0.34, 0.54);
-    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -2.0, -2.0, 2.0, 2.0, 0.0, 0.97, 0.98, 1.0);
-    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -1.3, 0.2, -0.2, 1.3, -0.08, 0.78, 0.84, 0.92);
-    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, 0.2, -1.3, 1.3, -0.3, -0.08, 0.78, 0.84, 0.92);
-    addLayerQuad(moonPositions, moonNormals, moonColors, moonIndices, -1.1, -1.2, -0.3, -0.5, -0.08, 0.82, 0.87, 0.94);
-
+    const moonData = buildVoxelMoonVertexData();
     const moonMesh = new Mesh('SceneVoxelMoon', this.scene);
     const moonVData = new VertexData();
-    moonVData.positions = moonPositions;
-    moonVData.normals = moonNormals;
-    moonVData.colors = moonColors;
-    moonVData.indices = moonIndices;
+    moonVData.positions = moonData.positions;
+    moonVData.normals = moonData.normals;
+    moonVData.colors = moonData.colors;
+    moonVData.indices = moonData.indices;
     moonVData.applyToMesh(moonMesh);
     moonMesh.material = this.celestialMaterial;
     moonMesh.infiniteDistance = true;
@@ -2370,21 +2185,13 @@ export class BabylonSceneService {
     this.moonMesh = moonMesh;
 
     // 3. Build 3D Blocky Luanti Sun Mesh (layered golden solar corona + bright core square)
-    const sunPositions: number[] = [];
-    const sunNormals: number[] = [];
-    const sunColors: number[] = [];
-    const sunIndices: number[] = [];
-
-    addLayerQuad(sunPositions, sunNormals, sunColors, sunIndices, -5.0, -5.0, 5.0, 5.0, 0.25, 0.95, 0.68, 0.35);
-    addLayerQuad(sunPositions, sunNormals, sunColors, sunIndices, -3.5, -3.5, 3.5, 3.5, 0.12, 1.0, 0.85, 0.52);
-    addLayerQuad(sunPositions, sunNormals, sunColors, sunIndices, -2.3, -2.3, 2.3, 2.3, 0.0, 1.0, 0.98, 0.86);
-
+    const sunData = buildVoxelSunVertexData();
     const sunMesh = new Mesh('SceneVoxelSun', this.scene);
     const sunVData = new VertexData();
-    sunVData.positions = sunPositions;
-    sunVData.normals = sunNormals;
-    sunVData.colors = sunColors;
-    sunVData.indices = sunIndices;
+    sunVData.positions = sunData.positions;
+    sunVData.normals = sunData.normals;
+    sunVData.colors = sunData.colors;
+    sunVData.indices = sunData.indices;
     sunVData.applyToMesh(sunMesh, true);
     sunMesh.material = this.celestialMaterial;
     sunMesh.infiniteDistance = true;
@@ -2407,204 +2214,19 @@ export class BabylonSceneService {
     this.cloudMaterial.forceDepthWrite = true;
     this.cloudMaterial.backFaceCulling = true;
 
-    // Build a seamless 2D Luanti cloud voxel grid (24x24 cells, 3.5x3.5 units each)
-    // where adjacent filled cells share no internal walls, creating solid, cohesive cloud formations.
-    const gridW = 24;
-    const gridD = 24;
-    const cellSize = 3.5;
-    const halfSpanX = (gridW * cellSize) * 0.5;
-    const halfSpanZ = (gridD * cellSize) * 0.5;
-    const minY = 11.0;
-    const maxY = 12.1;
-
-    const filled = new Uint8Array(gridW * gridD);
-    const fillRect = (gx0: number, gz0: number, w: number, d: number) => {
-      for (let dz = 0; dz < d; dz++) {
-        for (let dx = 0; dx < w; dx++) {
-          const x = gx0 + dx;
-          const z = gz0 + dz;
-          if (x >= 0 && x < gridW && z >= 0 && z < gridD) {
-            filled[z * gridW + x] = 1;
-          }
-        }
-      }
-    };
-
-    // Organic multi-cell Luanti cloud formations (overlapping rects merge into stepped L/T/cumulus shapes)
-    fillRect(1, 2, 4, 2);
-    fillRect(2, 1, 2, 4);
-
-    fillRect(8, 1, 5, 2);
-    fillRect(9, 2, 4, 2);
-
-    fillRect(16, 2, 4, 3);
-    fillRect(15, 3, 3, 2);
-
-    fillRect(2, 8, 5, 2);
-    fillRect(3, 7, 3, 4);
-
-    fillRect(9, 9, 4, 3);
-    fillRect(11, 8, 4, 3);
-
-    fillRect(18, 8, 4, 2);
-    fillRect(19, 7, 3, 4);
-
-    fillRect(1, 15, 4, 3);
-    fillRect(3, 16, 4, 2);
-
-    fillRect(9, 15, 5, 2);
-    fillRect(10, 14, 3, 4);
-
-    fillRect(17, 15, 5, 3);
-    fillRect(18, 14, 3, 4);
-
-    fillRect(4, 20, 5, 2);
-    fillRect(13, 20, 4, 3);
-
-    const isFilled = (gx: number, gz: number): boolean => {
-      if (gx < 0 || gx >= gridW || gz < 0 || gz >= gridD) return false;
-      return filled[gz * gridW + gx] === 1;
-    };
-
-    const positions: number[] = [];
-    const normals: number[] = [];
-    const colors: number[] = [];
-    const indices: number[] = [];
-
-    const pushColoredQuad = (
-      p0: [number, number, number],
-      p1: [number, number, number],
-      p2: [number, number, number],
-      p3: [number, number, number],
-      nx: number,
-      ny: number,
-      nz: number,
-      c0: [number, number, number],
-      c1: [number, number, number],
-      c2: [number, number, number],
-      c3: [number, number, number]
-    ) => {
-      const base = positions.length / 3;
-      positions.push(...p0, ...p1, ...p2, ...p3);
-      for (let i = 0; i < 4; i++) {
-        normals.push(nx, ny, nz);
-      }
-      colors.push(
-        c0[0], c0[1], c0[2], 1.0,
-        c1[0], c1[1], c1[2], 1.0,
-        c2[0], c2[1], c2[2], 1.0,
-        c3[0], c3[1], c3[2], 1.0
-      );
-      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    };
-
-    const topCol: [number, number, number] = [1.0, 1.0, 1.0];
-    const botCol: [number, number, number] = [0.86, 0.89, 0.95];
-    const sideTopCol: [number, number, number] = [0.99, 0.99, 1.0];
-    const sideBotCol: [number, number, number] = [0.90, 0.92, 0.96];
-
-    for (let gz = 0; gz < gridD; gz++) {
-      for (let gx = 0; gx < gridW; gx++) {
-        if (!isFilled(gx, gz)) continue;
-
-        const x0 = -halfSpanX + gx * cellSize;
-        const x1 = x0 + cellSize;
-        const z0 = -halfSpanZ + gz * cellSize;
-        const z1 = z0 + cellSize;
-
-        // Top (+Y) outward quad
-        pushColoredQuad(
-          [x1, maxY, z1],
-          [x0, maxY, z1],
-          [x0, maxY, z0],
-          [x1, maxY, z0],
-          0, 1, 0,
-          topCol, topCol, topCol, topCol
-        );
-
-        // Bottom (-Y) outward quad (strictly occludes the top and back walls when viewed from below)
-        pushColoredQuad(
-          [x1, minY, z0],
-          [x0, minY, z0],
-          [x0, minY, z1],
-          [x1, minY, z1],
-          0, -1, 0,
-          botCol, botCol, botCol, botCol
-        );
-
-        // Exposed Back (+Z) side wall
-        if (!isFilled(gx, gz + 1)) {
-          pushColoredQuad(
-            [x0, maxY, z1],
-            [x1, maxY, z1],
-            [x1, minY, z1],
-            [x0, minY, z1],
-            0, 0, 1,
-            sideTopCol, sideTopCol, sideBotCol, sideBotCol
-          );
-        }
-
-        // Exposed Front (-Z) side wall
-        if (!isFilled(gx, gz - 1)) {
-          pushColoredQuad(
-            [x1, maxY, z0],
-            [x0, maxY, z0],
-            [x0, minY, z0],
-            [x1, minY, z0],
-            0, 0, -1,
-            sideTopCol, sideTopCol, sideBotCol, sideBotCol
-          );
-        }
-
-        // Exposed Right (+X) side wall
-        if (!isFilled(gx + 1, gz)) {
-          pushColoredQuad(
-            [x1, maxY, z1],
-            [x1, maxY, z0],
-            [x1, minY, z0],
-            [x1, minY, z1],
-            1, 0, 0,
-            sideTopCol, sideTopCol, sideBotCol, sideBotCol
-          );
-        }
-
-        // Exposed Left (-X) side wall
-        if (!isFilled(gx - 1, gz)) {
-          pushColoredQuad(
-            [x0, maxY, z0],
-            [x0, maxY, z1],
-            [x0, minY, z1],
-            [x0, minY, z0],
-            -1, 0, 0,
-            sideTopCol, sideTopCol, sideBotCol, sideBotCol
-          );
-        }
-      }
-    }
-
+    const cloudData = buildVoxelCloudGridVertexData();
     const cloudMesh = new Mesh('SceneVoxelClouds', this.scene);
     const vData = new VertexData();
-    vData.positions = positions;
-    vData.normals = normals;
-    vData.colors = colors;
-    vData.indices = indices;
+    vData.positions = cloudData.positions;
+    vData.normals = cloudData.normals;
+    vData.colors = cloudData.colors;
+    vData.indices = cloudData.indices;
     vData.applyToMesh(cloudMesh);
 
     cloudMesh.material = this.cloudMaterial;
     cloudMesh.isPickable = false;
     cloudMesh.applyFog = true;
     this.cloudMesh = cloudMesh;
-  }
-
-  private computeSunVector(elevationDeg: number, azimuthDeg: number): Vector3 {
-    const elevRad = Math.max(2, Math.min(88, elevationDeg)) * (Math.PI / 180);
-    const azimRad = (azimuthDeg % 360) * (Math.PI / 180);
-    const cosElev = Math.cos(elevRad);
-    return new Vector3(
-      cosElev * Math.cos(azimRad),
-      Math.sin(elevRad),
-      cosElev * Math.sin(azimRad)
-    );
   }
 
   private applySkySettings(sky: SceneSky): void {
@@ -2614,7 +2236,7 @@ export class BabylonSceneService {
     this.ensureCloudLayerCreated();
 
     const cfg = this.skyAtmosphere();
-    const sunDir = this.computeSunVector(cfg.sunElevation, cfg.sunAzimuth);
+    const sunDir = computeSunVector(cfg.sunElevation, cfg.sunAzimuth);
 
     switch (sky) {
       case 'studio': {
