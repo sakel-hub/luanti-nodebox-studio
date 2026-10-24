@@ -1,6 +1,11 @@
 import { AABB } from '../models/nodebox.model';
 import { computeNodeBoxUVBuffer } from './uv-projection.utils';
-import { DecodedTextureRgba, PixelDepthConfig } from './pixel-normal-generator.utils';
+import {
+  DEPTH_PRESET_PERCENTAGES,
+  DecodedTextureRgba,
+  DepthIntensityPreset,
+  PixelDepthConfig
+} from './pixel-normal-generator.utils';
 
 export interface SubMeshRange {
   materialIndex: number;
@@ -44,14 +49,13 @@ interface FaceBasis {
 }
 
 /**
- * Returns the maximum 3D extrusion depth (in Luanti node units) for the given intensity.
+ * Returns the maximum 3D extrusion depth (in Luanti node units) for the given intensity preset or percentage (0..100).
  */
-export function getExtrusionDepthScale(intensity: 'subtle' | 'medium' | 'deep'): number {
-  switch (intensity) {
-    case 'subtle': return 0.012;
-    case 'medium': return 0.022;
-    case 'deep': return 0.036;
-  }
+export function getExtrusionDepthScale(intensityOrPct: DepthIntensityPreset | number): number {
+  const pct = typeof intensityOrPct === 'number'
+    ? Math.max(0, Math.min(100, intensityOrPct))
+    : DEPTH_PRESET_PERCENTAGES[intensityOrPct];
+  return Number((0.0008 + (pct / 100) * 0.026).toFixed(5));
 }
 
 /**
@@ -200,7 +204,7 @@ export function buildExtrudedBoxGeometry(
   const subMeshes: SubMeshRange[] = [];
 
   const bases = buildFaceBases(box);
-  const maxDepth = getExtrusionDepthScale(config.intensity);
+  const maxDepth = getExtrusionDepthScale(config.extrusionIntensity ?? config.intensity);
 
   const dx = Math.max(0, box.maxX - box.minX);
   const dy = Math.max(0, box.maxY - box.minY);

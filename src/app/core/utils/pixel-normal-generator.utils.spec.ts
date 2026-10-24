@@ -8,10 +8,12 @@ import {
 } from './pixel-normal-generator.utils';
 
 describe('PixelNormalGeneratorUtils', () => {
-  it('returns proper multipliers for subtle, medium, and deep intensities', () => {
-    expect(getDepthIntensityMultiplier('subtle')).toBe(0.6);
-    expect(getDepthIntensityMultiplier('medium')).toBe(1.2);
-    expect(getDepthIntensityMultiplier('deep')).toBe(2.2);
+  it('returns proper multipliers for subtle, medium, deep presets and custom slider percentages', () => {
+    expect(getDepthIntensityMultiplier('subtle')).toBe(0.28);
+    expect(getDepthIntensityMultiplier('medium')).toBe(0.63);
+    expect(getDepthIntensityMultiplier('deep')).toBe(1.19);
+    expect(getDepthIntensityMultiplier(10)).toBe(0.14);
+    expect(getDepthIntensityMultiplier(100)).toBe(1.4);
   });
 
   it('provides a valid neutral normal map dataUrl', () => {

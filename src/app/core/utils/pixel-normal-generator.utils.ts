@@ -1,9 +1,20 @@
+export type DepthIntensityPreset = 'subtle' | 'medium' | 'deep';
+
+export const DEPTH_PRESET_PERCENTAGES: Record<DepthIntensityPreset, number> = {
+  subtle: 20,
+  medium: 45,
+  deep: 85
+};
+
 export interface PixelDepthConfig {
   enabled: boolean;
-  pixelBevel: boolean;      // Edge-aware pixel chamfers around color/alpha clusters + subtle micro-mosaic
-  luminanceRelief: boolean; // Stepped luminance height relief & Sobel gradients
-  extrudePixels: boolean;   // Real 3D Voxel / Texel Extrusion (solid 3D cutout sprites & stepped surface relief)
-  intensity: 'subtle' | 'medium' | 'deep';
+  pixelBevel: boolean;       // Edge-aware pixel chamfers around color/alpha clusters + subtle micro-mosaic
+  luminanceRelief: boolean;  // Stepped luminance height relief & Sobel gradients
+  extrudePixels: boolean;    // Real 3D Voxel / Texel Extrusion (solid 3D cutout sprites & stepped surface relief)
+  intensity: DepthIntensityPreset;
+  bevelIntensity?: number;     // 5..100% strength for Pixel Bevel
+  reliefIntensity?: number;    // 5..100% strength for Luminance Relief
+  extrusionIntensity?: number; // 5..100% strength for 3D Pixel Extrusion
 }
 
 export const DEFAULT_PIXEL_DEPTH_CONFIG: PixelDepthConfig = {
@@ -11,7 +22,10 @@ export const DEFAULT_PIXEL_DEPTH_CONFIG: PixelDepthConfig = {
   pixelBevel: true,
   luminanceRelief: true,
   extrudePixels: true,
-  intensity: 'medium'
+  intensity: 'subtle',
+  bevelIntensity: DEPTH_PRESET_PERCENTAGES.subtle,
+  reliefIntensity: DEPTH_PRESET_PERCENTAGES.subtle,
+  extrusionIntensity: DEPTH_PRESET_PERCENTAGES.subtle
 };
 
 export interface DecodedTextureRgba {
@@ -24,14 +38,13 @@ const normalMapMemoryCache = new Map<string, string>();
 const decodedTextureCache = new Map<string, DecodedTextureRgba>();
 
 /**
- * Returns numerical multiplier for depth intensity
+ * Returns numerical multiplier for depth intensity preset or percentage (0..100).
  */
-export function getDepthIntensityMultiplier(intensity: 'subtle' | 'medium' | 'deep'): number {
-  switch (intensity) {
-    case 'subtle': return 0.6;
-    case 'medium': return 1.2;
-    case 'deep': return 2.2;
-  }
+export function getDepthIntensityMultiplier(intensityOrPct: DepthIntensityPreset | number): number {
+  const pct = typeof intensityOrPct === 'number'
+    ? Math.max(0, Math.min(100, intensityOrPct))
+    : DEPTH_PRESET_PERCENTAGES[intensityOrPct];
+  return Number(((pct / 100) * 1.4).toFixed(4));
 }
 
 /**
@@ -139,9 +152,10 @@ export function computePixelArtNormalRgba(
   const outHeight = height * scale;
   const outData = new Uint8ClampedArray(outWidth * outHeight * 4);
 
-  const mult = getDepthIntensityMultiplier(config.intensity);
-  const bevelWeight = config.pixelBevel ? 0.95 * mult : 0.0;
-  const sobelWeight = config.luminanceRelief ? 0.9 * mult : 0.0;
+  const bevelMult = getDepthIntensityMultiplier(config.bevelIntensity ?? config.intensity);
+  const reliefMult = getDepthIntensityMultiplier(config.reliefIntensity ?? config.intensity);
+  const bevelWeight = config.pixelBevel ? 0.95 * bevelMult : 0.0;
+  const sobelWeight = config.luminanceRelief ? 0.9 * reliefMult : 0.0;
   // Crisp 1-subpixel chamfer rim (e.g. 1.0 out of 8 sub-pixels) so 75%+ of each pixel is a flat plateau
   const bevelMargin = Math.max(1.0, scale * 0.14);
   // When both bevel and relief are active, same-color interior seams stay nearly flat (cohesive clusters);
@@ -281,7 +295,9 @@ export async function generatePixelArtNormalMap(
     return getNeutralNormalMapDataUrl();
   }
 
-  const cacheKey = `${dataUrl}_${config.pixelBevel}_${config.luminanceRelief}_${config.intensity}`;
+  const bPct = config.bevelIntensity ?? DEPTH_PRESET_PERCENTAGES[config.intensity];
+  const rPct = config.reliefIntensity ?? DEPTH_PRESET_PERCENTAGES[config.intensity];
+  const cacheKey = `${dataUrl}_${config.pixelBevel}_${config.luminanceRelief}_${bPct}_${rPct}`;
   const cached = normalMapMemoryCache.get(cacheKey);
   if (cached) {
     return cached;
