@@ -300,19 +300,21 @@ export class CodeDrawerComponent {
   }
 
   public executeImport(): void {
+    if (!this.pastedCode.trim()) return;
+
     const result = this.luaParser.parse(this.pastedCode);
     this.lastParseResult.set(result);
 
     if (result.boxes.length > 0) {
-      if (this.importReplace) {
-        this.projectStore.loadBoxes(result.boxes, result.nodeName, result.tiles);
-      } else {
-        result.boxes.forEach((b) => this.projectStore.addBox(b));
+      if (result.tiles) {
+        result.tiles.forEach((t) => {
+          if (t && t.includes('^')) {
+            this.textureService.ensureTransformedTexture(t);
+          }
+        });
       }
-
-      if (result.tiles && result.tiles.length > 0) {
-        this.textureService.applyParsedTiles(result.tiles);
-      }
+      this.projectStore.importBoxes(result.boxes, this.importReplace, result.nodeName, result.tiles);
+      this.activeTab.set('export');
     }
   }
 }
