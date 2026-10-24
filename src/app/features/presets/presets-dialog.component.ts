@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { LUANTI_PRESETS } from '../../core/models/presets.data';
 import { PresetTemplate } from '../../core/models/nodebox.model';
 import { ProjectStore } from '../../core/state/project.store';
+import { LucideX } from '@lucide/angular';
 
 @Component({
   selector: 'app-presets-dialog',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideX],
   template: `
     <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
@@ -19,10 +20,9 @@ import { ProjectStore } from '../../core/state/project.store';
           </div>
           <button
             (click)="close.emit()"
-            class="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            class="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+            aria-label="Close dialog">
+            <svg lucideX class="w-5 h-5"></svg>
           </button>
         </div>
 

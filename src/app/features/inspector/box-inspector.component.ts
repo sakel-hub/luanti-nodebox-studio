@@ -11,13 +11,14 @@ import {
 
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LucideLock } from '@lucide/angular';
 
 export type InputMode = 'grid' | 'fractions' | 'decimals';
 
 @Component({
   selector: 'app-box-inspector',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipDirective, TranslatePipe],
+  imports: [CommonModule, FormsModule, TooltipDirective, TranslatePipe, LucideLock],
   template: `
     <div class="h-full flex flex-col bg-slate-900 border-l border-slate-800 text-xs select-none overflow-y-auto">
       @if (projectStore.selectedBox(); as box) {
@@ -64,7 +65,7 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
           <!-- Locked Box Warning Banner -->
           <div *ngIf="box.locked" class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5">
-              <span>🔒</span>
+              <svg lucideLock class="w-3.5 h-3.5 text-amber-300 flex-shrink-0"></svg>
               <span>{{ 'inspector.lockedWarning' | translate }}</span>
             </div>
             <button

@@ -1,11 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { KeyboardShortcutsService, ShortcutDefinition } from '../../core/services/keyboard-shortcuts.service';
+import { LucideKeyboard, LucideX } from '@lucide/angular';
 
 @Component({
   selector: 'app-shortcuts-dialog',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideKeyboard, LucideX],
   template: `
     <div
       *ngIf="shortcutsService.isShortcutsModalOpen()"
@@ -20,9 +21,7 @@ import { KeyboardShortcutsService, ShortcutDefinition } from '../../core/service
         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-950/60 flex-shrink-0">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
+              <svg lucideKeyboard class="w-4 h-4"></svg>
             </div>
             <div>
               <h2 class="text-base font-semibold text-slate-100 flex items-center gap-2">
@@ -38,10 +37,9 @@ import { KeyboardShortcutsService, ShortcutDefinition } from '../../core/service
           <button
             (click)="shortcutsService.closeShortcutsModal()"
             class="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
-            title="Close (Esc)">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            title="Close (Esc)"
+            aria-label="Close dialog">
+            <svg lucideX class="w-5 h-5"></svg>
           </button>
         </div>
 

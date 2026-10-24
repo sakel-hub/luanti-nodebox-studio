@@ -1,11 +1,28 @@
 import { Component, EventEmitter, HostListener, Output, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import {
+  LucideShare2,
+  LucideX,
+  LucideCopy,
+  LucideCheck,
+  LucideMessageSquare,
+  LucideGlobe
+} from '@lucide/angular';
 
 @Component({
   selector: 'app-share-dialog',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [
+    CommonModule,
+    TranslatePipe,
+    LucideShare2,
+    LucideX,
+    LucideCopy,
+    LucideCheck,
+    LucideMessageSquare,
+    LucideGlobe
+  ],
   template: `
     <div
       class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
@@ -20,9 +37,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
+              <svg lucideShare2 class="w-5 h-5"></svg>
             </div>
             <div>
               <h2 id="share-dialog-title" class="text-base font-bold text-slate-100">
@@ -36,9 +51,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             (click)="close.emit()"
             class="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition"
             aria-label="Close dialog">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <svg lucideX class="w-5 h-5"></svg>
           </button>
         </div>
 
@@ -57,14 +70,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 (click)="copyLink()"
                 class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
                 @if (copied()) {
-                  <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <svg lucideCheck class="w-4 h-4 text-emerald-300"></svg>
                   <span>{{ 'share.linkCopied' | translate }}</span>
                 } @else {
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
+                  <svg lucideCopy class="w-4 h-4"></svg>
                   <span>{{ 'share.copyLink' | translate }}</span>
                 }
               </button>
@@ -77,9 +86,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               type="button"
               (click)="shareNative()"
               class="w-full py-2.5 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30 transition">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
+              <svg lucideShare2 class="w-4 h-4"></svg>
               <span>{{ 'share.shareViaDevice' | translate }}</span>
             </button>
           }
@@ -104,7 +111,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 target="_blank"
                 rel="noopener noreferrer"
                 class="p-2.5 bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-orange-500/50 rounded-xl flex items-center gap-2.5 text-xs text-slate-200 transition group">
-                <span class="text-base text-orange-400">🤖</span>
+                <svg lucideGlobe class="w-4 h-4 text-orange-400"></svg>
                 <span class="font-medium group-hover:text-orange-400 transition">{{ 'share.shareOnReddit' | translate }}</span>
               </a>
 
@@ -114,7 +121,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 target="_blank"
                 rel="noopener noreferrer"
                 class="p-2.5 bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 rounded-xl flex items-center gap-2.5 text-xs text-slate-200 transition group">
-                <span class="text-base text-emerald-400">💬</span>
+                <svg lucideMessageSquare class="w-4 h-4 text-emerald-400"></svg>
                 <span class="font-medium group-hover:text-emerald-400 transition">{{ 'share.shareOnWhatsApp' | translate }}</span>
               </a>
 
@@ -124,7 +131,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 target="_blank"
                 rel="noopener noreferrer"
                 class="p-2.5 bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-blue-500/50 rounded-xl flex items-center gap-2.5 text-xs text-slate-200 transition group">
-                <span class="text-base text-blue-400">📘</span>
+                <svg lucideShare2 class="w-4 h-4 text-blue-400"></svg>
                 <span class="font-medium group-hover:text-blue-400 transition">{{ 'share.shareOnFacebook' | translate }}</span>
               </a>
             </div>
@@ -136,9 +143,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               type="button"
               (click)="copyDiscordMarkdown()"
               class="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1.5 transition">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-              </svg>
+              <svg lucideCopy class="w-4 h-4"></svg>
               <span>{{ 'share.shareOnDiscord' | translate }}</span>
             </button>
 

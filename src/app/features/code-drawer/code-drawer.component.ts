@@ -9,13 +9,30 @@ import { TextureService } from '../../core/services/texture.service';
 import { safeGetItem, safeSetItem } from '../../core/utils/storage.utils';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import {
+  LucideChevronUp,
+  LucideCopy,
+  LucideCheck,
+  LucideDownload,
+  LucideUpload
+} from '@lucide/angular';
 
 const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
 
 @Component({
   selector: 'app-code-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipDirective, TranslatePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TooltipDirective,
+    TranslatePipe,
+    LucideChevronUp,
+    LucideCopy,
+    LucideCheck,
+    LucideDownload,
+    LucideUpload
+  ],
   template: `
     <div
       [style.height.px]="isEmbedded ? null : (isExpanded() ? drawerHeight() : 40)"
@@ -43,11 +60,9 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
               (click)="isExpanded.set(!isExpanded())"
               class="flex items-center gap-1.5 font-semibold text-slate-200 hover:text-white transition">
               <svg
+                lucideChevronUp
                 [class.rotate-180]="isExpanded()"
-                class="w-4 h-4 transition-transform text-slate-400"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-              </svg>
+                class="w-4 h-4 transition-transform text-slate-400"></svg>
               <span>{{ 'codeDrawer.title' | translate }}</span>
             </button>
           }
@@ -107,12 +122,8 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
               (click)="copyCode()"
               [appTooltip]="'codeDrawer.copyCode'"
               class="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1 rounded font-medium shadow-sm transition active:scale-95 text-xs">
-              <svg *ngIf="!copied()" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-              </svg>
-              <svg *ngIf="copied()" class="w-3.5 h-3.5 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              <svg *ngIf="!copied()" lucideCopy class="w-3.5 h-3.5"></svg>
+              <svg *ngIf="copied()" lucideCheck class="w-3.5 h-3.5 text-green-300"></svg>
               <span>{{ copied() ? ('common.copied' | translate) : ('common.copy' | translate) }}</span>
             </button>
 
@@ -121,9 +132,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
               (click)="downloadLua()"
               [appTooltip]="'codeDrawer.downloadLua'"
               class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+              <svg lucideDownload class="w-4 h-4"></svg>
             </button>
           </div>
         }
@@ -184,9 +193,7 @@ const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
                   [disabled]="!pastedCode.trim()"
                   [appTooltip]="'codeDrawer.importExecute'"
                   class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium text-xs shadow-sm transition active:scale-95">
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
+                  <svg lucideUpload class="w-3.5 h-3.5"></svg>
                   {{ 'codeDrawer.importExecute' | translate }}
                 </button>
               </div>

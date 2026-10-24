@@ -8,7 +8,24 @@ import { KeyboardShortcutsService } from '../../core/services/keyboard-shortcuts
 import { ThemeService } from '../../core/services/theme.service';
 import { TranslationService } from '../../core/i18n/translation.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@lucide/angular';
+import {
+  LucideUndo,
+  LucideRedo,
+  LucideKeyboard,
+  LucideSun,
+  LucideMoon,
+  LucideSettings,
+  LucideX,
+  LucideHelpCircle,
+  LucideShare2,
+  LucideMenu,
+  LucideDownload,
+  LucideUpload,
+  LucideEye,
+  LucideGrid3x3,
+  LucideChevronRight,
+  LucideExternalLink
+} from '@lucide/angular';
 
 @Component({
   selector: 'app-header',
@@ -22,7 +39,18 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
     LucideRedo,
     LucideKeyboard,
     LucideSun,
-    LucideMoon
+    LucideMoon,
+    LucideSettings,
+    LucideX,
+    LucideHelpCircle,
+    LucideShare2,
+    LucideMenu,
+    LucideDownload,
+    LucideUpload,
+    LucideEye,
+    LucideGrid3x3,
+    LucideChevronRight,
+    LucideExternalLink
   ],
   template: `
     <header class="h-12 bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between text-xs select-none z-20 relative">
@@ -53,9 +81,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             (click)="openHelp.emit()"
             [attr.aria-label]="'header.help' | translate"
             class="w-8 h-8 rounded flex items-center justify-center text-sky-400 hover:bg-slate-800 transition active:scale-95">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <svg lucideHelpCircle class="w-4 h-4"></svg>
           </button>
 
           <!-- Share -->
@@ -63,9 +89,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             (click)="openShare.emit()"
             [attr.aria-label]="'header.share' | translate"
             class="w-8 h-8 rounded flex items-center justify-center text-purple-400 hover:bg-slate-800 transition active:scale-95">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
+            <svg lucideShare2 class="w-4 h-4"></svg>
           </button>
 
           <!-- Undo -->
@@ -92,9 +116,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             [attr.aria-expanded]="showMobileMenu()"
             [attr.aria-label]="'header.menu' | translate"
             class="w-8 h-8 rounded bg-slate-900 border border-slate-700/80 flex items-center justify-center text-slate-200 hover:bg-slate-800 transition active:scale-95 ml-1">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <svg lucideMenu class="w-4 h-4"></svg>
           </button>
         </div>
       </div>
@@ -169,9 +191,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             (click)="openPresets.emit()"
             [appTooltip]="'header.presets' | translate"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-300 font-medium transition">
-            <svg class="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
+            <svg lucideGrid3x3 class="w-3.5 h-3.5 text-sky-400"></svg>
             {{ 'header.presets' | translate }}
           </button>
 
@@ -181,10 +201,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             [appTooltip]="'header.renderMode' | translate"
             [appTooltipShortcutId]="'view_render_mode'"
             class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-medium transition text-xs">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
+            <svg lucideEye class="w-3.5 h-3.5"></svg>
             <span>Render</span>
           </button>
 
@@ -254,17 +271,13 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             (click)="exportProjectJson()"
             [appTooltip]="'header.saveJson' | translate"
             class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-            </svg>
+            <svg lucideDownload class="w-4 h-4"></svg>
           </button>
 
           <label
             [appTooltip]="'header.loadJson' | translate"
             class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer transition">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
+            <svg lucideUpload class="w-4 h-4"></svg>
             <input type="file" accept=".json" (change)="importProjectJson($event)" class="hidden" />
           </label>
 
@@ -288,9 +301,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             (click)="openHelp.emit()"
             [appTooltip]="'header.help' | translate"
             class="p-1.5 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-sky-400 hover:text-sky-300 transition">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <svg lucideHelpCircle class="w-4 h-4"></svg>
           </button>
 
           <!-- Social Share Button -->
@@ -298,9 +309,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             (click)="openShare.emit()"
             [appTooltip]="'header.share' | translate"
             class="p-1.5 rounded bg-purple-950/40 hover:bg-purple-900/50 border border-purple-800/60 text-purple-300 hover:text-purple-200 transition">
-            <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
+            <svg lucideShare2 class="w-4 h-4 text-purple-400"></svg>
           </button>
 
           <!-- Dedicated GitHub Repository Link -->
@@ -332,9 +341,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             <button
               (click)="installPwa()"
               class="flex items-center gap-1.5 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium px-2.5 py-1 rounded shadow transition">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+              <svg lucideDownload class="w-3.5 h-3.5"></svg>
               {{ 'header.installApp' | translate }}
             </button>
           }
@@ -360,8 +367,8 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
         <!-- Drawer Header -->
         <div class="h-14 px-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
           <div class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded bg-sky-500 flex items-center justify-center text-white text-xs font-bold">
-              ⚙
+            <div class="w-6 h-6 rounded bg-sky-500 flex items-center justify-center text-white">
+              <svg lucideSettings class="w-3.5 h-3.5 text-white"></svg>
             </div>
             <span class="font-bold text-sm text-slate-100">{{ 'header.menu' | translate }}</span>
           </div>
@@ -369,9 +376,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
             (click)="closeMobileMenu()"
             [attr.aria-label]="'common.close' | translate"
             class="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <svg lucideX class="w-5 h-5"></svg>
           </button>
         </div>
 
@@ -398,24 +403,20 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                 (click)="openHelp.emit(); closeMobileMenu()"
                 class="w-full flex items-center justify-between p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 text-sky-400 transition">
                 <span class="flex items-center gap-2 font-medium">
-                  <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <svg lucideHelpCircle class="w-4 h-4 text-sky-400"></svg>
                   <span>{{ 'header.help' | translate }}</span>
                 </span>
-                <span class="text-sky-400">›</span>
+                <svg lucideChevronRight class="w-3.5 h-3.5 text-sky-400"></svg>
               </button>
 
               <button
                 (click)="openShare.emit(); closeMobileMenu()"
                 class="w-full flex items-center justify-between p-2.5 rounded-lg bg-purple-950/30 hover:bg-purple-900/40 border border-purple-800/50 text-purple-300 transition">
                 <span class="flex items-center gap-2 font-medium">
-                  <svg class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
+                  <svg lucideShare2 class="w-4 h-4 text-purple-400"></svg>
                   <span>{{ 'header.share' | translate }}</span>
                 </span>
-                <span class="text-purple-400">›</span>
+                <svg lucideChevronRight class="w-3.5 h-3.5 text-purple-400"></svg>
               </button>
 
               <a
@@ -429,7 +430,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                   </svg>
                   <span>{{ 'header.github' | translate }}</span>
                 </span>
-                <span class="text-slate-500">↗</span>
+                <svg lucideExternalLink class="w-3.5 h-3.5 text-slate-500"></svg>
               </a>
             </div>
           </div>
@@ -508,25 +509,20 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                 (click)="openPresets.emit(); closeMobileMenu()"
                 class="w-full flex items-center justify-between p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 transition">
                 <span class="flex items-center gap-2 font-medium">
-                  <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
+                  <svg lucideGrid3x3 class="w-4 h-4 text-sky-400"></svg>
                   {{ 'header.presets' | translate }}
                 </span>
-                <span class="text-slate-500">›</span>
+                <svg lucideChevronRight class="w-3.5 h-3.5 text-slate-500"></svg>
               </button>
 
               <button
                 (click)="projectStore.toggleRenderMode(true); closeMobileMenu()"
                 class="w-full flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition">
                 <span class="flex items-center gap-2 font-medium">
-                  <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
+                  <svg lucideEye class="w-4 h-4 text-amber-400"></svg>
                   {{ 'header.renderMode' | translate }}
                 </span>
-                <span class="text-amber-400">›</span>
+                <svg lucideChevronRight class="w-3.5 h-3.5 text-amber-400"></svg>
               </button>
             </div>
           </div>
@@ -538,16 +534,12 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
               <button
                 (click)="exportProjectJson(); closeMobileMenu()"
                 class="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 transition font-medium">
-                <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                </svg>
+                <svg lucideDownload class="w-4 h-4 text-sky-400"></svg>
                 {{ 'header.saveJson' | translate }}
               </button>
 
               <label class="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700/80 transition font-medium cursor-pointer">
-                <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
+                <svg lucideUpload class="w-4 h-4 text-emerald-400"></svg>
                 {{ 'header.loadJson' | translate }}
                 <input type="file" accept=".json" (change)="importProjectJson($event); closeMobileMenu()" class="hidden" />
               </label>
@@ -596,9 +588,7 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
               <button
                 (click)="installPwa(); closeMobileMenu()"
                 class="w-full py-2.5 px-3 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-medium flex items-center justify-center gap-2 shadow-md transition">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
+                <svg lucideDownload class="w-4 h-4"></svg>
                 <span>{{ 'header.installApp' | translate }}</span>
               </button>
             </div>

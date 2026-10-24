@@ -1,13 +1,28 @@
 import { Component, EventEmitter, HostListener, Output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import {
+  LucideHelpCircle,
+  LucideX,
+  LucideLightbulb,
+  LucideMousePointer,
+  LucideCamera
+} from '@lucide/angular';
 
 type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
 
 @Component({
   selector: 'app-help-dialog',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [
+    CommonModule,
+    TranslatePipe,
+    LucideHelpCircle,
+    LucideX,
+    LucideLightbulb,
+    LucideMousePointer,
+    LucideCamera
+  ],
   template: `
     <div
       class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
@@ -22,9 +37,7 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
         <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <svg lucideHelpCircle class="w-5 h-5"></svg>
             </div>
             <div>
               <h2 id="help-dialog-title" class="text-base font-bold text-slate-100">
@@ -38,9 +51,7 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
             (click)="close.emit()"
             class="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition"
             aria-label="Close dialog">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <svg lucideX class="w-5 h-5"></svg>
           </button>
         </div>
 
@@ -122,8 +133,11 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
                 </div>
               </div>
 
-              <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[11px] text-amber-200">
-                <strong>💡 Tip:</strong> Switch between <strong>16ths</strong> (-8 to +8), <strong>Fractions</strong> (-1/2 to 1/2), and <strong>Decimals</strong> (-0.5 to 0.5) in the Box Inspector at any time!
+              <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[11px] text-amber-200 flex items-start gap-1.5">
+                <svg lucideLightbulb class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"></svg>
+                <div>
+                  <strong>Tip:</strong> Switch between <strong>16ths</strong> (-8 to +8), <strong>Fractions</strong> (-1/2 to 1/2), and <strong>Decimals</strong> (-0.5 to 0.5) in the Box Inspector at any time!
+                </div>
               </div>
             </div>
           }
@@ -133,8 +147,9 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
             <div class="space-y-4">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                  <div class="font-semibold text-sky-400 mb-1.5 flex items-center gap-2">
-                    <span>🖱️ Mouse & Touch Controls</span>
+                  <div class="font-semibold text-sky-400 mb-1.5 flex items-center gap-1.5">
+                    <svg lucideMousePointer class="w-4 h-4"></svg>
+                    <span>Mouse & Touch Controls</span>
                   </div>
                   <ul class="space-y-1.5 text-[11px] text-slate-300">
                     <li><strong>Left Mouse Button (drag):</strong> Orbit / Rotate 3D camera</li>
@@ -146,8 +161,9 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
                 </div>
 
                 <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                  <div class="font-semibold text-sky-400 mb-1.5 flex items-center gap-2">
-                    <span>🎥 Camera & Shading Options</span>
+                  <div class="font-semibold text-sky-400 mb-1.5 flex items-center gap-1.5">
+                    <svg lucideCamera class="w-4 h-4"></svg>
+                    <span>Camera & Shading Options</span>
                   </div>
                   <ul class="space-y-1.5 text-[11px] text-slate-300">
                     <li><strong>Isometric / Ortho / Perspective:</strong> Toggle camera projection modes</li>
@@ -179,6 +195,9 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
                   <div class="p-2 bg-slate-900 rounded border border-slate-800/80">
                     <strong class="text-slate-100">Rotate Tool:</strong> Rotate 90° clockwise around the box center or the node origin (0,0,0).
                   </div>
+                  <div class="p-2 bg-slate-900 rounded border border-slate-800/80 sm:col-span-2">
+                    <strong class="text-fuchsia-300">3D Paint Mode (P):</strong> Paint pixels directly on 3D nodebox faces with live GPU updates. Built-in textures are automatically cloned to custom textures when painted.
+                  </div>
                 </div>
               </div>
 
@@ -202,6 +221,13 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
                 <div class="p-2 bg-slate-900 rounded font-mono text-[11px] text-slate-300">
                   tiles = &#123; "top.png", "bottom.png", "right.png", "left.png", "back.png", "front.png" &#125;
                 </div>
+              </div>
+
+              <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                <h4 class="font-semibold text-fuchsia-400 mb-1.5">2D Pixel Painter & 3D Raycast Painting</h4>
+                <p class="text-[11px] text-slate-400 mb-2">
+                  Switch to the <strong>Pixel Painter</strong> tab in Texture Studio to create blank textures (<code>16x16</code>, <code>32x32</code>, <code>64x64</code>) or edit any texture with Pencil, Eraser, Flood-Fill Bucket, Eyedropper, Line, and Pixel Noise tools. Toggle the <strong>UV Box Guide</strong> overlay to see the selected box's 3D footprint on the texture canvas, or press <kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-[10px]">P</kbd> in the 3D viewport to paint directly onto 3D faces! Use the <strong>Download PNG</strong> button to save your textures for your Luanti mod's <code>textures/</code> folder.
+                </p>
               </div>
 
               <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
