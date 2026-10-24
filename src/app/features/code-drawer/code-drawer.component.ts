@@ -5,6 +5,8 @@ import { ProjectStore } from '../../core/state/project.store';
 import { LuaGeneratorService } from '../../core/services/lua-generator.service';
 import { LuaParserService, ParseResult } from '../../core/services/lua-parser.service';
 import { ExportTemplate, FractionFormat } from '../../core/models/nodebox.model';
+import { TextureService } from '../../core/services/texture.service';
+import { safeGetItem, safeSetItem } from '../../core/utils/storage.utils';
 
 const STORAGE_HEIGHT_KEY = 'luanti_drawer_height';
 
@@ -188,6 +190,7 @@ export class CodeDrawerComponent {
   public projectStore = inject(ProjectStore);
   private luaGenerator = inject(LuaGeneratorService);
   private luaParser = inject(LuaParserService);
+  private textureService = inject(TextureService);
 
   public isExpanded = signal<boolean>(true);
   public activeTab = signal<'export' | 'import'>('export');
@@ -203,13 +206,11 @@ export class CodeDrawerComponent {
   });
 
   private loadStoredHeight(): number {
-    try {
-      const val = localStorage.getItem(STORAGE_HEIGHT_KEY);
-      if (val) {
-        const num = parseInt(val, 10);
-        if (!isNaN(num) && num >= 100 && num <= 800) return num;
-      }
-    } catch {}
+    const val = safeGetItem(STORAGE_HEIGHT_KEY);
+    if (val) {
+      const num = parseInt(val, 10);
+      if (!isNaN(num) && num >= 100 && num <= 800) return num;
+    }
     return 280;
   }
 
@@ -225,15 +226,13 @@ export class CodeDrawerComponent {
       if (!this.isExpanded()) {
         this.isExpanded.set(true);
       }
-      window.dispatchEvent(new Event('resize'));
     };
 
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      try {
-        localStorage.setItem(STORAGE_HEIGHT_KEY, this.drawerHeight().toString());
-      } catch {}
+      window.dispatchEvent(new Event('resize'));
+      safeSetItem(STORAGE_HEIGHT_KEY, this.drawerHeight().toString());
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -253,15 +252,13 @@ export class CodeDrawerComponent {
       if (!this.isExpanded()) {
         this.isExpanded.set(true);
       }
-      window.dispatchEvent(new Event('resize'));
     };
 
     const onTouchEnd = () => {
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onTouchEnd);
-      try {
-        localStorage.setItem(STORAGE_HEIGHT_KEY, this.drawerHeight().toString());
-      } catch {}
+      window.dispatchEvent(new Event('resize'));
+      safeSetItem(STORAGE_HEIGHT_KEY, this.drawerHeight().toString());
     };
 
     window.addEventListener('touchmove', onTouchMove);
@@ -301,6 +298,13 @@ export class CodeDrawerComponent {
     this.lastParseResult.set(result);
 
     if (result.boxes.length > 0) {
+      if (result.tiles) {
+        result.tiles.forEach(t => {
+          if (t && t.includes('^')) {
+            this.textureService.ensureTransformedTexture(t);
+          }
+        });
+      }
       this.projectStore.importBoxes(result.boxes, this.importReplace, result.nodeName, result.tiles);
       this.activeTab.set('export');
     }

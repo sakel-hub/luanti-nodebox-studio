@@ -204,4 +204,137 @@ describe('LuaParserService & LuaGeneratorService', () => {
     expect(lua).toContain('-4/8');
     expect(lua).toContain('-5/16');
   });
+
+  it('parses and generates tiles with ^[transformFX (like Everness luminous mushroom)', () => {
+    const luaCode = `
+      Everness:register_node('everness:luminous_mushroom_4', {
+          tiles = {
+              'everness_luminous_mushroom_top.png',
+              'everness_luminous_mushroom_bottom.png',
+              'everness_luminous_mushroom_side_x.png',
+              'everness_luminous_mushroom_side_x.png^[transformFX',
+              'everness_luminous_mushroom_side_z.png^[transformFX',
+              'everness_luminous_mushroom_side_z.png',
+          },
+          node_box = {
+              type = 'fixed',
+              fixed = {
+                  {-0.3125, -0.5, -0.3125, -0.25, 0.0, -0.25}
+              }
+          }
+      })
+    `;
+
+    const result = parser.parse(luaCode);
+    expect(result.tiles).toBeDefined();
+    expect(result.tiles?.length).toBe(6);
+    expect(result.tiles?.[3]).toBe('everness_luminous_mushroom_side_x.png^[transformFX');
+    expect(result.tiles?.[4]).toBe('everness_luminous_mushroom_side_z.png^[transformFX');
+
+    const project: NodeboxProject = {
+      id: 'mush',
+      name: 'Mushroom',
+      nodeName: 'everness:luminous_mushroom_4',
+      format: 'fractions_16',
+      exportTemplate: 'register_node',
+      snapResolution: 16,
+      updatedAt: Date.now(),
+      globalTextures: {
+        top: result.tiles![0],
+        bottom: result.tiles![1],
+        right: result.tiles![2],
+        left: result.tiles![3],
+        back: result.tiles![4],
+        front: result.tiles![5]
+      },
+      boxes: result.boxes
+    };
+
+    const exported = generator.generate(project);
+    expect(exported).toContain('"everness_luminous_mushroom_side_x.png^[transformFX", -- left');
+    expect(exported).toContain('"everness_luminous_mushroom_side_z.png^[transformFX", -- back');
+  });
+
+  it('correctly imports full luminous_mushroom_4 definition with 14 boxes, comment names, and ignores selection_box and tiles', () => {
+    const fullEvernessLua = `
+Everness:register_node('everness:luminous_mushroom_4', {
+    description = S('Luminous Mushroom'),
+    short_description = S('Luminous Mushroom'),
+    drawtype = 'nodebox',
+    tiles = {
+        'everness_luminous_mushroom_top.png',
+        'everness_luminous_mushroom_bottom.png',
+        'everness_luminous_mushroom_side_x.png',
+        'everness_luminous_mushroom_side_x.png^[transformFX',
+        'everness_luminous_mushroom_side_z.png^[transformFX',
+        'everness_luminous_mushroom_side_z.png',
+    },
+    use_texture_alpha = 'clip',
+    selection_box = {
+        type = 'fixed',
+        fixed = { -8 / 16, -8 / 16, -8 / 16, 8 / 16, 2 / 16, 8 / 16 },
+    },
+    node_box = {
+        type = 'fixed',
+        fixed = {
+            { -0.3125, -0.5000, -0.3125, -0.2500, 0.000, -0.2500 }, -- mushroom 1 stem
+            { -0.5000, 0.000, -0.5000, -0.06250, 0.06250, -0.06250 }, -- mushroom 1 top A
+            { -0.4375, 0.06250, -0.4375, -0.1250, 0.1250, -0.1250 }, -- mushroom 1 top B
+            { 0.3125, -0.3125, -0.2500, 0.5000, -0.2500, -0.06250 }, -- mushroom 2 top
+            { 0.3750, -0.5000, -0.1875, 0.4375, -0.3125, -0.1250 }, -- mushroom 2 stem
+            { 0.06250, -0.3750, -0.5000, 0.2500, -0.3125, -0.3125 }, -- mushroom 3 top
+            { 0.1250, -0.5000, -0.4375, 0.1875, -0.3750, -0.3750 }, -- mushroom 3 stem
+            { 0.06250, -0.1875, 0.06250, 0.5000, -0.1250, 0.5000 }, -- mushroom 4 top A
+            { 0.1250, -0.1250, 0.1250, 0.4375, -0.06250, 0.4375 }, -- mushroom 4 top B
+            { 0.2500, -0.5000, 0.2500, 0.3125, -0.1875, 0.3125 }, -- mushroom 4 stem
+            { -0.2500, -0.3125, 0.000, 0.000, -0.2500, 0.2500 }, -- mushroom 5 top
+            { -0.1875, -0.5000, 0.06250, -0.06250, -0.2500, 0.1875 }, -- mushroom 5 stem
+            { -0.5000, -0.2500, 0.3125, -0.3125, -0.1875, 0.5000 }, -- mushroom 6 top
+            { -0.4375, -0.5000, 0.3750, -0.3750, -0.2500, 0.4375 }, -- mushroom 6 stem
+        }
+    }
+})
+    `;
+
+    const result = parser.parse(fullEvernessLua);
+    expect(result.nodeName).toBe('everness:luminous_mushroom_4');
+    expect(result.tiles?.length).toBe(6);
+
+    // Exactly 14 boxes must be extracted (no 0,0,0 and no selection_box)
+    expect(result.boxes.length).toBe(14);
+
+    // Verify box names come from author's inline comments
+    expect(result.boxes[0].name).toBe('mushroom 1 stem');
+    expect(result.boxes[1].name).toBe('mushroom 1 top A');
+    expect(result.boxes[2].name).toBe('mushroom 1 top B');
+    expect(result.boxes[3].name).toBe('mushroom 2 top');
+    expect(result.boxes[4].name).toBe('mushroom 2 stem');
+    expect(result.boxes[5].name).toBe('mushroom 3 top');
+    expect(result.boxes[6].name).toBe('mushroom 3 stem');
+    expect(result.boxes[7].name).toBe('mushroom 4 top A');
+    expect(result.boxes[8].name).toBe('mushroom 4 top B');
+    expect(result.boxes[9].name).toBe('mushroom 4 stem');
+    expect(result.boxes[10].name).toBe('mushroom 5 top');
+    expect(result.boxes[11].name).toBe('mushroom 5 stem');
+    expect(result.boxes[12].name).toBe('mushroom 6 top');
+    expect(result.boxes[13].name).toBe('mushroom 6 stem');
+
+    // Verify coordinates of the first box
+    expect(result.boxes[0].minX).toBe(-0.3125);
+    expect(result.boxes[0].minY).toBe(-0.5);
+    expect(result.boxes[0].minZ).toBe(-0.3125);
+    expect(result.boxes[0].maxX).toBe(-0.25);
+    expect(result.boxes[0].maxY).toBe(0.0);
+    expect(result.boxes[0].maxZ).toBe(-0.25);
+
+    // Ensure selection box was not added (selection box spans -0.5 to 0.5 in X and Z)
+    const hasSelectionBox = result.boxes.some(b => b.minX === -0.5 && b.maxX === 0.5 && b.minZ === -0.5 && b.maxZ === 0.5);
+    expect(hasSelectionBox).toBe(false);
+
+    // Ensure 0,0,0 box from tiles was not added
+    const hasZeroBox = result.boxes.some(b => b.minX === 0 && b.maxX === 0 && b.minY === 0 && b.maxY === 0);
+    expect(hasZeroBox).toBe(false);
+  });
 });
+
+

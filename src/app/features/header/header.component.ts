@@ -3,11 +3,15 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectStore } from '../../core/state/project.store';
 import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model';
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { KeyboardShortcutsService } from '../../core/services/keyboard-shortcuts.service';
+import { ThemeService } from '../../core/services/theme.service';
+import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@lucide/angular';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TooltipDirective, LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon],
   template: `
     <header class="h-12 bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between text-xs select-none z-20">
       <!-- Left: Logo & Project Naming -->
@@ -54,20 +58,18 @@ import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model'
         <button
           (click)="projectStore.undo()"
           [disabled]="!projectStore.canUndo()"
-          title="Undo (Ctrl+Z)"
+          [appTooltip]="'Undo'"
+          [appTooltipShortcutId]="'edit_undo'"
           class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:pointer-events-none transition">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m0 0l-4-4m4 4l4-4" transform="scale(-1, 1) translate(-24, 0)" />
-          </svg>
+          <svg lucideUndo class="w-4 h-4"></svg>
         </button>
         <button
           (click)="projectStore.redo()"
           [disabled]="!projectStore.canRedo()"
-          title="Redo (Ctrl+Y)"
+          [appTooltip]="'Redo'"
+          [appTooltipShortcutId]="'edit_redo'"
           class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:pointer-events-none transition">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a5 5 0 00-5 5v2m0 0l4-4m-4 4l-4-4" />
-          </svg>
+          <svg lucideRedo class="w-4 h-4"></svg>
         </button>
 
         <div class="h-4 w-px bg-slate-800 mx-1"></div>
@@ -75,6 +77,7 @@ import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model'
         <!-- Presets Button -->
         <button
           (click)="openPresets.emit()"
+          [appTooltip]="'Model presets and starter templates'"
           class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-300 font-medium transition">
           <svg class="w-3.5 h-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -82,18 +85,33 @@ import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model'
           Presets
         </button>
 
-        <!-- Rotate Model 90° Y Button -->
+        <!-- Presentation Render Mode Button -->
         <button
-          (click)="projectStore.rotateAllBoxes('y', 1)"
-          title="Rotate entire model 90° clockwise around Y"
+          (click)="projectStore.toggleRenderMode(true)"
+          [appTooltip]="'Distraction-free presentation render mode'"
+          [appTooltipShortcutId]="'view_render_mode'"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-medium transition text-xs">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          <span>Render</span>
+        </button>
+
+        <!-- Keyboard Shortcuts Button -->
+        <button
+          (click)="shortcutsService.openShortcutsModal()"
+          [appTooltip]="'Keyboard Shortcuts'"
+          [appTooltipShortcutId]="'help_shortcuts'"
           class="flex items-center gap-1 px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-300 font-medium transition text-xs">
-          <span>⟳ 90° Y</span>
+          <svg lucideKeyboard class="w-3.5 h-3.5 text-sky-400"></svg>
+          <span class="hidden sm:inline">Shortcuts</span>
         </button>
 
         <!-- New Button -->
         <button
           (click)="confirmReset()"
-          title="Reset and start new model"
+          [appTooltip]="'Reset and start new model'"
           class="px-2.5 py-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
           New
         </button>
@@ -111,6 +129,18 @@ import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model'
             <option [value]="16">1/16</option>
             <option [value]="32">1/32</option>
             <option [value]="64">1/64</option>
+          </select>
+        </div>
+
+        <!-- Model Height Selector (1 Node vs 2 Nodes) -->
+        <div class="flex items-center gap-1 text-[11px] bg-slate-900 border border-slate-800 rounded px-2 py-0.5">
+          <span class="text-slate-500 font-mono">Height:</span>
+          <select
+            [ngModel]="projectStore.project().nodeHeight"
+            (ngModelChange)="projectStore.setNodeHeight(+$event)"
+            class="bg-transparent text-slate-300 focus:outline-none cursor-pointer font-mono">
+            <option [value]="1">1 Node</option>
+            <option [value]="2">2 Nodes</option>
           </select>
         </div>
 
@@ -133,6 +163,18 @@ import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model'
           <input type="file" accept=".json" (change)="importProjectJson($event)" class="hidden" />
         </label>
 
+        <!-- Theme Toggle (Dark / Light) -->
+        <button
+          (click)="themeService.toggleTheme()"
+          [appTooltip]="themeService.theme() === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+          class="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition">
+          @if (themeService.theme() === 'dark') {
+            <svg lucideSun class="w-4 h-4 text-amber-400"></svg>
+          } @else {
+            <svg lucideMoon class="w-4 h-4 text-sky-400"></svg>
+          }
+        </button>
+
         <!-- Install PWA App Button (if available) -->
         @if (canInstallPwa()) {
           <button
@@ -152,6 +194,8 @@ export class HeaderComponent {
   @Output() openPresets = new EventEmitter<void>();
 
   public projectStore = inject(ProjectStore);
+  public shortcutsService = inject(KeyboardShortcutsService);
+  public themeService = inject(ThemeService);
   public canInstallPwa = signal<boolean>(false);
   private deferredPrompt: any = null;
 
@@ -198,11 +242,12 @@ export class HeaderComponent {
       try {
         const parsed = JSON.parse(reader.result as string) as NodeboxProject;
         if (parsed && Array.isArray(parsed.boxes)) {
-          this.projectStore.project.set(parsed);
-          this.projectStore.setSelectedBoxId(parsed.boxes[0]?.id ?? null);
+          this.projectStore.loadProject(parsed);
         }
       } catch {
         alert('Invalid JSON project file.');
+      } finally {
+        input.value = '';
       }
     };
     reader.readAsText(file);

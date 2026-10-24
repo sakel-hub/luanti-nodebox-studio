@@ -1,13 +1,6 @@
-import { FaceTextures } from '../models/nodebox.model';
+import { AABB, FaceTextures } from '../models/nodebox.model';
 
-export interface AABBBox {
-  minX: number;
-  minY: number;
-  minZ: number;
-  maxX: number;
-  maxY: number;
-  maxZ: number;
-}
+export type AABBBox = AABB;
 
 /**
  * Rotates an Axis-Aligned Bounding Box by 90 degrees around an axis.

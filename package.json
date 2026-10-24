@@ -5,10 +5,12 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "serve:pwa": "ng build && npx http-server dist/luanti-nodebox/browser -p 8080 -c-1",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "vitest run"
   },
   "private": true,
+  "license": "MIT",
   "packageManager": "npm@11.13.0",
   "dependencies": {
     "@angular/common": "^22.2.0",

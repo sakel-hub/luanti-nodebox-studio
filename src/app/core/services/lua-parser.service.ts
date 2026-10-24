@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Box, FaceTextures, LUANTI_FACE_DIRECTIONS } from '../models/nodebox.model';
+import { BOX_PALETTE, Box, FaceTextures, LUANTI_FACE_DIRECTIONS } from '../models/nodebox.model';
 import { parseCoordinateString } from '../utils/fraction.utils';
 
 export interface ParseResult {
@@ -8,19 +8,6 @@ export interface ParseResult {
   tiles?: string[];
   warnings: string[];
 }
-
-const BOX_PALETTE = [
-  '#38bdf8', // sky
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#a855f7', // purple
-  '#f43f5e', // rose
-  '#06b6d4', // cyan
-  '#84cc16', // lime
-  '#ec4899', // pink
-  '#6366f1', // indigo
-  '#14b8a6'  // teal
-];
 
 @Injectable({
   providedIn: 'root'
@@ -32,7 +19,7 @@ export class LuaParserService {
    */
   private evaluateExpression(expr: string): number {
     const trimmed = expr.trim();
-    if (!trimmed) return 0;
+    if (!trimmed) return NaN;
 
     // Direct fraction or number
     const simple = parseCoordinateString(trimmed);
@@ -40,7 +27,12 @@ export class LuaParserService {
 
     // Tokenize numbers, +, -, *, /
     const tokens = trimmed.match(/([+-]?\d+(?:\.\d+)?|\+|\-|\*|\/)/g);
-    if (!tokens) return 0;
+    if (!tokens || tokens.length === 0) return NaN;
+
+    // Verify at least one number token exists
+    if (!tokens.some(t => /^[+-]?\d+(?:\.\d+)?$/.test(t))) {
+      return NaN;
+    }
 
     try {
       // Basic precedence parser for +, -, *, /
@@ -75,26 +67,24 @@ export class LuaParserService {
         if (op === '-') result -= nextVal;
       }
 
-      return isNaN(result) ? 0 : result;
+      return isNaN(result) ? NaN : result;
     } catch {
-      return 0;
+      return NaN;
     }
   }
 
   /**
-   * Strips Lua block and line comments.
+   * Strips multiline Lua block comments (--[[ ... ]]) while keeping single-line comments intact.
    */
-  private stripComments(luaCode: string): string {
-    return luaCode
-      .replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, '') // Multiline comments --[[ ... ]]
-      .replace(/--.*$/gm, '');                  // Single line comments -- ...
+  private stripBlockComments(luaCode: string): string {
+    return luaCode.replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, '');
   }
 
   /**
-   * Extracts node name e.g. minetest.register_node("mod:name", ...)
+   * Extracts node name e.g. minetest.register_node("mod:name", ...), core.register_node, or Mod:register_node
    */
   private extractNodeName(code: string): string | undefined {
-    const match = code.match(/(?:core|minetest)\.register_node\s*\(\s*["']([^"']+)["']/);
+    const match = code.match(/(?:core|minetest|[a-zA-Z0-9_]+)[.:]register_node\s*\(\s*["']([^"']+)["']/);
     return match ? match[1] : undefined;
   }
 
@@ -122,6 +112,42 @@ export class LuaParserService {
   }
 
   /**
+   * Extracts the relevant block for box parsing (preferring node_box, then fixed, or falling back to full code).
+   */
+  private extractBoxTargetBlock(code: string): string {
+    // 1. Look for node_box = { ... }
+    const nodeBoxMatch = code.match(/node_box\s*=\s*\{/);
+    if (nodeBoxMatch && nodeBoxMatch.index !== undefined) {
+      const block = this.extractBalancedBraceBlock(code, nodeBoxMatch.index + nodeBoxMatch[0].length - 1);
+      if (block) return block;
+    }
+
+    // 2. Look for fixed = { ... }
+    const fixedMatch = code.match(/fixed\s*=\s*\{/);
+    if (fixedMatch && fixedMatch.index !== undefined) {
+      const block = this.extractBalancedBraceBlock(code, fixedMatch.index + fixedMatch[0].length - 1);
+      if (block) return block;
+    }
+
+    // 3. Fallback to full code
+    return code;
+  }
+
+  private extractBalancedBraceBlock(code: string, startBraceIdx: number): string | null {
+    let depth = 0;
+    for (let i = startBraceIdx; i < code.length; i++) {
+      if (code[i] === '{') depth++;
+      else if (code[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          return code.substring(startBraceIdx, i + 1);
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Parses Lua code and extracts all valid 6-coordinate boxes.
    */
   public parse(luaCode: string): ParseResult {
@@ -132,15 +158,17 @@ export class LuaParserService {
 
     const nodeName = this.extractNodeName(luaCode);
     const tiles = this.extractTiles(luaCode);
-    const cleanCode = this.stripComments(luaCode);
 
-    // Find all curly brace groups that could be box definitions: { num, num, num, num, num, num }
-    // Handles nested spaces, signs, fractions (e.g. -8/16)
-    const braceRegex = /\{([^{}]+)\}/g;
+    // Strip multiline block comments, but preserve inline comments for box names
+    const cleanCode = this.stripBlockComments(luaCode);
+    const targetBlock = this.extractBoxTargetBlock(cleanCode);
+
+    // Match 6-coordinate tuples: { num, num, num, num, num, num } followed optionally by a comma and inline comment
+    const boxTupleRegex = /\{([^{}]+)\}\s*,?\s*(?:--[ \t]*([^\r\n]*))?/g;
     let match: RegExpExecArray | null;
-    const rawBoxes: number[][] = [];
+    const rawBoxes: { coords: number[]; name?: string }[] = [];
 
-    while ((match = braceRegex.exec(cleanCode)) !== null) {
+    while ((match = boxTupleRegex.exec(targetBlock)) !== null) {
       const content = match[1].trim();
       const parts = content.split(',').map(p => p.trim()).filter(p => p.length > 0);
 
@@ -149,7 +177,11 @@ export class LuaParserService {
         const coords = parts.map(p => this.evaluateExpression(p));
         // Verify all 6 are valid numbers
         if (coords.every(c => !isNaN(c))) {
-          rawBoxes.push(coords);
+          const commentName = match[2]?.trim();
+          rawBoxes.push({
+            coords,
+            name: commentName && commentName.length > 0 ? commentName : undefined
+          });
         }
       }
     }
@@ -159,8 +191,8 @@ export class LuaParserService {
     }
 
     // Convert raw tuples into Box entities
-    const boxes: Box[] = rawBoxes.map((coords, idx) => {
-      let [x1, y1, z1, x2, y2, z2] = coords;
+    const boxes: Box[] = rawBoxes.map((raw, idx) => {
+      let [x1, y1, z1, x2, y2, z2] = raw.coords;
 
       // Ensure min is <= max
       const minX = Math.min(x1, x2);
@@ -181,19 +213,9 @@ export class LuaParserService {
 
       const color = BOX_PALETTE[idx % BOX_PALETTE.length];
 
-      // Assign tiles if available
-      let faceTextures: FaceTextures | undefined = undefined;
-      if (tiles && tiles.length > 0) {
-        faceTextures = {};
-        LUANTI_FACE_DIRECTIONS.forEach((dir, dirIdx) => {
-          const tile = tiles[dirIdx] ?? tiles[0];
-          faceTextures![dir] = tile;
-        });
-      }
-
       return {
         id: `box_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
-        name: `Box ${idx + 1}`,
+        name: raw.name || `Box ${idx + 1}`,
         minX,
         minY,
         minZ,
@@ -202,8 +224,7 @@ export class LuaParserService {
         maxZ,
         visible: true,
         locked: false,
-        color,
-        textures: faceTextures
+        color
       };
     });
 

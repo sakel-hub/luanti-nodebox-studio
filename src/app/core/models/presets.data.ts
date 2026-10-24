@@ -240,5 +240,48 @@ export const LUANTI_PRESETS: PresetTemplate[] = [
         color: '#f59e0b'
       }
     ]
+  },
+  {
+    name: 'Wooden Door (2 Nodes)',
+    description: 'Classic 2-node tall wooden door with lower frame, window insert, and handle',
+    nodeHeight: 2,
+    boxes: [
+      {
+        name: 'Door Panel Lower',
+        minX: -0.5,
+        minY: -0.5,
+        minZ: -0.0625,
+        maxX: 0.5,
+        maxY: 0.5,
+        maxZ: 0.0625,
+        visible: true,
+        locked: false,
+        color: '#b47a46'
+      },
+      {
+        name: 'Door Panel Upper',
+        minX: -0.5,
+        minY: 0.5,
+        minZ: -0.0625,
+        maxX: 0.5,
+        maxY: 1.5,
+        maxZ: 0.0625,
+        visible: true,
+        locked: false,
+        color: '#966032'
+      },
+      {
+        name: 'Door Knob',
+        minX: 0.3125,
+        minY: 0.375,
+        minZ: -0.125,
+        maxX: 0.4375,
+        maxY: 0.5,
+        maxZ: 0.125,
+        visible: true,
+        locked: false,
+        color: '#f59e0b'
+      }
+    ]
   }
 ];

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TestBed } from '@angular/core/testing';
 import { ProjectStore } from './project.store';
 import { LUANTI_PRESETS } from '../models/presets.data';
 
@@ -7,11 +6,10 @@ describe('ProjectStore', () => {
   let store: ProjectStore;
 
   beforeEach(() => {
-    localStorage.clear();
-    TestBed.configureTestingModule({
-      providers: [ProjectStore]
-    });
-    store = TestBed.inject(ProjectStore);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
+    store = new ProjectStore();
     store.resetProject();
   });
 
@@ -79,4 +77,82 @@ describe('ProjectStore', () => {
     expect(store.boxes()[0].name).toBe('Lower Step');
     expect(store.boxes()[1].name).toBe('Upper Step');
   });
+
+  it('toggles render mode', () => {
+    expect(store.isRenderMode()).toBe(false);
+    store.toggleRenderMode();
+    expect(store.isRenderMode()).toBe(true);
+    store.toggleRenderMode(false);
+    expect(store.isRenderMode()).toBe(false);
+    store.toggleRenderMode(true);
+    expect(store.isRenderMode()).toBe(true);
+  });
+
+  it('correctly tracks used texture base IDs across global and box faces', () => {
+    store.setGlobalTexture('top', 'my_custom_texture');
+    store.setGlobalTexture('left', 'my_custom_texture^[transformFX');
+
+    const used = store.getUsedTextureBaseIds();
+    expect(used.has('my_custom_texture')).toBe(true);
+    expect(used.has('default_wood.png')).toBe(true);
+  });
+
+  it('replaces texture usage across global and box faces when a texture is deleted', () => {
+    store.setGlobalTexture('right', 'temp_texture');
+    store.setGlobalTexture('left', 'temp_texture^[transformFX');
+
+    store.replaceTextureUsage('temp_texture', 'default_wood.png');
+
+    expect(store.project().globalTextures.right).toBe('default_wood.png');
+    expect(store.project().globalTextures.left).toBe('default_wood.png^[transformFX');
+  });
+
+  it('manages nodeHeight and supports 2-node tall models', () => {
+    expect(store.project().nodeHeight).toBe(1);
+
+    store.setNodeHeight(2);
+    expect(store.project().nodeHeight).toBe(2);
+    expect(store.canUndo()).toBe(true);
+
+    store.undo();
+    expect(store.project().nodeHeight).toBe(1);
+
+    store.redo();
+    expect(store.project().nodeHeight).toBe(2);
+  });
+
+  it('auto-detects tall boxes on import and sets nodeHeight to 2', () => {
+    expect(store.project().nodeHeight).toBe(1);
+
+    // Import a tall box spanning up to Y = 1.5
+    store.importBoxes([
+      {
+        id: 'box_tall',
+        name: 'Tall Pillar',
+        minX: -0.5,
+        minY: -0.5,
+        minZ: -0.5,
+        maxX: 0.5,
+        maxY: 1.5,
+        maxZ: 0.5,
+        visible: true,
+        locked: false,
+        color: '#38bdf8'
+      }
+    ], true);
+
+    expect(store.project().nodeHeight).toBe(2);
+  });
+
+  it('loads 2-node presets with nodeHeight = 2', () => {
+    const doorPreset = LUANTI_PRESETS.find(p => p.name === 'Wooden Door (2 Nodes)')!;
+    expect(doorPreset).toBeDefined();
+    expect(doorPreset.nodeHeight).toBe(2);
+
+    store.loadPreset(doorPreset);
+    expect(store.project().nodeHeight).toBe(2);
+    expect(store.project().name).toBe('Wooden Door (2 Nodes)');
+    expect(store.boxes().length).toBe(3);
+  });
 });
+

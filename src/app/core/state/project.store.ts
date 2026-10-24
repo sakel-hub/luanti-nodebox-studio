@@ -1,6 +1,7 @@
 import { rotateAABB90, rotateFaceTextures90 } from "../utils/rotation.utils";
 import { Injectable, computed, effect, signal } from '@angular/core';
 import {
+  BOX_PALETTE,
   Box,
   ExportTemplate,
   FaceDirection,
@@ -10,6 +11,7 @@ import {
   PresetTemplate
 } from '../models/nodebox.model';
 import { gridStepToFloat } from '../utils/fraction.utils';
+import { safeGetItem, safeSetItem } from '../utils/storage.utils';
 
 const STORAGE_KEY = 'luanti_nodebox_active_project';
 
@@ -17,6 +19,7 @@ const DEFAULT_PROJECT: NodeboxProject = {
   id: 'proj_default',
   name: 'Wooden Slab',
   nodeName: 'stairs:slab_wood',
+  nodeHeight: 1,
   format: 'fractions_16',
   exportTemplate: 'register_node',
   snapResolution: 16,
@@ -58,6 +61,7 @@ export class ProjectStore {
   private redoStack: NodeboxProject[] = [];
   public readonly canUndo = signal<boolean>(false);
   public readonly canRedo = signal<boolean>(false);
+  public readonly isRenderMode = signal<boolean>(false);
 
   // Active box computed
   public readonly selectedBox = computed<Box | null>(() => {
@@ -71,31 +75,35 @@ export class ProjectStore {
 
   constructor() {
     // Autosave whenever project changes
-    effect(() => {
-      const current = this.project();
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-      } catch {
-        // LocalStorage quota or error
-      }
-    });
+    try {
+      effect(() => {
+        const current = this.project();
+        safeSetItem(STORAGE_KEY, JSON.stringify(current));
+      });
+    } catch {
+      // In isolated environments outside injection context, effect is safely bypassed
+    }
   }
 
   private loadInitialProject(): NodeboxProject {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
+    const saved = safeGetItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          nodeHeight: parsed.nodeHeight ?? 1
+        };
+      } catch {
+        // Fallback to default on corrupted JSON
       }
-    } catch {
-      // Fallback
     }
     return DEFAULT_PROJECT;
   }
 
   private recordState(): void {
     // Push a deep copy to undo stack
-    this.undoStack.push(JSON.parse(JSON.stringify(this.project())));
+    this.undoStack.push(structuredClone(this.project()));
     if (this.undoStack.length > 50) {
       this.undoStack.shift();
     }
@@ -111,7 +119,7 @@ export class ProjectStore {
   public undo(): void {
     if (this.undoStack.length === 0) return;
     const previous = this.undoStack.pop()!;
-    this.redoStack.push(JSON.parse(JSON.stringify(this.project())));
+    this.redoStack.push(structuredClone(this.project()));
     this.project.set(previous);
     this.updateUndoRedoSignals();
   }
@@ -119,7 +127,7 @@ export class ProjectStore {
   public redo(): void {
     if (this.redoStack.length === 0) return;
     const next = this.redoStack.pop()!;
-    this.undoStack.push(JSON.parse(JSON.stringify(this.project())));
+    this.undoStack.push(structuredClone(this.project()));
     this.project.set(next);
     this.updateUndoRedoSignals();
   }
@@ -142,7 +150,7 @@ export class ProjectStore {
       maxZ: partial?.maxZ ?? 0.25,
       visible: true,
       locked: false,
-      color: partial?.color ?? '#f59e0b',
+      color: partial?.color ?? BOX_PALETTE[this.project().boxes.length % BOX_PALETTE.length],
       textures: partial?.textures
     };
 
@@ -187,7 +195,7 @@ export class ProjectStore {
 
     this.recordState();
     const duplicated: Box = {
-      ...JSON.parse(JSON.stringify(target)),
+      ...structuredClone(target),
       id: `box_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       name: `${target.name} (Copy)`
     };
@@ -250,6 +258,11 @@ export class ProjectStore {
     this.updateBox(id, { minX, minY, minZ, maxX, maxY, maxZ });
   }
 
+  public toggleRenderMode(enabled?: boolean): void {
+    const next = enabled !== undefined ? enabled : !this.isRenderMode();
+    this.isRenderMode.set(next);
+  }
+
   public flipBox(id: string, axis: 'x' | 'y' | 'z'): void {
     const box = this.project().boxes.find(b => b.id === id);
     if (!box || box.locked) return;
@@ -285,6 +298,12 @@ export class ProjectStore {
 
   public setSnapResolution(snapResolution: number): void {
     this.project.update(p => ({ ...p, snapResolution, updatedAt: Date.now() }));
+  }
+
+  public setNodeHeight(nodeHeight: number): void {
+    if (this.project().nodeHeight === nodeHeight) return;
+    this.recordState();
+    this.project.update(p => ({ ...p, nodeHeight, updatedAt: Date.now() }));
   }
 
   public setProjectName(name: string): void {
@@ -344,24 +363,95 @@ export class ProjectStore {
     this.updateBox(boxId, { textures: undefined });
   }
 
+  public getUsedTextureBaseIds(): Set<string> {
+    const p = this.project();
+    const used = new Set<string>();
+
+    const extractBase = (key?: string) => {
+      if (!key) return;
+      const base = key.replace(/\^\[transformFX$/, '');
+      used.add(base);
+    };
+
+    LUANTI_FACE_DIRECTIONS.forEach(dir => {
+      extractBase(p.globalTextures[dir]);
+    });
+
+    p.boxes.forEach(b => {
+      if (b.textures) {
+        LUANTI_FACE_DIRECTIONS.forEach(dir => {
+          extractBase(b.textures?.[dir]);
+        });
+      }
+    });
+
+    return used;
+  }
+
+  public replaceTextureUsage(oldBaseId: string, fallbackTextureId: string = 'default_wood.png'): void {
+    this.recordState();
+    this.project.update(p => {
+      const updatedGlobal = { ...p.globalTextures };
+      let changed = false;
+
+      LUANTI_FACE_DIRECTIONS.forEach(dir => {
+        const val = updatedGlobal[dir];
+        if (val === oldBaseId || val === `${oldBaseId}^[transformFX`) {
+          const isFlipped = val.endsWith('^[transformFX');
+          updatedGlobal[dir] = isFlipped ? `${fallbackTextureId}^[transformFX` : fallbackTextureId;
+          changed = true;
+        }
+      });
+
+      const updatedBoxes = p.boxes.map(b => {
+        if (!b.textures) return b;
+        let boxChanged = false;
+        const boxTextures = { ...b.textures };
+        LUANTI_FACE_DIRECTIONS.forEach(dir => {
+          const val = boxTextures[dir];
+          if (val === oldBaseId || val === `${oldBaseId}^[transformFX`) {
+            const isFlipped = val.endsWith('^[transformFX');
+            boxTextures[dir] = isFlipped ? `${fallbackTextureId}^[transformFX` : fallbackTextureId;
+            boxChanged = true;
+            changed = true;
+          }
+        });
+        return boxChanged ? { ...b, textures: boxTextures } : b;
+      });
+
+      if (!changed) return p;
+      return {
+        ...p,
+        globalTextures: updatedGlobal,
+        boxes: updatedBoxes,
+        updatedAt: Date.now()
+      };
+    });
+  }
+
   public importBoxes(boxes: Box[], replace: boolean, nodeName?: string, tiles?: string[]): void {
     this.recordState();
     this.project.update(p => {
       const mergedBoxes = replace ? boxes : [...p.boxes, ...boxes];
-      const updatedProject: NodeboxProject = {
-        ...p,
-        boxes: mergedBoxes,
-        nodeName: nodeName || p.nodeName,
-        updatedAt: Date.now()
-      };
+      const updatedGlobalTextures = { ...p.globalTextures };
 
       if (tiles && tiles.length > 0) {
         LUANTI_FACE_DIRECTIONS.forEach((dir, i) => {
-          updatedProject.globalTextures[dir] = tiles[i] ?? tiles[0];
+          updatedGlobalTextures[dir] = tiles[i] ?? tiles[0];
         });
       }
 
-      return updatedProject;
+      const hasTallBoxes = mergedBoxes.some(b => b.maxY > 0.55);
+      const nodeHeight = hasTallBoxes ? Math.max(p.nodeHeight ?? 1, 2) : p.nodeHeight;
+
+      return {
+        ...p,
+        boxes: mergedBoxes,
+        nodeHeight,
+        nodeName: nodeName || p.nodeName,
+        globalTextures: updatedGlobalTextures,
+        updatedAt: Date.now()
+      };
     });
 
     if (boxes.length > 0) {
@@ -376,9 +466,12 @@ export class ProjectStore {
       id: `box_preset_${Date.now()}_${idx}`
     }));
 
+    const nodeHeight = preset.nodeHeight ?? 1;
+
     this.project.update(p => ({
       ...p,
       name: preset.name,
+      nodeHeight,
       boxes: newBoxes,
       updatedAt: Date.now()
     }));
@@ -386,6 +479,15 @@ export class ProjectStore {
     if (newBoxes.length > 0) {
       this.selectedBoxId.set(newBoxes[0].id);
     }
+  }
+
+  public loadProject(project: NodeboxProject): void {
+    this.recordState();
+    this.project.set({
+      ...project,
+      nodeHeight: project.nodeHeight ?? 1
+    });
+    this.selectedBoxId.set(project.boxes[0]?.id ?? null);
   }
 
   public resetProject(): void {

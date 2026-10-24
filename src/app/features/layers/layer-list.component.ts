@@ -3,11 +3,38 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectStore } from '../../core/state/project.store';
 import { formatCoordinate } from '../../core/utils/fraction.utils';
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import {
+  LucidePlus,
+  LucideEye,
+  LucideEyeOff,
+  LucideLock,
+  LucideUnlock,
+  LucideCopy,
+  LucideTrash2,
+  LucideArrowUp,
+  LucideArrowDown,
+  LucideRotateCw
+} from '@lucide/angular';
 
 @Component({
   selector: 'app-layer-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TooltipDirective,
+    LucidePlus,
+    LucideEye,
+    LucideEyeOff,
+    LucideLock,
+    LucideUnlock,
+    LucideCopy,
+    LucideTrash2,
+    LucideArrowUp,
+    LucideArrowDown,
+    LucideRotateCw
+  ],
   template: `
     <div class="h-full flex flex-col bg-slate-900 border-r border-slate-800 select-none">
       <!-- Panel Header -->
@@ -18,15 +45,23 @@ import { formatCoordinate } from '../../core/utils/fraction.utils';
             {{ projectStore.boxes().length }}
           </span>
         </div>
-        <button
-          (click)="addBox()"
-          class="flex items-center gap-1 bg-sky-600 hover:bg-sky-500 text-white text-xs px-2.5 py-1.5 rounded-md font-medium shadow-sm transition active:scale-95"
-          title="Add new bounding box to nodebox">
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Add Box
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button
+            (click)="projectStore.rotateAllBoxes('y', 1)"
+            [appTooltip]="'Rotate entire model 90° clockwise around Y'"
+            class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md transition active:scale-95 flex items-center justify-center"
+            title="Rotate model 90° Y">
+            <svg lucideRotateCw class="w-3.5 h-3.5"></svg>
+          </button>
+          <button
+            (click)="addBox()"
+            [appTooltip]="'Add new box'"
+            [appTooltipShortcutId]="'box_new'"
+            class="flex items-center gap-1 bg-sky-600 hover:bg-sky-500 text-white text-xs px-2.5 py-1.5 rounded-md font-medium shadow-sm transition active:scale-95">
+            <svg lucidePlus class="w-3.5 h-3.5"></svg>
+            Add Box
+          </button>
+        </div>
       </div>
 
       <!-- Search Input -->
@@ -40,10 +75,14 @@ import { formatCoordinate } from '../../core/utils/fraction.utils';
       </div>
 
       <!-- Box List -->
-      <div class="flex-1 overflow-y-auto divide-y divide-slate-800/60" role="listbox" aria-label="Boxes list">
+      <div
+        (click)="onBackgroundClick($event)"
+        class="flex-1 overflow-y-auto divide-y divide-slate-800/60"
+        role="listbox"
+        aria-label="Boxes list">
         @for (box of filteredBoxes(); track box.id; let idx = $index) {
           <div
-            (click)="selectBox(box.id)"
+            (click)="selectBox(box.id, $event)"
             [class.bg-sky-950]="box.id === projectStore.selectedBoxId()"
             [class.border-l-4]="box.id === projectStore.selectedBoxId()"
             [class.border-sky-500]="box.id === projectStore.selectedBoxId()"
@@ -83,68 +122,55 @@ import { formatCoordinate } from '../../core/utils/fraction.utils';
               <!-- Visibility -->
               <button
                 (click)="toggleVisibility(box.id)"
-                [title]="box.visible ? 'Hide box' : 'Show box'"
+                [appTooltip]="box.visible ? 'Hide box' : 'Show box'"
+                [appTooltipShortcutId]="'box_visibility'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
-                <svg *ngIf="box.visible" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                <svg *ngIf="!box.visible" class="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                </svg>
+                <svg *ngIf="box.visible" lucideEye class="w-3.5 h-3.5"></svg>
+                <svg *ngIf="!box.visible" lucideEyeOff class="w-3.5 h-3.5 text-slate-600"></svg>
               </button>
 
               <!-- Lock -->
               <button
                 (click)="toggleLock(box.id)"
-                [title]="box.locked ? 'Unlock box' : 'Lock box against accidental edits'"
+                [appTooltip]="box.locked ? 'Unlock box' : 'Lock box against accidental edits'"
+                [appTooltipShortcutId]="'box_lock'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
-                <svg *ngIf="box.locked" class="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <svg *ngIf="!box.locked" class="w-3.5 h-3.5 opacity-40 hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                </svg>
+                <svg *ngIf="box.locked" lucideLock class="w-3.5 h-3.5 text-amber-400"></svg>
+                <svg *ngIf="!box.locked" lucideUnlock class="w-3.5 h-3.5 opacity-40 hover:opacity-100"></svg>
               </button>
 
               <!-- Duplicate -->
               <button
                 (click)="duplicateBox(box.id)"
-                title="Duplicate box"
+                [appTooltip]="'Duplicate box'"
+                [appTooltipShortcutId]="'box_duplicate'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                </svg>
+                <svg lucideCopy class="w-3.5 h-3.5"></svg>
               </button>
 
               <!-- Move Up / Down -->
               <button
-                *ngIf="idx > 0"
-                (click)="moveBox(idx, idx - 1)"
-                title="Move up"
+                *ngIf="canMoveUp(box.id)"
+                (click)="moveBox(box.id, -1)"
+                [appTooltip]="'Move layer up'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                </svg>
+                <svg lucideArrowUp class="w-3.5 h-3.5"></svg>
               </button>
               <button
-                *ngIf="idx < filteredBoxes().length - 1"
-                (click)="moveBox(idx, idx + 1)"
-                title="Move down"
+                *ngIf="canMoveDown(box.id)"
+                (click)="moveBox(box.id, 1)"
+                [appTooltip]="'Move layer down'"
                 class="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
+                <svg lucideArrowDown class="w-3.5 h-3.5"></svg>
               </button>
 
               <!-- Delete -->
               <button
                 (click)="deleteBox(box.id)"
-                title="Delete box"
+                [appTooltip]="'Delete box'"
+                [appTooltipShortcutId]="'box_delete'"
                 class="p-1 rounded hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <svg lucideTrash2 class="w-3.5 h-3.5"></svg>
               </button>
             </div>
           </div>
@@ -168,8 +194,15 @@ export class LayerListComponent {
     return all.filter(b => b.name.toLowerCase().includes(q));
   });
 
-  selectBox(id: string): void {
+  selectBox(id: string, event?: MouseEvent): void {
+    event?.stopPropagation();
     this.projectStore.setSelectedBoxId(id);
+  }
+
+  onBackgroundClick(event: MouseEvent): void {
+    if (this.projectStore.selectedBoxId()) {
+      this.projectStore.setSelectedBoxId(null);
+    }
   }
 
   addBox(): void {
@@ -200,8 +233,25 @@ export class LayerListComponent {
     this.projectStore.removeBox(id);
   }
 
-  moveBox(from: number, to: number): void {
-    this.projectStore.reorderBoxes(from, to);
+  canMoveUp(id: string): boolean {
+    const all = this.projectStore.boxes();
+    const idx = all.findIndex(b => b.id === id);
+    return idx > 0;
+  }
+
+  canMoveDown(id: string): boolean {
+    const all = this.projectStore.boxes();
+    const idx = all.findIndex(b => b.id === id);
+    return idx !== -1 && idx < all.length - 1;
+  }
+
+  moveBox(id: string, delta: -1 | 1): void {
+    const all = this.projectStore.boxes();
+    const fromIndex = all.findIndex(b => b.id === id);
+    if (fromIndex === -1) return;
+    const toIndex = fromIndex + delta;
+    if (toIndex < 0 || toIndex >= all.length) return;
+    this.projectStore.reorderBoxes(fromIndex, toIndex);
   }
 
   formatCoord(val: number): string {

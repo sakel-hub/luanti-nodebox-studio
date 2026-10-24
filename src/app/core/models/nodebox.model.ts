@@ -18,16 +18,31 @@ export interface FaceTextures {
   front?: string;
 }
 
-export interface Box {
-  id: string;
-  name: string;
-  // Normalized Luanti coordinates [-0.5, 0.5]
+export interface AABB {
   minX: number;
   minY: number;
   minZ: number;
   maxX: number;
   maxY: number;
   maxZ: number;
+}
+
+export const BOX_PALETTE = [
+  '#38bdf8', // sky
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#a855f7', // purple
+  '#f43f5e', // rose
+  '#06b6d4', // cyan
+  '#84cc16', // lime
+  '#ec4899', // pink
+  '#6366f1', // indigo
+  '#14b8a6'  // teal
+] as const;
+
+export interface Box extends AABB {
+  id: string;
+  name: string;
   visible: boolean;
   locked: boolean;
   color: string;
@@ -48,6 +63,7 @@ export interface NodeboxProject {
   id: string;
   name: string;
   nodeName: string;
+  nodeHeight?: number; // 1 (default standard node) or 2 (tall 2-node model)
   boxes: Box[];
   globalTextures: Record<FaceDirection, string>;
   format: FractionFormat;
@@ -59,5 +75,6 @@ export interface NodeboxProject {
 export interface PresetTemplate {
   name: string;
   description: string;
+  nodeHeight?: number;
   boxes: Omit<Box, 'id'>[];
 }

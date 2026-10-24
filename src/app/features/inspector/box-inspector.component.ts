@@ -58,6 +58,19 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
         </div>
 
         <div class="p-3 space-y-4">
+          <!-- Locked Box Warning Banner -->
+          <div *ngIf="box.locked" class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5">
+              <span>🔒</span>
+              <span>This box is locked against editing.</span>
+            </div>
+            <button
+              (click)="projectStore.toggleBoxLock(box.id)"
+              class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-medium transition">
+              Unlock
+            </button>
+          </div>
+
           <!-- Coordinates Group -->
           <div class="space-y-3">
             <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400">
@@ -239,6 +252,52 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
                 title="Mirror along Z axis"
                 class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-slate-300 font-medium transition text-center active:scale-95">
                 Flip Z
+              </button>
+            </div>
+          </div>
+
+          <!-- Rotation 90° -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-[11px] font-semibold tracking-wider uppercase text-slate-400">
+              <span>Rotate 90&deg;</span>
+              <div class="flex bg-slate-950 p-0.5 rounded border border-slate-800 text-[10px]">
+                <button
+                  (click)="rotateOrigin.set('center')"
+                  [class.text-sky-400]="rotateOrigin() === 'center'"
+                  [class.font-bold]="rotateOrigin() === 'center'"
+                  class="px-1.5 py-0.5 text-slate-400 hover:text-slate-200 transition">
+                  Center
+                </button>
+                <button
+                  (click)="rotateOrigin.set('origin')"
+                  [class.text-sky-400]="rotateOrigin() === 'origin'"
+                  [class.font-bold]="rotateOrigin() === 'origin'"
+                  class="px-1.5 py-0.5 text-slate-400 hover:text-slate-200 transition">
+                  Origin (0,0,0)
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                (click)="rotate(box.id, 'x', 1)"
+                [disabled]="box.locked"
+                title="Rotate 90 degrees around X"
+                class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-red-400 font-medium transition text-center active:scale-95 disabled:opacity-40">
+                &circlearrowright; 90&deg; X
+              </button>
+              <button
+                (click)="rotate(box.id, 'y', 1)"
+                [disabled]="box.locked"
+                title="Rotate 90 degrees around Y"
+                class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-green-400 font-medium transition text-center active:scale-95 disabled:opacity-40">
+                &circlearrowright; 90&deg; Y
+              </button>
+              <button
+                (click)="rotate(box.id, 'z', 1)"
+                [disabled]="box.locked"
+                title="Rotate 90 degrees around Z"
+                class="py-1.5 px-2 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-blue-400 font-medium transition text-center active:scale-95 disabled:opacity-40">
+                &circlearrowright; 90&deg; Z
               </button>
             </div>
           </div>
