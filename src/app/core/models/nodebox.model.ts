@@ -56,6 +56,63 @@ export const BOX_PALETTE = [
   '#14b8a6'  // teal
 ] as const;
 
+export type NodeboxType = 'fixed' | 'connected' | 'wallmounted' | 'leveled' | 'regular';
+
+export type NodeboxSlot =
+  | 'fixed'
+  // Connected slots:
+  | 'connect_top'
+  | 'connect_bottom'
+  | 'connect_front'
+  | 'connect_left'
+  | 'connect_back'
+  | 'connect_right'
+  | 'disconnected_top'
+  | 'disconnected_bottom'
+  | 'disconnected_front'
+  | 'disconnected_left'
+  | 'disconnected_back'
+  | 'disconnected_right'
+  | 'disconnected'
+  | 'disconnected_sides'
+  // Wallmounted slots:
+  | 'wall_top'
+  | 'wall_bottom'
+  | 'wall_side';
+
+export interface NeighborConnectionState {
+  top: boolean;
+  bottom: boolean;
+  front: boolean;
+  back: boolean;
+  left: boolean;
+  right: boolean;
+}
+
+export const CONNECTED_SLOTS: readonly NodeboxSlot[] = [
+  'fixed',
+  'connect_top',
+  'connect_bottom',
+  'connect_front',
+  'connect_left',
+  'connect_back',
+  'connect_right',
+  'disconnected_top',
+  'disconnected_bottom',
+  'disconnected_front',
+  'disconnected_left',
+  'disconnected_back',
+  'disconnected_right',
+  'disconnected_sides',
+  'disconnected'
+] as const;
+
+export const WALLMOUNTED_SLOTS: readonly NodeboxSlot[] = [
+  'wall_bottom',
+  'wall_top',
+  'wall_side'
+] as const;
+
 export interface Box extends AABB {
   id: string;
   name: string;
@@ -63,6 +120,7 @@ export interface Box extends AABB {
   locked: boolean;
   color: string;
   textures?: FaceTextures;
+  slot?: NodeboxSlot;
 }
 
 export type FractionFormat =
@@ -80,6 +138,8 @@ export interface NodeboxProject {
   name: string;
   nodeName: string;
   nodeHeight?: number; // 1 (default standard node) or 2 (tall 2-node model)
+  nodeboxType?: NodeboxType;
+  connectsTo?: string[];
   boxes: Box[];
   globalTextures: Record<FaceDirection, string>;
   format: FractionFormat;
@@ -93,6 +153,9 @@ export interface PresetTemplate {
   description: string;
   nodeName?: string;
   nodeHeight?: number;
+  nodeboxType?: NodeboxType;
+  connectsTo?: string[];
   globalTextures?: Record<FaceDirection, string>;
   boxes: Omit<Box, 'id'>[];
 }
+
