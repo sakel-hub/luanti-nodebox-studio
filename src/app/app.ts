@@ -1,4 +1,4 @@
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from './features/header/header.component';
 import { LayerListComponent } from './features/layers/layer-list.component';
@@ -12,6 +12,7 @@ import { HelpDialogComponent } from './features/help/help-dialog.component';
 import { ShareDialogComponent } from './features/share/share-dialog.component';
 import { ProjectStore } from './core/state/project.store';
 import { KeyboardShortcutsService } from './core/services/keyboard-shortcuts.service';
+import { TexturePainterService } from './core/services/texture-painter.service';
 import { TranslationService } from './core/i18n/translation.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
 import { safeGetItem, safeSetItem } from './core/utils/storage.utils';
@@ -43,6 +44,7 @@ export type MobileTab = 'none' | 'layers' | 'inspector' | 'textures' | 'code';
 export class App {
   public projectStore = inject(ProjectStore);
   public keyboardShortcuts = inject(KeyboardShortcutsService);
+  public painterService = inject(TexturePainterService);
   public translation = inject(TranslationService);
   public activeRightTab = signal<RightTab>('inspector');
   public showPresetsModal = signal<boolean>(false);
@@ -65,6 +67,26 @@ export class App {
   public leftWidth = signal<number>(this.loadStoredSize('left', 280));
   public rightWidth = signal<number>(this.loadStoredSize('right', 320));
   public activeDrag = signal<DragTarget>(null);
+
+  constructor() {
+    try {
+      effect(() => {
+        const req = this.painterService.requestOpenPainter();
+        if (req > 0) {
+          untracked(() => {
+            this.activeRightTab.set('textures');
+            if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+              this.mobileSheetTab.set('textures');
+            } else if (this.rightWidth() < 360) {
+              this.rightWidth.set(360);
+            }
+          });
+        }
+      });
+    } catch {
+      // Ignore missing ChangeDetectionScheduler in unit test environment
+    }
+  }
 
   private loadStoredSize(panel: 'left' | 'right', fallback: number): number {
     const stored = safeGetItem(`luanti_panel_${panel}`);

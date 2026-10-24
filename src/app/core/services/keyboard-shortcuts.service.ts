@@ -61,6 +61,15 @@ export class KeyboardShortcutsService {
       keyDisplay: 'T'
     },
     {
+      id: 'tool_paint',
+      name: '3D Paint Brush',
+      description: 'Paint pixels directly on 3D nodebox faces',
+      category: 'Tools',
+      macKey: 'P',
+      winKey: 'P',
+      keyDisplay: 'P'
+    },
+    {
       id: 'tool_select',
       name: 'Select Mode / Gizmo Off',
       description: 'Hide gizmos, pointer selection only',
@@ -386,6 +395,11 @@ export class KeyboardShortcutsService {
     }
     if (keyLower === 't') {
       this.sceneService?.setGizmoMode('resize');
+      event.preventDefault();
+      return true;
+    }
+    if (keyLower === 'p') {
+      this.sceneService?.setGizmoMode('paint');
       event.preventDefault();
       return true;
     }

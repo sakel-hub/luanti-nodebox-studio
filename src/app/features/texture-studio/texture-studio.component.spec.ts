@@ -4,6 +4,7 @@ import { createEnvironmentInjector, runInInjectionContext } from '@angular/core'
 import { TextureStudioComponent } from './texture-studio.component';
 import { ProjectStore } from '../../core/state/project.store';
 import { TextureService } from '../../core/services/texture.service';
+import { TexturePainterService } from '../../core/services/texture-painter.service';
 
 describe('TextureStudioComponent', () => {
   let component: TextureStudioComponent;
@@ -14,7 +15,7 @@ describe('TextureStudioComponent', () => {
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
     }
-    const injector = createEnvironmentInjector([ProjectStore, TextureService], null as any);
+    const injector = createEnvironmentInjector([ProjectStore, TextureService, TexturePainterService], null as any);
     projectStore = injector.get(ProjectStore);
     textureService = injector.get(TextureService);
     component = runInInjectionContext(injector, () => new TextureStudioComponent());
@@ -143,4 +144,32 @@ describe('TextureStudioComponent', () => {
     const updated = textureService.getTextureById('animated_torch');
     expect(updated?.animation).toBeUndefined();
   });
+
+  it('reactively updates faceTextureUrls when textures are uploaded or updated', () => {
+    projectStore.setGlobalTexture('top', 'everness_glossy_mushroom_top.png');
+    projectStore.setGlobalTexture('left', 'everness_glossy_mushroom_side_x.png^[transformFX');
+
+    // Before uploading, URLs are generated from procedural fallbacks
+    const initialUrls = component.faceTextureUrls();
+    expect(initialUrls.top).toBeDefined();
+    expect(initialUrls.left).toBeDefined();
+
+    // Upload real textures
+    textureService.addCustomTexture('everness_glossy_mushroom_top.png', 'data:image/png;base64,realTop');
+    textureService.addCustomTexture('everness_glossy_mushroom_side_x.png', 'data:image/png;base64,realSideX');
+
+    const updatedUrls = component.faceTextureUrls();
+    expect(updatedUrls.top).toBe('data:image/png;base64,realTop');
+    // Flipped version must also update to match realSideX
+    expect(updatedUrls.left).not.toBe(initialUrls.left);
+  });
+
+  it('assigns texture to specific face via assignTextureToFace and preserves flip if face was flipped', async () => {
+    projectStore.setGlobalTexture('left', 'default_wood.png^[transformFX');
+    expect(component.isFaceFlipped('left')).toBe(true);
+
+    await component.assignTextureToFace('left', 'default_stone.png');
+    expect(projectStore.project().globalTextures.left).toBe('default_stone.png^[transformFX');
+  });
 });
+

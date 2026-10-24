@@ -2,7 +2,14 @@ import { Injectable, signal } from '@angular/core';
 import { safeGetItem, safeSetItem } from '../utils/storage.utils';
 import { DEFAULT_TEXTURES } from '../constants/default-textures';
 import { TextureAnimationConfig } from '../models/nodebox.model';
-import { PixelDepthConfig, DEFAULT_PIXEL_DEPTH_CONFIG, generatePixelArtNormalMap, getNeutralNormalMapDataUrl } from '../utils/pixel-normal-generator.utils';
+import {
+  PixelDepthConfig,
+  DEFAULT_PIXEL_DEPTH_CONFIG,
+  DecodedTextureRgba,
+  decodeTextureRgba,
+  generatePixelArtNormalMap,
+  getNeutralNormalMapDataUrl
+} from '../utils/pixel-normal-generator.utils';
 
 export interface TextureDefinition {
   id: string;
@@ -15,6 +22,8 @@ export interface TextureDefinition {
   backfaceCulling?: boolean;
   tileableVertical?: boolean;
   tileableHorizontal?: boolean;
+  sourceDataUrl?: string;
+  isTransformed?: boolean;
 }
 
 @Injectable({
@@ -66,11 +75,189 @@ export class TextureService {
     const updated = [...current.filter(t => t.id !== id), newTex];
     this.textures.set(updated);
 
+    // Invalidate procedural fallback cache and any transformed versions
+    this.fallbackCache.delete(id);
+    this.transformedCache.delete(id);
+    this.transformedCache.delete(`${id}^[transformFX`);
+
+    const customOnly = updated.filter(t => t.isCustom);
+    safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
+    this.textureUpdated.update(v => v + 1);
+
+    // Asynchronously pre-render transformed variant if needed
+    this.ensureTransformedTexture(`${id}^[transformFX`);
+
+    return newTex;
+  }
+
+  /**
+   * Creates a new custom texture with the given dimensions and optional solid fill color.
+   */
+  public createBlankTexture(
+    name: string,
+    width: number = 16,
+    height: number = 16,
+    fillColor?: string
+  ): TextureDefinition {
+    const cleanBase = (name.trim() || 'custom_texture')
+      .toLowerCase()
+      .replace(/[^a-z0-9_.-]+/g, '_')
+      .replace(/\.png$/i, '');
+
+    let candidateId = `${cleanBase}.png`;
+    let suffix = 1;
+    const existingIds = new Set(this.textures().map(t => t.id));
+    while (existingIds.has(candidateId)) {
+      suffix++;
+      candidateId = `${cleanBase}_${suffix}.png`;
+    }
+
+    let dataUrl = '';
+    if (typeof document !== 'undefined') {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.min(256, width));
+        canvas.height = Math.max(1, Math.min(256, height));
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          if (fillColor && fillColor !== 'transparent') {
+            ctx.fillStyle = fillColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
+          dataUrl = canvas.toDataURL('image/png');
+        }
+      } catch {
+        // Fallback in non-canvas test environment
+      }
+    }
+
+    if (!dataUrl) {
+      dataUrl =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFklEQVR42mNk+M9QDwMMA2M0jIZiAADE8R/5eZ3gHAAAAABJRU5ErkJggg==';
+    }
+
+    const displayName = name.trim() || `Custom ${suffix}`;
+    const newTex: TextureDefinition = {
+      id: candidateId,
+      name: displayName,
+      dataUrl,
+      isCustom: true
+    };
+
+    const current = this.textures();
+    const updated = [...current.filter(t => t.id !== candidateId), newTex];
+    this.textures.set(updated);
+
     const customOnly = updated.filter(t => t.isCustom);
     safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
     this.textureUpdated.update(v => v + 1);
 
     return newTex;
+  }
+
+  /**
+   * Ensures a texture is editable (isCustom: true). If a built-in default texture is passed,
+   * clones its pixel data into a new custom texture so built-in defaults are preserved.
+   */
+  public ensureEditableTexture(textureId: string, preferredName?: string): TextureDefinition {
+    const baseId = textureId.replace(/\^\[transformFX$/, '');
+    const existing = this.getTextureById(baseId) || this.getOrCreateProceduralFallback(baseId);
+
+    if (existing.isCustom) {
+      return existing;
+    }
+
+    const baseClean = baseId.replace(/^default_/, '').replace(/\.png$/i, '');
+    let candidateId = `painted_${baseClean}.png`;
+    let suffix = 1;
+    const existingIds = new Set(this.textures().map(t => t.id));
+    while (existingIds.has(candidateId)) {
+      suffix++;
+      candidateId = `painted_${baseClean}_${suffix}.png`;
+    }
+
+    const cloneName = preferredName || `${existing.name} (Painted${suffix > 1 ? ' ' + suffix : ''})`;
+    const cloned: TextureDefinition = {
+      id: candidateId,
+      name: cloneName,
+      dataUrl: existing.dataUrl,
+      isCustom: true,
+      animation: existing.animation ? { ...existing.animation } : undefined,
+      backfaceCulling: existing.backfaceCulling,
+      tileableVertical: existing.tileableVertical,
+      tileableHorizontal: existing.tileableHorizontal
+    };
+
+    const current = this.textures();
+    const updated = [...current, cloned];
+    this.textures.set(updated);
+
+    const customOnly = updated.filter(t => t.isCustom);
+    safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
+    this.textureUpdated.update(v => v + 1);
+
+    return cloned;
+  }
+
+  /**
+   * Updates the image dataUrl of a custom texture.
+   * When emitFullRefresh is false (e.g. during live brush dragging), updates state without
+   * triggering a full material rebuild; on stroke completion (emitFullRefresh=true),
+   * persists to localStorage and triggers normal map regeneration.
+   */
+  public updateCustomTextureData(
+    id: string,
+    dataUrl: string,
+    emitFullRefresh: boolean = true
+  ): void {
+    const baseId = id.replace(/\^\[transformFX$/, '');
+    const current = this.textures();
+    const index = current.findIndex(t => t.id === baseId);
+    if (index === -1) return;
+
+    const updatedTex: TextureDefinition = {
+      ...current[index],
+      dataUrl,
+      isCustom: true
+    };
+
+    const updated = [...current];
+    updated[index] = updatedTex;
+    this.textures.set(updated);
+
+    this.fallbackCache.delete(baseId);
+    this.transformedCache.delete(baseId);
+    this.transformedCache.delete(`${baseId}^[transformFX`);
+
+    if (emitFullRefresh) {
+      const customOnly = updated.filter(t => t.isCustom);
+      safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
+      this.textureUpdated.update(v => v + 1);
+      this.ensureTransformedTexture(`${baseId}^[transformFX`);
+    }
+  }
+
+  /**
+   * Triggers a browser download of the texture's PNG file.
+   */
+  public downloadTexture(id: string): boolean {
+    const tex = this.getTextureById(id);
+    if (!tex || !tex.dataUrl || typeof document === 'undefined') {
+      return false;
+    }
+
+    const baseName = tex.id.replace(/\^\[transformFX$/, '');
+    const fileName = baseName.endsWith('.png') ? baseName : `${baseName}.png`;
+
+    const a = document.createElement('a');
+    a.href = tex.dataUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return true;
   }
 
   public updateTextureProperties(id: string, updates: Partial<TextureDefinition>): void {
@@ -93,10 +280,12 @@ export class TextureService {
       safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
     }
 
-    // Invalidate any transformed versions
+    // Invalidate any transformed versions and fallback cache
+    this.fallbackCache.delete(id);
     this.transformedCache.delete(id);
     this.transformedCache.delete(`${id}^[transformFX`);
     this.textureUpdated.update(v => v + 1);
+    this.ensureTransformedTexture(`${id}^[transformFX`);
   }
 
   public async detectTextureProperties(
@@ -146,6 +335,7 @@ export class TextureService {
     const customOnly = updated.filter(t => t.isCustom);
     safeSetItem('luanti_custom_textures', JSON.stringify(customOnly));
 
+    this.fallbackCache.delete(id);
     this.transformedCache.delete(id);
     this.transformedCache.delete(`${id}^[transformFX`);
 
@@ -162,6 +352,7 @@ export class TextureService {
         toKeep.push(tex);
       } else {
         removedCount++;
+        this.fallbackCache.delete(tex.id);
         this.transformedCache.delete(tex.id);
         this.transformedCache.delete(`${tex.id}^[transformFX`);
       }
@@ -179,21 +370,25 @@ export class TextureService {
   public getTextureById(id?: string): TextureDefinition | undefined {
     if (!id) return undefined;
 
-    const found = this.textures().find(t => t.id === id);
+    const found = this.textures().find(t => t.id === id || t.id.toLowerCase() === id.toLowerCase());
     if (found) return found;
 
     // Check Luanti Flip X modifier: e.g. "tex.png^[transformFX"
     if (id.endsWith('^[transformFX')) {
-      const cached = this.transformedCache.get(id);
-      if (cached) return cached;
-
       const baseId = id.slice(0, -'^[transformFX'.length);
       const baseTex = this.getTextureById(baseId) || this.getOrCreateProceduralFallback(baseId);
+      const cached = this.transformedCache.get(id);
+
+      if (cached && cached.sourceDataUrl === baseTex.dataUrl && cached.isTransformed) {
+        return cached;
+      }
 
       const placeholderDef: TextureDefinition = {
         id,
         name: `${baseTex.name} (FX)`,
         dataUrl: baseTex.dataUrl,
+        sourceDataUrl: baseTex.dataUrl,
+        isTransformed: false,
         isCustom: baseTex.isCustom,
         animation: baseTex.animation,
         backfaceCulling: baseTex.backfaceCulling,
@@ -203,8 +398,11 @@ export class TextureService {
       this.transformedCache.set(id, placeholderDef);
 
       this.renderFlippedTexture(baseTex.dataUrl).then(flippedUrl => {
-        placeholderDef.dataUrl = flippedUrl;
-        this.textureUpdated.update(v => v + 1);
+        if (placeholderDef.sourceDataUrl === baseTex.dataUrl) {
+          placeholderDef.dataUrl = flippedUrl;
+          placeholderDef.isTransformed = true;
+          this.textureUpdated.update(v => v + 1);
+        }
       });
 
       return placeholderDef;
@@ -227,7 +425,7 @@ export class TextureService {
     const baseTex = this.getTextureById(baseId) || this.getOrCreateProceduralFallback(baseId);
 
     const cached = this.transformedCache.get(id);
-    if (cached && cached.dataUrl !== baseTex.dataUrl) {
+    if (cached && cached.sourceDataUrl === baseTex.dataUrl && cached.isTransformed) {
       return cached;
     }
 
@@ -236,6 +434,8 @@ export class TextureService {
       id,
       name: `${baseTex.name} (FX)`,
       dataUrl: flippedUrl,
+      sourceDataUrl: baseTex.dataUrl,
+      isTransformed: true,
       isCustom: baseTex.isCustom,
       animation: baseTex.animation,
       backfaceCulling: baseTex.backfaceCulling,
@@ -256,6 +456,14 @@ export class TextureService {
       return getNeutralNormalMapDataUrl();
     }
     return generatePixelArtNormalMap(tex.dataUrl, config);
+  }
+
+  public async getDecodedTexture(textureId: string): Promise<DecodedTextureRgba | null> {
+    const tex = this.getTextureById(textureId) || this.getOrCreateProceduralFallback(textureId);
+    if (!tex || !tex.dataUrl) {
+      return null;
+    }
+    return decodeTextureRgba(tex.dataUrl);
   }
 
   public getOrCreateProceduralFallback(id: string): TextureDefinition {

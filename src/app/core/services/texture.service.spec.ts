@@ -115,5 +115,68 @@ describe('TextureService', () => {
     expect(updated?.animation?.frameCount).toBe(8);
     expect(updated?.animation?.length).toBe(2.0);
   });
+
+  it('should create a blank custom texture', () => {
+    const tex = service.createBlankTexture('Painted Brick', 16, '#cc5544');
+    expect(tex.id).toBe('painted_brick.png');
+    expect(tex.isCustom).toBe(true);
+    expect(tex.name).toBe('Painted Brick');
+    expect(service.getTextureById('painted_brick.png')).toBeDefined();
+  });
+
+  it('should clone built-in texture via ensureEditableTexture and return custom textures as-is', () => {
+    const cloned = service.ensureEditableTexture('default_wood.png');
+    expect(cloned.isCustom).toBe(true);
+    expect(cloned.id).toBe('painted_wood.png');
+    expect(cloned.name).toContain('Painted');
+
+    const again = service.ensureEditableTexture(cloned.id);
+    expect(again.id).toBe(cloned.id);
+  });
+
+  it('should update custom texture data URL in place', () => {
+    const tex = service.createBlankTexture('Dynamic Tex', 16, '#ffffff');
+    service.updateCustomTextureData(tex.id, 'data:image/png;base64,updated999');
+    expect(service.getTextureById(tex.id)?.dataUrl).toBe('data:image/png;base64,updated999');
+  });
+
+  it('should invalidate transformed cache and update flipped texture when a base custom texture is added/uploaded', async () => {
+    // 1. Initial lookup before base texture exists creates procedural fallback and transformed placeholder
+    const initialFlipped = service.getTextureById('everness_glossy_mushroom_side_x.png^[transformFX');
+    expect(initialFlipped).toBeDefined();
+    expect(initialFlipped?.name).toContain('(FX)');
+    const fallbackDataUrl = initialFlipped?.dataUrl;
+
+    // 2. User uploads the actual texture from the mod
+    const uploadedDataUrl = 'data:image/png;base64,realMushroomSideData123';
+    service.addCustomTexture('everness_glossy_mushroom_side_x.png', uploadedDataUrl);
+
+    // 3. Requesting the flipped texture now returns the updated texture derived from the uploaded image
+    const updatedFlipped = service.getTextureById('everness_glossy_mushroom_side_x.png^[transformFX');
+    expect(updatedFlipped).toBeDefined();
+    expect(updatedFlipped?.dataUrl).not.toBe(fallbackDataUrl);
+    expect(updatedFlipped?.sourceDataUrl).toBe(uploadedDataUrl);
+  });
+
+  it('should ensure transformed texture re-flips when base texture is updated', async () => {
+    const custom = service.addCustomTexture('crystal_side.png', 'data:image/png;base64,version1');
+    const flipped1 = await service.ensureTransformedTexture('crystal_side.png^[transformFX');
+    expect(flipped1?.sourceDataUrl).toBe('data:image/png;base64,version1');
+
+    // Update base texture
+    service.updateCustomTextureData('crystal_side.png', 'data:image/png;base64,version2');
+    const flipped2 = await service.ensureTransformedTexture('crystal_side.png^[transformFX');
+    expect(flipped2?.sourceDataUrl).toBe('data:image/png;base64,version2');
+  });
+
+  it('should resolve texture IDs case-insensitively', () => {
+    service.addCustomTexture('My_Rock.png', 'data:image/png;base64,rock123');
+    const foundLower = service.getTextureById('my_rock.png');
+    const foundUpper = service.getTextureById('MY_ROCK.PNG');
+    expect(foundLower).toBeDefined();
+    expect(foundUpper).toBeDefined();
+    expect(foundLower?.id).toBe('my_rock.png');
+  });
 });
+
 

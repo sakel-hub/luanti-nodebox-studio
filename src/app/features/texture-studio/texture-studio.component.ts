@@ -3,21 +3,80 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectStore } from '../../core/state/project.store';
 import { TextureService, TextureDefinition } from '../../core/services/texture.service';
+import { TexturePainterService } from '../../core/services/texture-painter.service';
 import { FaceDirection, LUANTI_FACE_DIRECTIONS } from '../../core/models/nodebox.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { TexturePainterComponent } from './texture-painter.component';
+import {
+  LucidePalette,
+  LucidePaintbrush,
+  LucideDownload,
+  LucideClapperboard,
+  LucideTrash2,
+  LucideUpload,
+  LucideFlipHorizontal,
+  LucideX
+} from '@lucide/angular';
 
 @Component({
   selector: 'app-texture-studio',
   standalone: true,
-  imports: [CommonModule, FormsModule, TooltipDirective, TranslatePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TooltipDirective,
+    TranslatePipe,
+    TexturePainterComponent,
+    LucidePalette,
+    LucidePaintbrush,
+    LucideDownload,
+    LucideClapperboard,
+    LucideTrash2,
+    LucideUpload,
+    LucideFlipHorizontal,
+    LucideX
+  ],
   template: `
     <div class="h-full flex flex-col bg-slate-900 border-l border-slate-800 text-xs select-none overflow-y-auto">
-      <!-- Panel Header -->
-      <div class="p-3 border-b border-slate-800 flex items-center justify-between">
-        <span class="font-semibold text-slate-200">{{ 'textureStudio.title' | translate }}</span>
+      <!-- Panel Header & Segmented Mode Switcher -->
+      <div class="p-2.5 border-b border-slate-800 space-y-2 bg-slate-950/40">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-slate-200">{{ 'textureStudio.title' | translate }}</span>
+        </div>
+
+        <!-- Segmented Tab Switcher: Faces & Library vs Pixel Painter -->
+        <div class="grid grid-cols-2 gap-1 p-1 rounded-lg bg-slate-950 border border-slate-800" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="painterService.studioTab() === 'palette'"
+            (click)="painterService.studioTab.set('palette')"
+            [class.bg-sky-600]="painterService.studioTab() === 'palette'"
+            [class.text-white]="painterService.studioTab() === 'palette'"
+            [class.text-slate-400]="painterService.studioTab() !== 'palette'"
+            class="py-1 rounded-md font-semibold text-[11px] transition flex items-center justify-center gap-1.5">
+            <svg lucidePalette class="w-3.5 h-3.5"></svg>
+            <span>{{ 'textureStudio.tabPalette' | translate }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="painterService.studioTab() === 'painter'"
+            (click)="openPainterForActiveFace()"
+            [class.bg-sky-600]="painterService.studioTab() === 'painter'"
+            [class.text-white]="painterService.studioTab() === 'painter'"
+            [class.text-slate-400]="painterService.studioTab() !== 'painter'"
+            class="py-1 rounded-md font-semibold text-[11px] transition flex items-center justify-center gap-1.5">
+            <svg lucidePaintbrush class="w-3.5 h-3.5"></svg>
+            <span>{{ 'textureStudio.tabPainter' | translate }}</span>
+          </button>
+        </div>
       </div>
 
+      @if (painterService.studioTab() === 'painter') {
+        <app-texture-painter />
+      } @else {
       <div class="p-3 space-y-4">
         <!-- Luanti 6-Face Mapping Cards -->
         <div class="space-y-2">
@@ -29,14 +88,21 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             @for (dir of faceDirections; track dir; let idx = $index) {
               <div
                 (click)="selectedFace.set(dir)"
-                [class.ring-2]="selectedFace() === dir"
-                [class.ring-sky-500]="selectedFace() === dir"
-                [class.bg-slate-950]="selectedFace() === dir"
+                (dragover)="onFaceDragOver($event, dir)"
+                (dragleave)="onFaceDragLeave($event, dir)"
+                (drop)="onFaceDrop($event, dir)"
+                [class.ring-2]="selectedFace() === dir || draggedOverFace() === dir"
+                [class.ring-sky-500]="selectedFace() === dir && draggedOverFace() !== dir"
+                [class.ring-amber-400]="draggedOverFace() === dir"
+                [class.bg-sky-950/40]="draggedOverFace() === dir"
+                [class.bg-slate-950]="selectedFace() === dir && draggedOverFace() !== dir"
+                [appTooltip]="getFaceTextureKey(dir)"
+                appTooltipPlacement="top"
                 class="bg-slate-950/70 p-2 rounded border border-slate-800 hover:border-slate-700 cursor-pointer transition flex items-center gap-2">
                 <!-- Thumbnail -->
                 <div class="w-8 h-8 rounded border border-slate-700 overflow-hidden flex-shrink-0 bg-slate-900">
                   <img
-                    [src]="getFaceTextureUrl(dir)"
+                    [src]="faceTextureUrls()[dir]"
                     [alt]="dir"
                     class="w-full h-full object-cover [image-rendering:pixelated]" />
                 </div>
@@ -78,14 +144,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               [appTooltip]="'textureStudio.flipX' | translate"
               appTooltipPlacement="top"
               class="px-2.5 py-1 rounded text-[11px] font-medium border hover:border-slate-500 transition flex items-center gap-1.5 shadow-sm flex-shrink-0">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m3 7 5 5-5 5V7"/>
-                <path d="m21 7-5 5 5 5V7"/>
-                <path d="M12 20v2"/>
-                <path d="M12 14v2"/>
-                <path d="M12 8v2"/>
-                <path d="M12 2v2"/>
-              </svg>
+              <svg lucideFlipHorizontal class="w-3.5 h-3.5"></svg>
               <span>{{ 'textureStudio.flipX' | translate }}</span>
               <span class="font-mono text-[9px] opacity-75 font-normal">^[transformFX</span>
             </button>
@@ -102,8 +161,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 [disabled]="unusedCustomCount() === 0"
                 [appTooltip]="'textureStudio.cleanUnused' | translate"
                 appTooltipPlacement="top"
-                class="text-[10px] text-amber-400 hover:text-amber-300 disabled:opacity-30 disabled:hover:text-amber-400 font-medium transition">
-                {{ 'textureStudio.cleanUnused' | translate }} ({{ unusedCustomCount() }})
+                class="text-[10px] text-amber-400 hover:text-amber-300 disabled:opacity-30 disabled:hover:text-amber-400 font-medium transition flex items-center gap-1">
+                <svg lucideTrash2 class="w-3 h-3"></svg>
+                <span>{{ 'textureStudio.cleanUnused' | translate }} ({{ unusedCustomCount() }})</span>
               </button>
               <span class="text-slate-700">|</span>
               <button
@@ -136,14 +196,36 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                   <span class="text-[10px] text-slate-300 truncate w-full text-center">{{ tex.name }}</span>
                 </button>
 
+                <!-- Paint / Edit Texture Button -->
+                <button
+                  type="button"
+                  (click)="paintTextureFromCard($event, tex)"
+                  [appTooltip]="'textureStudio.paintTexture' | translate"
+                  appTooltipPlacement="top"
+                  [attr.aria-label]="('textureStudio.paintTexture' | translate) + ' ' + tex.name"
+                  class="absolute bottom-6 left-1 w-4 h-4 rounded-full bg-slate-900/90 hover:bg-sky-600 text-slate-300 hover:text-white flex items-center justify-center border border-slate-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition shadow z-10">
+                  <svg lucidePaintbrush class="w-2.5 h-2.5"></svg>
+                </button>
+
+                <!-- Download PNG Button -->
+                <button
+                  type="button"
+                  (click)="downloadTextureFromCard($event, tex)"
+                  [appTooltip]="'textureStudio.downloadPng' | translate"
+                  appTooltipPlacement="top"
+                  [attr.aria-label]="('textureStudio.downloadPng' | translate) + ' ' + tex.name"
+                  class="absolute top-1 left-1 w-4 h-4 rounded-full bg-slate-900/90 hover:bg-emerald-600 text-slate-300 hover:text-white flex items-center justify-center border border-slate-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition shadow z-10">
+                  <svg lucideDownload class="w-2.5 h-2.5"></svg>
+                </button>
+
                 <!-- Animation Settings Button -->
                 <button
                   type="button"
                   (click)="openAnimationModal($event, tex)"
                   [appTooltip]="'Configure animation sheet (' + (tex.animation ? 'Active' : 'Static') + ')'"
                   appTooltipPlacement="top"
-                  class="absolute bottom-6 right-1 w-4 h-4 rounded-full bg-slate-900/90 hover:bg-sky-600 text-slate-300 hover:text-white flex items-center justify-center text-[9px] border border-slate-700 opacity-0 group-hover:opacity-100 transition shadow z-10">
-                  🎬
+                  class="absolute bottom-6 right-1 w-4 h-4 rounded-full bg-slate-900/90 hover:bg-sky-600 text-slate-300 hover:text-white flex items-center justify-center border border-slate-700 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition shadow z-10">
+                  <svg lucideClapperboard class="w-2.5 h-2.5"></svg>
                 </button>
 
                 @if (tex.isCustom) {
@@ -151,8 +233,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                     (click)="deleteTexture($event, tex.id)"
                     [appTooltip]="'Delete ' + tex.name"
                     appTooltipPlacement="top"
-                    class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center text-[10px] font-bold opacity-0 group-hover:opacity-100 transition shadow z-10">
-                    &times;
+                    class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow z-10">
+                    <svg lucideTrash2 class="w-2.5 h-2.5"></svg>
                   </button>
                 }
               </div>
@@ -177,14 +259,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             [class.ring-sky-500/50]="isDraggingOver()"
             class="block w-full border-2 border-dashed border-slate-700 hover:border-sky-500 p-3 rounded-lg text-center cursor-pointer transition bg-slate-950/40 hover:bg-slate-900">
             <svg
+              lucideUpload
               [class.text-sky-400]="isDraggingOver()"
               [class.text-slate-400]="!isDraggingOver()"
-              class="w-6 h-6 mx-auto mb-1 transition-colors"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
+              class="w-6 h-6 mx-auto mb-1 transition-colors"></svg>
             <span
               [class.text-sky-300]="isDraggingOver()"
               [class.text-slate-300]="!isDraggingOver()"
@@ -192,14 +270,15 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               {{ 'textureStudio.upload' | translate }}
             </span>
             <span class="text-[10px] text-slate-500 block">{{ 'textureStudio.dropNotice' | translate }}</span>
-            <input
-              type="file"
-              accept="image/png, image/jpeg, image/webp"
-              (change)="onFileUpload($event)"
-              class="hidden" />
-          </label>
+              <input
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                (change)="onFileUpload($event)"
+                class="hidden" />
+            </label>
+          </div>
         </div>
-      </div>
+      }
 
       <!-- Luanti Animated Texture Sheet Config Modal -->
       @if (editingTexture(); as targetTex) {
@@ -212,7 +291,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             <!-- Modal Header -->
             <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
               <div class="flex items-center gap-2">
-                <span class="text-base">🎬</span>
+                <svg lucideClapperboard class="w-4 h-4 text-sky-400"></svg>
                 <div>
                   <h3 class="font-semibold text-xs text-white">{{ 'textureStudio.animationTitle' | translate }}</h3>
                   <p class="text-[10px] text-slate-400 truncate max-w-[200px]">{{ targetTex.name }}</p>
@@ -221,8 +300,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               <button
                 type="button"
                 (click)="closeAnimationModal()"
+                [attr.aria-label]="'common.close' | translate"
                 class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition">
-                &times;
+                <svg lucideX class="w-4 h-4"></svg>
               </button>
             </div>
 
@@ -389,10 +469,31 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 export class TextureStudioComponent implements OnDestroy {
   public projectStore = inject(ProjectStore);
   public textureService = inject(TextureService);
+  public painterService = inject(TexturePainterService);
 
   public selectedFace = signal<FaceDirection>('top');
   public readonly faceDirections = LUANTI_FACE_DIRECTIONS;
   public isDraggingOver = signal<boolean>(false);
+  public draggedOverFace = signal<FaceDirection | null>(null);
+
+  public readonly faceTextureUrls = computed<Record<FaceDirection, string>>(() => {
+    this.textureService.textureUpdated();
+    const globalTextures = this.projectStore.project().globalTextures;
+    const urls: Record<FaceDirection, string> = {
+      top: '',
+      bottom: '',
+      right: '',
+      left: '',
+      back: '',
+      front: ''
+    };
+    for (const dir of this.faceDirections) {
+      const texKey = globalTextures[dir] || 'default_wood.png';
+      const tex = this.textureService.getTextureById(texKey);
+      urls[dir] = tex?.dataUrl || '';
+    }
+    return urls;
+  });
 
   // Animation sheet configuration state
   public editingTexture = signal<TextureDefinition | null>(null);
@@ -435,6 +536,33 @@ export class TextureStudioComponent implements OnDestroy {
     event.preventDefault();
   }
 
+  onFaceDragOver(event: DragEvent, dir: FaceDirection): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+    this.draggedOverFace.set(dir);
+  }
+
+  onFaceDragLeave(event: DragEvent, dir: FaceDirection): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.draggedOverFace() === dir) {
+      this.draggedOverFace.set(null);
+    }
+  }
+
+  onFaceDrop(event: DragEvent, dir: FaceDirection): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.draggedOverFace.set(null);
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      this.processFiles(Array.from(files), dir);
+    }
+  }
+
   getFaceTextureKey(dir: FaceDirection): string {
     return this.projectStore.project().globalTextures[dir] || 'default_wood.png';
   }
@@ -460,9 +588,7 @@ export class TextureStudioComponent implements OnDestroy {
   }
 
   getFaceTextureUrl(dir: FaceDirection): string {
-    const texKey = this.getFaceTextureKey(dir);
-    const tex = this.textureService.getTextureById(texKey);
-    return tex?.dataUrl || '';
+    return this.faceTextureUrls()[dir];
   }
 
   getFaceAxisName(dir: FaceDirection): string {
@@ -476,9 +602,8 @@ export class TextureStudioComponent implements OnDestroy {
     }
   }
 
-  async assignTextureToCurrentFace(textureId: string): Promise<void> {
-    const face = this.selectedFace();
-    const isFlipped = this.isCurrentFaceFlipped();
+  async assignTextureToFace(face: FaceDirection, textureId: string): Promise<void> {
+    const isFlipped = this.isFaceFlipped(face);
     const newKey = isFlipped ? `${textureId}^[transformFX` : textureId;
 
     if (isFlipped) {
@@ -487,10 +612,31 @@ export class TextureStudioComponent implements OnDestroy {
     this.projectStore.setGlobalTexture(face, newKey);
   }
 
+  async assignTextureToCurrentFace(textureId: string): Promise<void> {
+    await this.assignTextureToFace(this.selectedFace(), textureId);
+  }
+
   applyActiveTextureToAll(): void {
     const face = this.selectedFace();
     const currentTexId = this.getFaceTextureKey(face);
     this.projectStore.setGlobalAllTextures(currentTexId);
+  }
+
+  openPainterForActiveFace(): void {
+    const face = this.selectedFace();
+    const currentKey = this.getFaceTextureKey(face);
+    this.painterService.openTextureInPainter(currentKey, face, false);
+  }
+
+  paintTextureFromCard(event: MouseEvent, tex: TextureDefinition): void {
+    event.stopPropagation();
+    const face = this.selectedFace();
+    this.painterService.openTextureInPainter(tex.id, face, false);
+  }
+
+  downloadTextureFromCard(event: MouseEvent, tex: TextureDefinition): void {
+    event.stopPropagation();
+    this.textureService.downloadTexture(tex.id);
   }
 
   deleteTexture(event: MouseEvent, textureId: string): void {
@@ -653,9 +799,12 @@ export class TextureStudioComponent implements OnDestroy {
     this.stopPreviewTicker();
   }
 
-  private async processFiles(files: File[]): Promise<void> {
+  private async processFiles(files: File[], targetFace?: FaceDirection): Promise<void> {
     const imageFiles = files.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(f.name));
     if (imageFiles.length === 0) return;
+
+    const usedBaseIds = this.projectStore.getUsedTextureBaseIds();
+    const isSingle = imageFiles.length === 1;
 
     for (const file of imageFiles) {
       const reader = new FileReader();
@@ -666,7 +815,13 @@ export class TextureStudioComponent implements OnDestroy {
           animation: detected.animation,
           backfaceCulling: detected.animation ? false : undefined
         });
-        this.assignTextureToCurrentFace(newTex.id);
+
+        if (targetFace) {
+          this.selectedFace.set(targetFace);
+          await this.assignTextureToFace(targetFace, newTex.id);
+        } else if (isSingle && !usedBaseIds.has(newTex.id)) {
+          await this.assignTextureToCurrentFace(newTex.id);
+        }
       };
       reader.readAsDataURL(file);
     }
