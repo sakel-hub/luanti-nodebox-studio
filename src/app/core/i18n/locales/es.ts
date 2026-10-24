@@ -199,7 +199,7 @@ export const es: TranslationDictionary = {
     codeCopied: '¡Código Lua copiado al portapapeles!',
     downloadLua: 'Descargar archivo nodes.lua',
     importCode: 'Pegar o cargar código Lua',
-    importPlaceholder: 'Pega la definición minetest.register_node con node_box...',
+    importPlaceholder: 'Pega la definición core.register_node con node_box...',
     importExecute: 'Analizar e importar al proyecto',
     importWarning: 'La importación reemplazará las cajas y texturas actuales.',
     parseErrors: 'Se encontraron errores al analizar. Revisa la sintaxis Lua.',

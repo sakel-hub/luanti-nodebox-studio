@@ -199,7 +199,7 @@ export const ru: TranslationDictionary = {
     codeCopied: 'Код Lua скопирован в буфер обмена!',
     downloadLua: 'Скачать файл nodes.lua',
     importCode: 'Вставить или загрузить код Lua',
-    importPlaceholder: 'Вставьте определение minetest.register_node с node_box...',
+    importPlaceholder: 'Вставьте определение core.register_node с node_box...',
     importExecute: 'Распознать и импортировать в проект',
     importWarning: 'Импорт заменит текущие боксы и текстуры распознанным кодом.',
     parseErrors: 'Ошибки при анализе кода. Проверьте синтаксис Lua.',

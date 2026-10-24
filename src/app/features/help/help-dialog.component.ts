@@ -255,7 +255,7 @@ type HelpTab = 'coordinates' | 'viewport' | 'tools' | 'textures' | 'code';
               <div class="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
                 <h4 class="font-semibold text-amber-400 mb-1.5">Importing Existing Lua Mods</h4>
                 <p class="text-[11px] text-slate-400">
-                  Switch to the <strong>Lua Import</strong> tab and paste any Luanti <code>minetest.register_node(...)</code> definition containing a <code>node_box</code>. Studio will parse all boxes, coordinates, and animated texture definitions directly into your workspace.
+                  Switch to the <strong>Lua Import</strong> tab and paste any Luanti <code>core.register_node(...)</code> definition containing a <code>node_box</code>. Studio will parse all boxes, coordinates, and animated texture definitions directly into your workspace.
                 </p>
               </div>
             </div>

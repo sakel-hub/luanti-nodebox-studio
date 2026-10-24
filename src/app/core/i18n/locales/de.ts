@@ -199,7 +199,7 @@ export const de: TranslationDictionary = {
     codeCopied: 'Lua-Code in die Zwischenablage kopiert!',
     downloadLua: 'Datei nodes.lua herunterladen',
     importCode: 'Lua-Code einfügen oder laden',
-    importPlaceholder: 'Fügen Sie eine Luanti minetest.register_node Definition mit node_box ein...',
+    importPlaceholder: 'Fügen Sie eine Luanti core.register_node Definition mit node_box ein...',
     importExecute: 'Analysieren und ins Projekt importieren',
     importWarning: 'Der Import ersetzt bestehende Boxen und Texturen.',
     parseErrors: 'Fehler beim Parsen aufgetreten. Bitte Lua-Syntax prüfen.',

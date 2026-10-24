@@ -199,7 +199,7 @@ export const en: TranslationDictionary = {
     codeCopied: 'Lua code copied to clipboard!',
     downloadLua: 'Download nodes.lua File',
     importCode: 'Paste or Load Lua Code',
-    importPlaceholder: 'Paste Luanti minetest.register_node definition with node_box or drawtype = "nodebox"...',
+    importPlaceholder: 'Paste Luanti core.register_node definition with node_box or drawtype = "nodebox"...',
     importExecute: 'Parse and Import into Project',
     importWarning: 'Importing will replace currently active nodeboxes and textures with the parsed Lua code.',
     parseErrors: 'Parsing encountered errors. Please check your Lua syntax.',

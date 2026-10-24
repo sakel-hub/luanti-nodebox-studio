@@ -199,7 +199,7 @@ export const sk: TranslationDictionary = {
     codeCopied: 'Lua kód bol skopírovaný do schránky!',
     downloadLua: 'Stiahnuť súbor nodes.lua',
     importCode: 'Vložiť alebo načítať Lua kód',
-    importPlaceholder: 'Vložte definíciu minetest.register_node s node_box alebo drawtype = "nodebox"...',
+    importPlaceholder: 'Vložte definíciu core.register_node s node_box alebo drawtype = "nodebox"...',
     importExecute: 'Spracovať a importovať do projektu',
     importWarning: 'Import nahradí existujúce boxy a textúry načítaným Lua kódom.',
     parseErrors: 'Pri spracovaní kódu nastali chyby. Skontrolujte syntax Lua.',

@@ -57,7 +57,7 @@ A modern, accessible, offline-first 3D visual editor and Progressive Web App (PW
 - **Symmetry & Mirror Tools**: One-click symmetry mirrors (`Flip X`, `Flip Y`, `Flip Z`) for rapid symmetric modeling (e.g. table legs, chairs, lanterns).
 
 ### 💻 Lua Code Generator & Live Importer
-- **Luanti 5.10+ & Legacy Minetest**: Generates modern `core.register_node(...)` or backward-compatible `minetest.register_node(...)`.
+- **Luanti Modern Standard**: Generates standard `core.register_node(...)` definitions with support for importing both modern `core.` and legacy `minetest.` code.
 - **Multiple Output Formats**:
   - `16ths Fractions`: `{-8/16, -8/16, -8/16, 8/16, 0/16, 8/16}`
   - `Divisible 16/8`: `{-4/8, -4/8, -4/8, 4/8, 0/8, 4/8}`
