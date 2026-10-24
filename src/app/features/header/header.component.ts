@@ -2,7 +2,7 @@ import { Component, EventEmitter, HostListener, Output, inject, signal } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjectStore } from '../../core/state/project.store';
-import { FractionFormat, NodeboxProject } from '../../core/models/nodebox.model';
+import { FractionFormat, NodeboxProject, NodeboxType } from '../../core/models/nodebox.model';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { KeyboardShortcutsService } from '../../core/services/keyboard-shortcuts.service';
 import { ThemeService } from '../../core/services/theme.service';
@@ -209,6 +209,21 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
 
         <!-- Right: Grid Snap, Language Switcher, Share, GitHub, Help, Theme -->
         <div class="flex items-center gap-1.5 lg:gap-2">
+          <!-- Nodebox Type Selector -->
+          <div class="flex items-center gap-1 text-[11px] bg-slate-900 border border-slate-800 rounded px-2 py-0.5">
+            <span class="text-slate-500 font-mono">Type:</span>
+            <select
+              [ngModel]="projectStore.project().nodeboxType"
+              (ngModelChange)="projectStore.setNodeboxType($event)"
+              class="bg-transparent text-sky-400 font-semibold focus:outline-none cursor-pointer capitalize">
+              <option value="fixed" class="bg-slate-900 text-slate-200">Fixed</option>
+              <option value="connected" class="bg-slate-900 text-slate-200">Connected</option>
+              <option value="wallmounted" class="bg-slate-900 text-slate-200">Wallmounted</option>
+              <option value="leveled" class="bg-slate-900 text-slate-200">Leveled</option>
+              <option value="regular" class="bg-slate-900 text-slate-200">Regular</option>
+            </select>
+          </div>
+
           <!-- Snap Resolution Selector -->
           <div class="flex items-center gap-1 text-[11px] bg-slate-900 border border-slate-800 rounded px-2 py-0.5">
             <span class="text-slate-500 font-mono">{{ 'header.snap' | translate }}:</span>
@@ -469,6 +484,19 @@ import { LucideUndo, LucideRedo, LucideKeyboard, LucideSun, LucideMoon } from '@
                   <option [value]="2">2 Nodes High</option>
                 </select>
               </div>
+            </div>
+            <div class="mt-2">
+              <span class="text-[10px] text-slate-500 mb-0.5 block">Nodebox Type</span>
+              <select
+                [ngModel]="projectStore.project().nodeboxType"
+                (ngModelChange)="projectStore.setNodeboxType($event)"
+                class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-2 text-sky-400 text-xs font-semibold capitalize">
+                <option value="fixed">Fixed</option>
+                <option value="connected">Connected</option>
+                <option value="wallmounted">Wallmounted</option>
+                <option value="leveled">Leveled</option>
+                <option value="regular">Regular</option>
+              </select>
             </div>
           </div>
 

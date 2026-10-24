@@ -5,6 +5,7 @@ import { ProjectStore } from '../../core/state/project.store';
 import { formatCoordinate } from '../../core/utils/fraction.utils';
 import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { NodeboxSlot, CONNECTED_SLOTS, WALLMOUNTED_SLOTS } from '../../core/models/nodebox.model';
 import {
   LucidePlus,
   LucideEye,
@@ -75,6 +76,38 @@ import {
           class="w-full bg-slate-950/80 border border-slate-700/80 rounded px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition" />
       </div>
 
+      <!-- Slot Filter (When connected or wallmounted) -->
+      @if (projectStore.project().nodeboxType === 'connected' || projectStore.project().nodeboxType === 'wallmounted') {
+        <div class="p-2 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between gap-1.5">
+          <div class="flex items-center gap-1 min-w-0 flex-1">
+            <span class="text-[10px] text-slate-400 font-semibold uppercase">Slot:</span>
+            <select
+              [ngModel]="slotFilter()"
+              (ngModelChange)="onSlotFilterChange($event)"
+              class="bg-slate-900 border border-slate-700/80 rounded px-1.5 py-0.5 text-xs text-sky-400 font-medium focus:outline-none flex-1 truncate">
+              <option value="all">All Slots</option>
+              @if (projectStore.project().nodeboxType === 'connected') {
+                @for (slot of connectedSlots; track slot) {
+                  <option [value]="slot">{{ slot }}</option>
+                }
+              } @else {
+                @for (slot of wallmountedSlots; track slot) {
+                  <option [value]="slot">{{ slot }}</option>
+                }
+              }
+            </select>
+          </div>
+          @if (canReplicate()) {
+            <button
+              (click)="replicateCurrentSlot()"
+              [appTooltip]="'Replicate to 4 Sides'"
+              class="px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded text-[10px] font-medium transition flex items-center gap-1 flex-shrink-0">
+              <span>↻ 4-Way</span>
+            </button>
+          }
+        </div>
+      }
+
       <!-- Box List -->
       <div
         (click)="onBackgroundClick($event)"
@@ -111,9 +144,16 @@ import {
                   (ngModelChange)="updateName(box.id, $event)"
                   (click)="$event.stopPropagation()"
                   class="bg-transparent text-xs font-medium text-slate-200 focus:bg-slate-950 px-1 py-0.5 rounded border border-transparent focus:border-slate-600 focus:outline-none w-full truncate" />
-                <div class="text-[10px] text-slate-400 font-mono pl-1">
-                  {{ formatCoord(box.minX) }}, {{ formatCoord(box.minY) }}, {{ formatCoord(box.minZ) }} &rarr;
-                  {{ formatCoord(box.maxX) }}, {{ formatCoord(box.maxY) }}, {{ formatCoord(box.maxZ) }}
+                <div class="flex items-center gap-1.5">
+                  <div class="text-[10px] text-slate-400 font-mono pl-1">
+                    {{ formatCoord(box.minX) }}, {{ formatCoord(box.minY) }}, {{ formatCoord(box.minZ) }} &rarr;
+                    {{ formatCoord(box.maxX) }}, {{ formatCoord(box.maxY) }}, {{ formatCoord(box.maxZ) }}
+                  </div>
+                  @if (projectStore.project().nodeboxType !== 'fixed') {
+                    <span class="bg-sky-950 text-sky-400 border border-sky-800/60 rounded px-1 py-0 text-[9px] font-mono">
+                      {{ box.slot || 'fixed' }}
+                    </span>
+                  }
                 </div>
               </div>
             </div>
@@ -187,13 +227,50 @@ import {
 export class LayerListComponent {
   public projectStore = inject(ProjectStore);
   public searchQuery = signal<string>('');
+  public slotFilter = signal<string>('all');
+  public connectedSlots = CONNECTED_SLOTS;
+  public wallmountedSlots = WALLMOUNTED_SLOTS;
 
   public filteredBoxes = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
-    const all = this.projectStore.boxes();
-    if (!q) return all;
-    return all.filter(b => b.name.toLowerCase().includes(q));
+    const slot = this.slotFilter();
+    let list = this.projectStore.boxes();
+    if (slot !== 'all') {
+      list = list.filter(b => (b.slot || 'fixed') === slot);
+    }
+    if (q) {
+      list = list.filter(b => b.name.toLowerCase().includes(q));
+    }
+    return list;
   });
+
+  onSlotFilterChange(slot: string): void {
+    this.slotFilter.set(slot);
+    if (slot !== 'all') {
+      this.projectStore.setActiveSlot(slot as NodeboxSlot);
+    }
+  }
+
+  canReplicate(): boolean {
+    if (this.projectStore.project().nodeboxType !== 'connected') return false;
+    const filter = this.slotFilter();
+    if (['connect_front', 'connect_back', 'connect_left', 'connect_right'].includes(filter)) return true;
+    const selected = this.projectStore.selectedBox();
+    return !!selected?.slot && ['connect_front', 'connect_back', 'connect_left', 'connect_right'].includes(selected.slot);
+  }
+
+  replicateCurrentSlot(): void {
+    type HorizontalSlot = 'connect_front' | 'connect_left' | 'connect_back' | 'connect_right';
+    const filter = this.slotFilter();
+    if (['connect_front', 'connect_back', 'connect_left', 'connect_right'].includes(filter)) {
+      this.projectStore.replicateSlotToSides(filter as HorizontalSlot);
+      return;
+    }
+    const selected = this.projectStore.selectedBox();
+    if (selected?.slot && ['connect_front', 'connect_back', 'connect_left', 'connect_right'].includes(selected.slot)) {
+      this.projectStore.replicateSlotToSides(selected.slot as HorizontalSlot);
+    }
+  }
 
   selectBox(id: string, event?: MouseEvent): void {
     event?.stopPropagation();

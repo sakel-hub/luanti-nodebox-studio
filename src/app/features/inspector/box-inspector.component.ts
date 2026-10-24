@@ -74,6 +74,49 @@ export type InputMode = 'grid' | 'fractions' | 'decimals';
             </button>
           </div>
 
+          <!-- Slot Assignment (When connected or wallmounted) -->
+          @if (projectStore.project().nodeboxType === 'connected' || projectStore.project().nodeboxType === 'wallmounted') {
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-semibold text-slate-400 uppercase tracking-wider">NodeBox Slot</span>
+                <span class="text-[10px] text-sky-400 font-mono font-medium">{{ box.slot || (projectStore.project().nodeboxType === 'wallmounted' ? 'wall_bottom' : 'fixed') }}</span>
+              </div>
+              <select
+                [ngModel]="box.slot || (projectStore.project().nodeboxType === 'wallmounted' ? 'wall_bottom' : 'fixed')"
+                (ngModelChange)="projectStore.setBoxSlot(box.id, $event)"
+                [disabled]="box.locked"
+                class="w-full bg-slate-900 border border-slate-700/80 rounded px-2 py-1.5 text-slate-200 text-xs font-mono focus:outline-none focus:border-sky-500 transition cursor-pointer">
+                @if (projectStore.project().nodeboxType === 'connected') {
+                  <optgroup label="Base">
+                    <option value="fixed">fixed (Always present)</option>
+                  </optgroup>
+                  <optgroup label="Connected Pieces">
+                    <option value="connect_top">connect_top (+Y)</option>
+                    <option value="connect_bottom">connect_bottom (-Y)</option>
+                    <option value="connect_front">connect_front (-Z)</option>
+                    <option value="connect_left">connect_left (-X)</option>
+                    <option value="connect_back">connect_back (+Z)</option>
+                    <option value="connect_right">connect_right (+X)</option>
+                  </optgroup>
+                  <optgroup label="Disconnected Fallbacks">
+                    <option value="disconnected_top">disconnected_top</option>
+                    <option value="disconnected_bottom">disconnected_bottom</option>
+                    <option value="disconnected_front">disconnected_front</option>
+                    <option value="disconnected_left">disconnected_left</option>
+                    <option value="disconnected_back">disconnected_back</option>
+                    <option value="disconnected_right">disconnected_right</option>
+                    <option value="disconnected_sides">disconnected_sides (None on 4 sides)</option>
+                    <option value="disconnected">disconnected (None connected)</option>
+                  </optgroup>
+                } @else {
+                  <option value="wall_bottom">wall_bottom (Attached to floor)</option>
+                  <option value="wall_top">wall_top (Attached to ceiling)</option>
+                  <option value="wall_side">wall_side (Attached to wall)</option>
+                }
+              </select>
+            </div>
+          }
+
           <!-- Coordinates Group -->
           <div class="space-y-3">
             <div class="text-[11px] font-semibold tracking-wider uppercase text-slate-400">
