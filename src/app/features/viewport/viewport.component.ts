@@ -90,7 +90,7 @@ import {
 
       <!-- Click-outside dismiss overlay for mobile menus -->
       @if (showMobileCameraMenu() || showMobileShadingMenu()) {
-        <div (click)="closeMobileMenus()" class="fixed inset-0 z-20"></div>
+        <div (click)="closeMobileMenus()" class="fixed inset-0 z-20 bg-black/25 backdrop-blur-xs"></div>
       }
 
       <!-- ========================================== -->
@@ -98,7 +98,7 @@ import {
       <!-- ========================================== -->
       @if (!projectStore.isRenderMode()) {
         <!-- Top Mobile Bar: Camera Preset (Left) & Shading/Helpers (Right) -->
-        <div class="flex lg:hidden absolute top-2.5 left-2.5 right-2.5 justify-between items-center pointer-events-none z-20">
+        <div class="flex lg:hidden absolute top-2.5 left-2.5 right-2.5 justify-between items-center pointer-events-none z-30">
           <!-- Camera Presets Dropdown Pill -->
           <div class="relative pointer-events-auto">
             <button
@@ -153,7 +153,7 @@ import {
             </button>
 
             @if (showMobileShadingMenu()) {
-              <div class="absolute top-11 right-0 w-48 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl p-2 z-30 flex flex-col gap-1.5 text-xs animate-sheet-up">
+              <div class="absolute top-11 right-0 w-56 bg-slate-900 border border-slate-700/90 rounded-xl shadow-2xl p-2 z-30 flex flex-col gap-1.5 text-xs animate-sheet-up">
                 <div class="text-[10px] font-semibold text-slate-400 px-1 uppercase tracking-wider">{{ 'viewport.shading' | translate }}</div>
                 <div class="grid grid-cols-3 gap-1">
                   <button
@@ -245,7 +245,7 @@ import {
         </div>
 
         <!-- Right Vertical Thumb Tool Rail (Gizmo Modes) -->
-        <div class="flex lg:hidden absolute top-1/2 -translate-y-1/2 right-2.5 flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-1 rounded-2xl shadow-2xl z-20">
+        <div class="flex lg:hidden absolute top-1/2 -translate-y-1/2 right-2.5 flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-1 rounded-2xl shadow-2xl z-10">
           <button
             (click)="setGizmo('position')"
             [class.bg-emerald-600]="sceneService.gizmoMode() === 'position'"
@@ -976,7 +976,7 @@ import {
         <div
           role="toolbar"
           [attr.aria-label]="'viewport.paint' | translate"
-          class="absolute bottom-3 lg:bottom-12 left-1/2 -translate-x-1/2 max-w-[96vw] bg-slate-900/95 backdrop-blur-md border border-sky-500/50 px-2.5 py-1.5 rounded-2xl shadow-2xl flex items-center gap-1.5 text-xs z-20 pointer-events-auto overflow-x-auto">
+          class="absolute bottom-3 lg:bottom-12 left-1/2 -translate-x-1/2 max-w-[96vw] bg-slate-900/95 backdrop-blur-md border border-sky-500/50 px-2.5 py-1.5 rounded-2xl shadow-2xl flex items-center gap-1.5 text-xs z-10 pointer-events-auto overflow-x-auto">
           <!-- Paint Tools -->
           <div class="flex items-center gap-1 pr-1.5 border-r border-slate-700/80">
             <button
@@ -1113,7 +1113,7 @@ import {
       <!-- NODEBOX SIMULATION / PREVIEW OVERLAY       -->
       <!-- ========================================== -->
       @if (!projectStore.isRenderMode() && projectStore.project().nodeboxType !== 'fixed') {
-        <div class="absolute top-14 lg:top-3 right-2.5 lg:right-3 flex flex-col items-end gap-1.5 z-20 pointer-events-auto">
+        <div class="absolute top-14 lg:top-3 right-2.5 lg:right-3 flex flex-col items-end gap-1.5 z-10 pointer-events-auto">
           <div class="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-2.5 py-1.5 rounded-lg shadow-xl text-xs text-slate-200">
             <!-- Mode indicator / Toggle -->
             <span class="font-semibold text-[11px] uppercase tracking-wider text-sky-400 flex items-center gap-1">
