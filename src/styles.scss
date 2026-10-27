@@ -30,7 +30,8 @@ app-header {
   display: block;
   width: 100%;
   flex-shrink: 0;
-  z-index: 20;
+  position: relative;
+  z-index: 25;
 }
 
 app-viewport {

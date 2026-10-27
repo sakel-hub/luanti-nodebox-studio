@@ -61,14 +61,15 @@ import { PwaUpdateService } from '../../core/services/pwa-update.service';
   ],
   host: {
     'class': 'block relative flex-shrink-0',
-    '[class.z-50]': 'showDesktopUpdatesMenu() || showMobileMenu()',
-    '[class.z-40]': '!showDesktopUpdatesMenu() && !showMobileMenu()'
+    '[class.z-[100]]': 'showMobileMenu()',
+    '[class.z-50]': 'showDesktopUpdatesMenu() && !showMobileMenu()',
+    '[style.z-index]': 'showMobileMenu() ? "100" : (showDesktopUpdatesMenu() ? "50" : "25")'
   },
   template: `
     <header
       style="padding-top: env(safe-area-inset-top, 0px); padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px));"
-      class="bg-slate-950 border-b border-slate-800 flex flex-col justify-start text-xs select-none relative flex-shrink-0 z-40"
-      [class.!z-50]="showDesktopUpdatesMenu() || showMobileMenu()">
+      class="bg-slate-950 border-b border-slate-800 flex flex-col justify-start text-xs select-none relative flex-shrink-0 z-20"
+      [class.!z-50]="showDesktopUpdatesMenu()">
       <div class="h-12 flex items-center justify-between w-full">
         <!-- ========================================== -->
         <!-- MOBILE HEADER BAR (< md)                   -->
@@ -460,14 +461,14 @@ import { PwaUpdateService } from '../../core/services/pwa-update.service';
       <!-- Backdrop -->
       <div
         (click)="closeMobileMenu()"
-        class="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 transition-opacity"></div>
+        class="fixed inset-0 bg-black/70 backdrop-blur-xs z-[90] transition-opacity"></div>
 
       <!-- Slide-in Drawer Container -->
       <div
         role="dialog"
         aria-modal="true"
         [attr.aria-label]="'header.menu' | translate"
-        class="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-menu-in">
+        class="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl z-[100] flex flex-col animate-menu-in">
         <!-- Drawer Header -->
         <div
           style="padding-top: env(safe-area-inset-top, 0px);"
