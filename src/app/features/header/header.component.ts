@@ -53,10 +53,13 @@ import {
     LucideExternalLink
   ],
   template: `
-    <header class="h-12 bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between text-xs select-none z-20 relative">
-      <!-- ========================================== -->
-      <!-- MOBILE HEADER BAR (< md)                   -->
-      <!-- ========================================== -->
+    <header
+      style="padding-top: env(safe-area-inset-top, 0px); padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px));"
+      class="bg-slate-950 border-b border-slate-800 flex flex-col justify-start text-xs select-none z-20 relative flex-shrink-0">
+      <div class="h-12 flex items-center justify-between w-full">
+        <!-- ========================================== -->
+        <!-- MOBILE HEADER BAR (< md)                   -->
+        <!-- ========================================== -->
       <div class="flex md:hidden items-center justify-between w-full">
         <!-- Mobile Logo & App Title -->
         <div class="flex items-center gap-2 min-w-0">
@@ -347,6 +350,7 @@ import {
           }
         </div>
       </div>
+      </div>
     </header>
 
     <!-- ========================================== -->
@@ -365,23 +369,29 @@ import {
         [attr.aria-label]="'header.menu' | translate"
         class="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-menu-in">
         <!-- Drawer Header -->
-        <div class="h-14 px-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-          <div class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded bg-sky-500 flex items-center justify-center text-white">
-              <svg lucideSettings class="w-3.5 h-3.5 text-white"></svg>
+        <div
+          style="padding-top: env(safe-area-inset-top, 0px);"
+          class="border-b border-slate-800 bg-slate-950 flex-shrink-0">
+          <div class="h-14 px-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded bg-sky-500 flex items-center justify-center text-white">
+                <svg lucideSettings class="w-3.5 h-3.5 text-white"></svg>
+              </div>
+              <span class="font-bold text-sm text-slate-100">{{ 'header.menu' | translate }}</span>
             </div>
-            <span class="font-bold text-sm text-slate-100">{{ 'header.menu' | translate }}</span>
+            <button
+              (click)="closeMobileMenu()"
+              [attr.aria-label]="'common.close' | translate"
+              class="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
+              <svg lucideX class="w-5 h-5"></svg>
+            </button>
           </div>
-          <button
-            (click)="closeMobileMenu()"
-            [attr.aria-label]="'common.close' | translate"
-            class="w-9 h-9 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
-            <svg lucideX class="w-5 h-5"></svg>
-          </button>
         </div>
 
         <!-- Drawer Body (Scrollable) -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-5 text-xs text-slate-200">
+        <div
+          style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));"
+          class="flex-1 overflow-y-auto p-4 space-y-5 text-xs text-slate-200">
           <!-- Language Selection -->
           <div class="space-y-1.5">
             <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Language / Jazyk</label>

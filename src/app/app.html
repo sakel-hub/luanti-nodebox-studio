@@ -1,4 +1,4 @@
-<div class="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans relative">
+<div class="fixed inset-0 flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans">
   <!-- Top App Navigation & Actions (Hidden in Render Mode) -->
   @if (!projectStore.isRenderMode()) {
     <app-header
@@ -28,7 +28,7 @@
     }
 
     <!-- Center Panel: Babylon.js 3D Viewport (Full width on Mobile / Render Mode) -->
-    <main class="flex-1 h-full min-w-0 relative">
+    <main class="flex-1 h-full min-h-0 min-w-0 relative">
       <app-viewport />
     </main>
 
@@ -103,7 +103,8 @@
         role="dialog"
         aria-modal="true"
         [attr.aria-label]="mobileSheetTitle()"
-        class="lg:hidden fixed inset-x-0 bottom-14 max-h-[82vh] h-[78vh] bg-slate-900 border-t border-slate-700/80 rounded-t-2xl shadow-2xl z-40 flex flex-col animate-sheet-up overflow-hidden pb-safe">
+        style="bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));"
+        class="lg:hidden fixed inset-x-0 max-h-[82vh] h-[78vh] bg-slate-900 border-t border-slate-700/80 rounded-t-2xl shadow-2xl z-40 flex flex-col animate-sheet-up overflow-hidden">
         
         <!-- Sheet Handle & Header Bar -->
         <div class="pt-2 px-4 pb-2 bg-slate-950/95 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
@@ -127,7 +128,9 @@
         </div>
 
         <!-- Sheet Content Body (Scrollable) -->
-        <div class="flex-1 overflow-y-auto min-h-0 bg-slate-900">
+        <div
+          style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));"
+          class="flex-1 overflow-y-auto min-h-0 bg-slate-900">
           @if (mobileSheetTab() === 'layers') {
             <app-layer-list />
           }
@@ -151,7 +154,10 @@
     <!-- ========================================== -->
     <nav
       aria-label="Mobile workspace navigation"
-      class="flex lg:hidden h-14 bg-slate-950 border-t border-slate-800 px-1 items-center justify-around text-[10px] select-none z-30 pb-safe flex-shrink-0">
+      style="height: calc(3.5rem + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: max(0.25rem, env(safe-area-inset-left, 0px)); padding-right: max(0.25rem, env(safe-area-inset-right, 0px));"
+      class="flex lg:hidden flex-col justify-start bg-slate-950 border-t border-slate-800 select-none z-30 flex-shrink-0">
+      
+      <div class="flex items-center justify-around w-full h-14 text-[10px]">
       
       <!-- 1. 3D View (Full Canvas) -->
       <button
@@ -220,6 +226,7 @@
         </svg>
         <span>{{ 'codeDrawer.exportTab' | translate }}</span>
       </button>
+      </div>
     </nav>
   }
 
