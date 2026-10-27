@@ -43,7 +43,14 @@ export const ru: TranslationDictionary = {
     github: 'Репозиторий GitHub',
     menu: 'Меню',
     resetConfirmTitle: 'Сбросить проект?',
-    resetConfirmMessage: 'Это действие удалит все боксы, текстуры и настройки. Несохранённые изменения будут утеряны.'
+    resetConfirmMessage: 'Это действие удалит все боксы, текстуры и настройки. Несохранённые изменения будут утеряны.',
+    updateAvailable: 'Доступна новая версия!',
+    updateNow: 'Обновить и перезагрузить',
+    checkForUpdates: 'Проверить обновления',
+    checkingUpdates: 'Проверка обновлений...',
+    upToDate: 'Приложение обновлено',
+    clearCache: 'Очистить кэш и перезагрузить',
+    clearCacheConfirm: 'Вы уверены? Это очистит оффлайн-кэш, удалит service worker и перезагрузит последнюю версию.'
   },
   viewport: {
     cameraAngles: 'Ракурсы камеры',

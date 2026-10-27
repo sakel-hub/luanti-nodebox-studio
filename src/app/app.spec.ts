@@ -7,10 +7,20 @@ import { KeyboardShortcutsService } from './core/services/keyboard-shortcuts.ser
 import { TextureService } from './core/services/texture.service';
 import { TexturePainterService } from './core/services/texture-painter.service';
 import { TranslationService } from './core/i18n/translation.service';
+import { PwaUpdateService } from './core/services/pwa-update.service';
 
 describe('App', () => {
+  const commonProviders = [
+    ProjectStore,
+    KeyboardShortcutsService,
+    TextureService,
+    TexturePainterService,
+    TranslationService,
+    PwaUpdateService
+  ];
+
   it('instantiates and initializes default panel state', () => {
-    const injector = createEnvironmentInjector([ProjectStore, KeyboardShortcutsService, TextureService, TexturePainterService, TranslationService], null as any);
+    const injector = createEnvironmentInjector(commonProviders, null as any);
     const app = runInInjectionContext(injector, () => new App());
     expect(app).toBeTruthy();
     expect(app.leftWidth()).toBeGreaterThan(0);
@@ -21,7 +31,7 @@ describe('App', () => {
   });
 
   it('manages mobile sheet navigation and synchronization with right panel', () => {
-    const injector = createEnvironmentInjector([ProjectStore, KeyboardShortcutsService, TextureService, TexturePainterService, TranslationService], null as any);
+    const injector = createEnvironmentInjector(commonProviders, null as any);
     const app = runInInjectionContext(injector, () => new App());
 
     // Open layers sheet
@@ -56,7 +66,7 @@ describe('App', () => {
   });
 
   it('closes mobile sheet when Escape key is pressed', () => {
-    const injector = createEnvironmentInjector([ProjectStore, KeyboardShortcutsService, TextureService, TexturePainterService, TranslationService], null as any);
+    const injector = createEnvironmentInjector(commonProviders, null as any);
     const app = runInInjectionContext(injector, () => new App());
 
     app.openMobileTab('inspector');

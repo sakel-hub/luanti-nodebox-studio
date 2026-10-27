@@ -43,7 +43,14 @@ export const fr: TranslationDictionary = {
     github: 'Dépôt GitHub',
     menu: 'Menu',
     resetConfirmTitle: 'Réinitialiser le projet ?',
-    resetConfirmMessage: 'Cette action réinitialisera toutes les boîtes, textures et paramètres. Les modifications non enregistrées seront perdues.'
+    resetConfirmMessage: 'Cette action réinitialisera toutes les boîtes, textures et paramètres. Les modifications non enregistrées seront perdues.',
+    updateAvailable: 'Nouvelle version disponible !',
+    updateNow: 'Mettre à jour et recharger',
+    checkForUpdates: 'Vérifier les mises à jour',
+    checkingUpdates: 'Vérification des mises à jour...',
+    upToDate: 'L\'application est à jour',
+    clearCache: 'Vider le cache et recharger',
+    clearCacheConfirm: 'Êtes-vous sûr ? Cela effacera les caches hors ligne, désinscrira le service worker et rechargera la dernière version.'
   },
   viewport: {
     cameraAngles: 'Angles de caméra',

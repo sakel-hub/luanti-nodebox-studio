@@ -6,6 +6,7 @@ import { ProjectStore } from '../../core/state/project.store';
 import { KeyboardShortcutsService } from '../../core/services/keyboard-shortcuts.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TranslationService } from '../../core/i18n/translation.service';
+import { PwaUpdateService } from '../../core/services/pwa-update.service';
 
 describe('HeaderComponent', () => {
   let component: HeaderComponent;
@@ -15,7 +16,8 @@ describe('HeaderComponent', () => {
       ProjectStore,
       KeyboardShortcutsService,
       ThemeService,
-      TranslationService
+      TranslationService,
+      PwaUpdateService
     ], null as any);
     component = runInInjectionContext(injector, () => new HeaderComponent());
   });
@@ -32,6 +34,15 @@ describe('HeaderComponent', () => {
 
     component.closeMobileMenu();
     expect(component.showMobileMenu()).toBe(false);
+  });
+
+  it('should toggle and close desktop updates menu', () => {
+    expect(component.showDesktopUpdatesMenu()).toBe(false);
+    component.toggleDesktopUpdatesMenu();
+    expect(component.showDesktopUpdatesMenu()).toBe(true);
+
+    component.closeDesktopUpdatesMenu();
+    expect(component.showDesktopUpdatesMenu()).toBe(false);
   });
 
   it('should emit openHelp and openShare events', () => {

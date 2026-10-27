@@ -43,7 +43,14 @@ export const en: TranslationDictionary = {
     github: 'GitHub Repository',
     menu: 'Menu',
     resetConfirmTitle: 'Reset Project?',
-    resetConfirmMessage: 'This will reset all nodeboxes, textures, and settings to a blank project. Unsaved changes will be lost.'
+    resetConfirmMessage: 'This will reset all nodeboxes, textures, and settings to a blank project. Unsaved changes will be lost.',
+    updateAvailable: 'New version available!',
+    updateNow: 'Update & Reload',
+    checkForUpdates: 'Check for Updates',
+    checkingUpdates: 'Checking for updates...',
+    upToDate: 'App is up to date',
+    clearCache: 'Clear Cache & Reload',
+    clearCacheConfirm: 'Are you sure? This will clear offline caches, unregister service workers, and reload the latest version.'
   },
   viewport: {
     cameraAngles: 'Camera Angles',

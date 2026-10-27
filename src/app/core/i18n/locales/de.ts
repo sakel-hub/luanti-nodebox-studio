@@ -43,7 +43,14 @@ export const de: TranslationDictionary = {
     github: 'GitHub-Repository',
     menu: 'Menü',
     resetConfirmTitle: 'Projekt zurücksetzen?',
-    resetConfirmMessage: 'Dies setzt alle Boxen, Texturen und Einstellungen auf ein leeres Projekt zurück. Nicht gespeicherte Änderungen gehen verloren.'
+    resetConfirmMessage: 'Dies setzt alle Boxen, Texturen und Einstellungen auf ein leeres Projekt zurück. Nicht gespeicherte Änderungen gehen verloren.',
+    updateAvailable: 'Neue Version verfügbar!',
+    updateNow: 'Aktualisieren & Neu laden',
+    checkForUpdates: 'Nach Updates suchen',
+    checkingUpdates: 'Suche nach Updates...',
+    upToDate: 'App ist auf dem neuesten Stand',
+    clearCache: 'Cache leeren & Neu laden',
+    clearCacheConfirm: 'Sind Sie sicher? Dadurch wird der Offline-Cache geleert, der Service Worker abgemeldet und die neueste Version neu geladen.'
   },
   viewport: {
     cameraAngles: 'Kamerawinkel',

@@ -43,7 +43,14 @@ export const sk: TranslationDictionary = {
     github: 'GitHub repozitár',
     menu: 'Menu',
     resetConfirmTitle: 'Resetovať projekt?',
-    resetConfirmMessage: 'Týmto sa vymažú všetky boxy, textúry a nastavenia. Neuložené zmeny budú stratené.'
+    resetConfirmMessage: 'Týmto sa vymažú všetky boxy, textúry a nastavenia. Neuložené zmeny budú stratené.',
+    updateAvailable: 'K dispozícii je nová verzia!',
+    updateNow: 'Aktualizovať a načítať',
+    checkForUpdates: 'Skontrolovať aktualizácie',
+    checkingUpdates: 'Kontrolujem aktualizácie...',
+    upToDate: 'Aplikácia je aktuálna',
+    clearCache: 'Vymazať vyrovnávaciu pamäť a načítať',
+    clearCacheConfirm: 'Naozaj? Týmto sa vymaže offline vyrovnávacia pamäť, odregistrujú servisné procesy a načíta sa najnovšia verzia.'
   },
   viewport: {
     cameraAngles: 'Uhly kamery',

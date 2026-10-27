@@ -15,6 +15,8 @@ import { KeyboardShortcutsService } from './core/services/keyboard-shortcuts.ser
 import { TexturePainterService } from './core/services/texture-painter.service';
 import { TranslationService } from './core/i18n/translation.service';
 import { TranslatePipe } from './core/i18n/translate.pipe';
+import { PwaUpdateService } from './core/services/pwa-update.service';
+import { LucideSparkles, LucideRefreshCw, LucideX } from '@lucide/angular';
 import { safeGetItem, safeSetItem } from './core/utils/storage.utils';
 
 export type RightTab = 'inspector' | 'textures';
@@ -36,7 +38,10 @@ export type MobileTab = 'none' | 'layers' | 'inspector' | 'textures' | 'code';
     ShortcutsDialogComponent,
     HelpDialogComponent,
     ShareDialogComponent,
-    TranslatePipe
+    TranslatePipe,
+    LucideSparkles,
+    LucideRefreshCw,
+    LucideX
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.scss']
@@ -46,6 +51,7 @@ export class App {
   public keyboardShortcuts = inject(KeyboardShortcutsService);
   public painterService = inject(TexturePainterService);
   public translation = inject(TranslationService);
+  public pwaUpdateService = inject(PwaUpdateService);
   public activeRightTab = signal<RightTab>('inspector');
   public showPresetsModal = signal<boolean>(false);
   public showHelpModal = signal<boolean>(false);

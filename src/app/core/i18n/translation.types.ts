@@ -60,6 +60,13 @@ export interface TranslationDictionary {
     menu: string;
     resetConfirmTitle: string;
     resetConfirmMessage: string;
+    updateAvailable: string;
+    updateNow: string;
+    checkForUpdates: string;
+    checkingUpdates: string;
+    upToDate: string;
+    clearCache: string;
+    clearCacheConfirm: string;
   };
   viewport: {
     cameraAngles: string;

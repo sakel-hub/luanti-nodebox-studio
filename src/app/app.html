@@ -1,4 +1,35 @@
 <div class="fixed inset-0 flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans">
+  <!-- PWA New Version Available Floating Toast Banner -->
+  @if (pwaUpdateService.updateAvailable()) {
+    <div
+      role="alert"
+      class="fixed top-3 lg:top-4 left-1/2 -translate-x-1/2 z-[100] max-w-[92vw] sm:max-w-md w-full bg-slate-900/95 backdrop-blur-md border border-sky-500/80 rounded-2xl shadow-2xl p-3 flex items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-4 duration-300">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center flex-shrink-0 text-sky-400">
+          <svg lucideSparkles class="w-4 h-4"></svg>
+        </div>
+        <div class="min-w-0">
+          <div class="font-semibold text-white truncate">{{ 'header.updateAvailable' | translate }}</div>
+          <div class="text-[11px] text-slate-400 truncate">Reload to run the latest version.</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button
+          (click)="pwaUpdateService.activateUpdate()"
+          class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs shadow-md transition active:scale-95 flex items-center gap-1">
+          <svg lucideRefreshCw class="w-3.5 h-3.5"></svg>
+          <span>{{ 'header.updateNow' | translate }}</span>
+        </button>
+        <button
+          (click)="pwaUpdateService.dismissBanner()"
+          [attr.aria-label]="'common.close' | translate"
+          class="w-7 h-7 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <svg lucideX class="w-4 h-4"></svg>
+        </button>
+      </div>
+    </div>
+  }
+
   <!-- Top App Navigation & Actions (Hidden in Render Mode) -->
   @if (!projectStore.isRenderMode()) {
     <app-header
