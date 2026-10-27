@@ -59,10 +59,16 @@ import { PwaUpdateService } from '../../core/services/pwa-update.service';
     LucideSparkles,
     LucideTrash2
   ],
+  host: {
+    'class': 'block relative flex-shrink-0',
+    '[class.z-50]': 'showDesktopUpdatesMenu() || showMobileMenu()',
+    '[class.z-40]': '!showDesktopUpdatesMenu() && !showMobileMenu()'
+  },
   template: `
     <header
       style="padding-top: env(safe-area-inset-top, 0px); padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px));"
-      class="bg-slate-950 border-b border-slate-800 flex flex-col justify-start text-xs select-none z-20 relative flex-shrink-0">
+      class="bg-slate-950 border-b border-slate-800 flex flex-col justify-start text-xs select-none relative flex-shrink-0 z-40"
+      [class.!z-50]="showDesktopUpdatesMenu() || showMobileMenu()">
       <div class="h-12 flex items-center justify-between w-full">
         <!-- ========================================== -->
         <!-- MOBILE HEADER BAR (< md)                   -->
@@ -347,7 +353,7 @@ import { PwaUpdateService } from '../../core/services/pwa-update.service';
           </button>
 
           <!-- App Updates & Cache Menu (Desktop) -->
-          <div class="relative">
+          <div class="relative z-50">
             <button
               (click)="toggleDesktopUpdatesMenu()"
               [appTooltip]="'header.checkForUpdates' | translate"

@@ -10,7 +10,7 @@ import { LucideX } from '@lucide/angular';
   standalone: true,
   imports: [CommonModule, LucideX],
   template: `
-    <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
         <!-- Header -->
         <div class="p-4 border-b border-slate-800 flex items-center justify-between">
